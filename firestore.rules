@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is a manager
+    function isManager() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
+    }
+    
+    // Helper function to check if user is a supplier
+    function isSupplier() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supplier';
+    }
+
+    // Users collection
+    match /users/{userId} {
+      // Allow demo user creation without authentication (for testing)
+      allow create: if true;
+      
+      // Users can read and write their own data
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Managers can read all users
+      allow read: if isManager();
+      
+      // Allow reading user data for role checks (needed for helper functions)
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Tickets collection
+    match /tickets/{ticketId} {
+      // Anyone authenticated can read tickets
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create tickets
+      allow create: if isAuthenticated();
+      
+      // Users can update tickets they created, or managers can update any
+      allow update: if isAuthenticated() && (
+        resource.data.requestedBy == request.auth.uid ||
+        isManager()
+      );
+      
+      // Only managers can delete tickets
+      allow delete: if isManager();
+    }
+    
+    // Suppliers collection
+    match /suppliers/{supplierId} {
+      // Anyone authenticated can read suppliers
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create suppliers (for testing)
+      allow create: if isAuthenticated();
+      
+      // Only managers can update and delete suppliers
+      allow update, delete: if isManager();
+    }
+    
+    // Quotes collection
+    match /quotes/{quoteId} {
+      // Anyone authenticated can read quotes
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create quotes
+      allow create: if isAuthenticated();
+      
+      // Only managers can update and delete quotes
+      allow update, delete: if isManager();
+    }
+    
+    // Building events collection
+    match /buildingEvents/{eventId} {
+      // Anyone authenticated can read events
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create events (for testing)
+      allow create: if isAuthenticated();
+      
+      // Users can update events they created, or managers can update any
+      allow update: if isAuthenticated() && (
+        resource.data.assignedTo[request.auth.uid] != null ||
+        isManager()
+      );
+      
+      // Only managers can delete events
+      allow delete: if isManager();
+    }
+    
+    // Test collection (for Firebase connection testing)
+    match /test/{testId} {
+      // Anyone authenticated can read and write test documents
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
