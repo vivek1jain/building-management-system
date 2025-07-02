@@ -30,8 +30,6 @@ import { useNotifications } from '../contexts/NotificationContext'
 import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent } from '../types'
 import QuoteComparison from '../components/Quotes/QuoteComparison'
 import ScheduleModal from '../components/Scheduling/ScheduleModal'
-import { doc, setDoc } from 'firebase/firestore'
-import { db } from '../firebase/config'
 
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>()
