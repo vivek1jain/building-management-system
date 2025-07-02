@@ -1,101 +1,96 @@
-import { useState, useEffect } from 'react'
-import { auth } from '../firebase/config'
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth'
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
+import { addSampleSuppliers } from '../utils/sampleData'
+import { supplierService } from '../services/supplierService'
+import { Supplier } from '../types'
 
 const TestFirebase = () => {
-  const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
-  const [message, setMessage] = useState('')
-  const [authStatus, setAuthStatus] = useState<'unknown' | 'connected' | 'disconnected'>('unknown')
+  const { currentUser } = useAuth()
+  const { addNotification } = useNotifications()
+  const [isConnected, setIsConnected] = useState(false)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Test Firebase Auth connection
-    const unsubscribe = onAuthStateChanged(auth, 
-      (user) => {
-        console.log('Auth state changed:', user ? 'User logged in' : 'No user')
-        setAuthStatus('connected')
-      },
-      (error) => {
-        console.error('Auth state error:', error)
-        setAuthStatus('disconnected')
-        setMessage(`Auth Error: ${error.message}`)
+    // Test Firebase connection
+    const testConnection = async () => {
+      try {
+        // Try to read from Firestore
+        const suppliersData = await supplierService.getSuppliers()
+        setIsConnected(true)
+        setSuppliers(suppliersData)
+        console.log('Firebase connection successful')
+      } catch (error) {
+        setIsConnected(false)
+        console.error('Firebase connection failed:', error)
       }
-    )
+    }
 
-    return () => unsubscribe()
+    testConnection()
   }, [])
 
-  const testFirebaseConnection = async () => {
-    setStatus('testing')
-    setMessage('Testing Firebase connection...')
-
+  const handleAddSampleSuppliers = async () => {
+    setLoading(true)
     try {
-      // Test anonymous authentication (simplest test)
-      console.log('Testing Firebase Auth connection...')
-      const result = await signInAnonymously(auth)
-      console.log('Anonymous auth successful:', result.user.uid)
-      
-      setStatus('success')
-      setMessage('Firebase connection successful! Anonymous auth working.')
-      
-      // Sign out after test
-      await auth.signOut()
-      
-    } catch (error: any) {
-      console.error('Firebase test error:', error)
-      setStatus('error')
-      
-      if (error.code === 'auth/operation-not-allowed') {
-        setMessage('Error: Anonymous authentication is not enabled in Firebase console. Please enable it in Authentication > Sign-in methods.')
-      } else if (error.code === 'auth/network-request-failed') {
-        setMessage('Error: Network connection failed. Check your internet connection.')
-      } else if (error.code === 'auth/invalid-api-key') {
-        setMessage('Error: Invalid API key. Check your Firebase configuration.')
-      } else {
-        setMessage(`Firebase Error: ${error.message} (Code: ${error.code})`)
-      }
+      await addSampleSuppliers()
+      const updatedSuppliers = await supplierService.getSuppliers()
+      setSuppliers(updatedSuppliers)
+      addNotification({
+        title: 'Success',
+        message: 'Sample suppliers added successfully!',
+        type: 'success',
+        userId: currentUser?.id || ''
+      })
+    } catch (error) {
+      console.error('Error adding sample suppliers:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to add sample suppliers',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Firebase Connection Test</h3>
+    <div className="card">
+      <h3 className="text-lg font-medium text-gray-900 mb-4">Firebase Connection Test</h3>
       
       <div className="space-y-4">
         <div className="flex items-center space-x-2">
-          <span className="text-sm font-medium text-gray-700">Auth Status:</span>
-          <span className={`px-2 py-1 text-xs rounded-full ${
-            authStatus === 'connected' ? 'bg-green-100 text-green-800' :
-            authStatus === 'disconnected' ? 'bg-red-100 text-red-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {authStatus === 'connected' ? 'Connected' :
-             authStatus === 'disconnected' ? 'Disconnected' : 'Unknown'}
+          <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+          <span className="text-sm font-medium">
+            {isConnected ? 'Connected to Firebase' : 'Not connected to Firebase'}
           </span>
         </div>
 
+        <div className="text-sm text-gray-600">
+          <p>Suppliers in database: {suppliers.length}</p>
+        </div>
+
         <button
-          onClick={testFirebaseConnection}
-          disabled={status === 'testing'}
-          className="btn-primary px-4 py-2 text-sm"
+          onClick={handleAddSampleSuppliers}
+          disabled={loading}
+          className="btn-primary flex items-center"
         >
-          {status === 'testing' ? 'Testing...' : 'Test Firebase Connection'}
+          {loading ? 'Adding...' : 'Add Sample Suppliers'}
         </button>
 
-        {message && (
-          <div className={`p-3 rounded-md text-sm ${
-            status === 'success' ? 'bg-green-50 text-green-800 border border-green-200' :
-            status === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
-            'bg-blue-50 text-blue-800 border border-blue-200'
-          }`}>
-            {message}
+        {suppliers.length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Current Suppliers:</h4>
+            <div className="space-y-2">
+              {suppliers.map((supplier) => (
+                <div key={supplier.id} className="text-sm text-gray-600">
+                  {supplier.name} - {supplier.companyName}
+                </div>
+              ))}
+            </div>
           </div>
         )}
-
-        <div className="text-xs text-gray-500 space-y-1">
-          <p>• This tests Firebase Authentication connection</p>
-          <p>• If you see 400 errors, check Firebase console settings</p>
-          <p>• Ensure Authentication is enabled in your Firebase project</p>
-        </div>
       </div>
     </div>
   )
