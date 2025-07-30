@@ -2,7 +2,7 @@
 
 describe('Building Management System - Regression Test Pack', () => {
   beforeEach(() => {
-    cy.visit('http://localhost:3005')
+    cy.visit('/')
   })
 
   describe('Critical Path Regression Tests', () => {
@@ -83,11 +83,11 @@ describe('Building Management System - Regression Test Pack', () => {
   describe('Authentication Regression Tests', () => {
     it('should prevent access to protected routes without authentication', () => {
       // Try to access dashboard directly
-      cy.visit('http://localhost:3005/dashboard')
+      cy.visit('/dashboard')
       cy.url().should('include', '/login')
       
       // Try to access tickets directly
-      cy.visit('http://localhost:3005/tickets')
+      cy.visit('/tickets')
       cy.url().should('include', '/login')
     })
 
@@ -116,7 +116,7 @@ describe('Building Management System - Regression Test Pack', () => {
       cy.get('[data-testid="logout-button"]').click()
       
       // Try to access protected route
-      cy.visit('http://localhost:3005/dashboard')
+      cy.visit('/dashboard')
       cy.url().should('include', '/login')
     })
   })

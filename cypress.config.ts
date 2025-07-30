@@ -2,7 +2,7 @@ import { defineConfig } from 'cypress'
 
 export default defineConfig({
   e2e: {
-    baseUrl: 'http://localhost:3005',
+    baseUrl: 'http://localhost:3003',
     viewportWidth: 1920,
     viewportHeight: 1080,
     video: true,
@@ -48,7 +48,7 @@ export default defineConfig({
       FINANCE_USER_PASSWORD: 'finance123',
       
       // API endpoints
-      API_BASE_URL: 'http://localhost:3005/api',
+      API_BASE_URL: 'http://localhost:3003/api',
       
       // Test data
       TEST_BUILDING_NAME: 'Test Building',
@@ -80,20 +80,7 @@ export default defineConfig({
   videosFolder: 'cypress/videos',
   
   // Reporter configuration
-  reporter: 'cypress-multi-reporters',
-  reporterOptions: {
-    reporterEnabled: 'mochawesome, mocha-junit-reporter',
-    mochawesomeReporterOptions: {
-      reportDir: 'cypress/reports',
-      overwrite: false,
-      html: false,
-      json: true,
-      timestamp: 'mmddyyyy_HHMMss'
-    },
-    mochaJunitReporterReporterOptions: {
-      mochaFile: 'cypress/reports/results-[hash].xml'
-    }
-  },
+  reporter: 'spec',
 
   // Note: Performance and accessibility testing can be implemented
   // through custom commands or plugins if needed

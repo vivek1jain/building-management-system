@@ -3,7 +3,7 @@
 describe('Building Management System - Baseline Test Suite', () => {
   beforeEach(() => {
     // Visit the application and ensure we're on the login page
-    cy.visit('http://localhost:3005')
+    cy.visit('/')
     cy.url().should('include', '/login')
   })
 
@@ -464,7 +464,7 @@ describe('Building Management System - Baseline Test Suite', () => {
 
     it('should load dashboard within 3 seconds', () => {
       const startTime = Date.now()
-      cy.visit('http://localhost:3005/dashboard')
+      cy.visit('/dashboard')
       cy.get('[data-testid="dashboard"]').should('be.visible')
       const loadTime = Date.now() - startTime
       expect(loadTime).to.be.lessThan(3000)
