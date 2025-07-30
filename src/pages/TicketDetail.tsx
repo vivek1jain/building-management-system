@@ -30,6 +30,7 @@ import { useNotifications } from '../contexts/NotificationContext'
 import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent } from '../types'
 import QuoteComparison from '../components/Quotes/QuoteComparison'
 import ScheduleModal from '../components/Scheduling/ScheduleModal'
+import EmailNotification from '../components/EmailNotification'
 
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -186,6 +187,8 @@ const TicketDetail = () => {
 
   const handleRequestQuotes = () => {
     console.log('Request Quotes button clicked')
+    console.log('Current suppliers state:', suppliers)
+    console.log('Current supplierLoading state:', supplierLoading)
     setShowSupplierModal(true)
     loadSuppliers()
   }
@@ -196,6 +199,7 @@ const TicketDetail = () => {
     try {
       const suppliersData = await supplierService.getSuppliers()
       console.log('Suppliers loaded:', suppliersData.length)
+      console.log('Suppliers data:', suppliersData)
       setSuppliers(suppliersData)
     } catch (error) {
       console.error('Error loading suppliers:', error)
@@ -476,6 +480,9 @@ const TicketDetail = () => {
               ))}
             </div>
           </div>
+
+          {/* Email Notifications */}
+          <EmailNotification ticketId={ticket.id} />
         </div>
 
         {/* Sidebar */}
@@ -553,15 +560,18 @@ const TicketDetail = () => {
               </button>
             </div>
           </div>
+
+          {/* Email Notifications */}
+          <EmailNotification ticketId={ticket.id} />
         </div>
       </div>
 
       {/* Supplier Selection Modal */}
       {showSupplierModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
               <div>
                 <h2 className="text-xl font-semibold text-gray-900">Request Quotes from Suppliers</h2>
                 <p className="text-sm text-gray-600 mt-1">
@@ -577,7 +587,7 @@ const TicketDetail = () => {
             </div>
 
             {/* Filters */}
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 flex-shrink-0">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -611,8 +621,8 @@ const TicketDetail = () => {
               </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            {/* Content - Scrollable Area */}
+            <div className="flex-1 overflow-y-auto p-6 min-h-0">
               {supplierLoading ? (
                 <div className="flex items-center justify-center h-64">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
@@ -693,8 +703,8 @@ const TicketDetail = () => {
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between p-6 border-t border-gray-200">
+            {/* Footer - Always Visible */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-200 flex-shrink-0 bg-white">
               <div className="text-sm text-gray-600">
                 {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
               </div>

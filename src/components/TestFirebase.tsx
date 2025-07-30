@@ -4,6 +4,8 @@ import { useNotifications } from '../contexts/NotificationContext'
 import { addSampleSuppliers } from '../utils/sampleData'
 import { supplierService } from '../services/supplierService'
 import { Supplier } from '../types'
+import { collection, getDocs, doc, updateDoc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 
 const TestFirebase = () => {
   const { currentUser } = useAuth()
@@ -11,6 +13,7 @@ const TestFirebase = () => {
   const [isConnected, setIsConnected] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(false)
+  const [updatingEmails, setUpdatingEmails] = useState(false)
 
   useEffect(() => {
     // Test Firebase connection
@@ -55,6 +58,56 @@ const TestFirebase = () => {
     }
   }
 
+  const handleUpdateSupplierEmails = async () => {
+    setUpdatingEmails(true)
+    try {
+      console.log('Updating all supplier emails to admin@sidesix.co.uk...')
+      
+      const suppliersCollection = collection(db, 'suppliers')
+      const querySnapshot = await getDocs(suppliersCollection)
+      
+      let updatedCount = 0
+      
+      for (const supplierDoc of querySnapshot.docs) {
+        const supplierData = supplierDoc.data()
+        
+        // Only update if email is different
+        if (supplierData.email !== 'admin@sidesix.co.uk') {
+          await updateDoc(doc(suppliersCollection, supplierDoc.id), {
+            email: 'admin@sidesix.co.uk',
+            updatedAt: new Date()
+          })
+          
+          console.log(`Updated supplier: ${supplierData.name} (${supplierData.companyName})`)
+          updatedCount++
+        }
+      }
+      
+      // Refresh suppliers list
+      const updatedSuppliers = await supplierService.getSuppliers()
+      setSuppliers(updatedSuppliers)
+      
+      addNotification({
+        title: 'Success',
+        message: `Updated ${updatedCount} supplier emails to admin@sidesix.co.uk`,
+        type: 'success',
+        userId: currentUser?.id || ''
+      })
+      
+      console.log(`✅ Successfully updated ${updatedCount} supplier emails`)
+    } catch (error) {
+      console.error('Error updating supplier emails:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update supplier emails',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setUpdatingEmails(false)
+    }
+  }
+
   return (
     <div className="card">
       <h3 className="text-lg font-medium text-gray-900 mb-4">Firebase Connection Test</h3>
@@ -71,13 +124,23 @@ const TestFirebase = () => {
           <p>Suppliers in database: {suppliers.length}</p>
         </div>
 
-        <button
-          onClick={handleAddSampleSuppliers}
-          disabled={loading}
-          className="btn-primary flex items-center"
-        >
-          {loading ? 'Adding...' : 'Add Sample Suppliers'}
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={handleAddSampleSuppliers}
+            disabled={loading}
+            className="btn-primary flex items-center"
+          >
+            {loading ? 'Adding...' : 'Add Sample Suppliers'}
+          </button>
+
+          <button
+            onClick={handleUpdateSupplierEmails}
+            disabled={updatingEmails}
+            className="btn-secondary flex items-center"
+          >
+            {updatingEmails ? 'Updating...' : 'Update All Emails to admin@sidesix.co.uk'}
+          </button>
+        </div>
 
         {suppliers.length > 0 && (
           <div className="mt-4">
@@ -85,7 +148,7 @@ const TestFirebase = () => {
             <div className="space-y-2">
               {suppliers.map((supplier) => (
                 <div key={supplier.id} className="text-sm text-gray-600">
-                  {supplier.name} - {supplier.companyName}
+                  {supplier.name} - {supplier.companyName} - {supplier.email}
                 </div>
               ))}
             </div>

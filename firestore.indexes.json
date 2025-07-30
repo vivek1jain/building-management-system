@@ -66,17 +66,18 @@
         }
       ]
     },
+
     {
-      "collectionGroup": "buildingEvents",
+      "collectionGroup": "budgets",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "startDate",
+          "fieldPath": "buildingId",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "startDate",
-          "order": "ASCENDING"
+          "fieldPath": "year",
+          "order": "DESCENDING"
         }
       ]
     }

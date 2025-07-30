@@ -53,13 +53,10 @@ service cloud.firestore {
       allow delete: if isManager();
     }
     
-    // Suppliers collection
+    // Suppliers collection - TEMPORARILY RELAXED FOR DEVELOPMENT
     match /suppliers/{supplierId} {
-      // Anyone authenticated can read suppliers
-      allow read: if isAuthenticated();
-      
-      // Anyone authenticated can create suppliers (for testing)
-      allow create: if isAuthenticated();
+      // Allow read and create for development (will be restricted in production)
+      allow read, create: if true;
       
       // Only managers can update and delete suppliers
       allow update, delete: if isManager();
@@ -93,6 +90,228 @@ service cloud.firestore {
       
       // Only managers can delete events
       allow delete: if isManager();
+    }
+    
+    // Budgets collection
+    match /budgets/{budgetId} {
+      // Anyone authenticated can read budgets
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update budgets
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete budgets
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Budget categories collection
+    match /budgetCategories/{categoryId} {
+      // Anyone authenticated can read budget categories
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update budget categories
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete budget categories
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Expenses collection
+    match /expenses/{expenseId} {
+      // Anyone authenticated can read expenses
+      allow read: if isAuthenticated();
+      
+      // Managers and finance users can create and update expenses
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      
+      // Only admins can delete expenses
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Invoices collection
+    match /invoices/{invoiceId} {
+      // Anyone authenticated can read invoices
+      allow read: if isAuthenticated();
+      
+      // Managers and finance users can create and update invoices
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      
+      // Only admins can delete invoices
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Buildings collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    match /buildings/{buildingId} {
+      // Anyone authenticated can read buildings
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create and update buildings for development
+      allow create, update: if isAuthenticated();
+      
+      // Only admins can delete buildings
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Assets collection
+    match /assets/{assetId} {
+      // Anyone authenticated can read assets
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update assets
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete assets
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Meters collection
+    match /meters/{meterId} {
+      // Anyone authenticated can read meters
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update meters
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete meters
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Income collection - NEW
+    match /income/{incomeId} {
+      // Anyone authenticated can read income entries
+      allow read: if isAuthenticated();
+      
+      // Managers and finance users can create and update income entries
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      
+      // Only admins can delete income entries
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Expenditure collection - NEW
+    match /expenditure/{expenditureId} {
+      // Anyone authenticated can read expenditure entries
+      allow read: if isAuthenticated();
+      
+      // Managers and finance users can create and update expenditure entries
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      
+      // Only admins can delete expenditure entries
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Service Charge Demands collection - NEW
+    match /serviceChargeDemands/{demandId} {
+      // Anyone authenticated can read service charge demands
+      allow read: if isAuthenticated();
+      
+      // Managers and finance users can create and update service charge demands
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      
+      // Only admins can delete service charge demands
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reminders collection - NEW
+    match /reminders/{reminderId} {
+      // Anyone authenticated can read reminders
+      allow read: if isAuthenticated();
+      
+      // Managers and finance users can create and update reminders
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      
+      // Only admins can delete reminders
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Flats collection - NEW
+    match /flats/{flatId} {
+      // Anyone authenticated can read flats
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update flats
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete flats
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Work Orders collection - NEW
+    match /workOrders/{workOrderId} {
+      // Anyone authenticated can read work orders
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update work orders
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete work orders
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // People collection - NEW
+    match /people/{personId} {
+      // Anyone authenticated can read people
+      allow read: if isAuthenticated();
+      
+      // Managers and admins can create and update people
+      allow create, update: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      
+      // Only admins can delete people
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // Test collection (for Firebase connection testing)

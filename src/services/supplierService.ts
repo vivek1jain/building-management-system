@@ -113,6 +113,14 @@ class SupplierService {
   // Request quotes from suppliers
   async requestQuotes(ticketId: string, supplierIds: string[], requestedBy: string): Promise<void> {
     try {
+      // Get ticket details for email
+      const ticketDoc = await getDoc(doc(collection(db, 'tickets'), ticketId))
+      const ticket = ticketDoc.data()
+      
+      if (!ticket) {
+        throw new Error('Ticket not found')
+      }
+
       const quoteRequests = supplierIds.map(supplierId => ({
         ticketId,
         supplierId,
@@ -122,9 +130,34 @@ class SupplierService {
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days from now
       }))
 
-      // Add quote requests to Firestore
+      // Add quote requests to Firestore and send emails
       for (const request of quoteRequests) {
-        await addDoc(this.quotesCollection, request)
+        const quoteDoc = await addDoc(this.quotesCollection, request)
+        
+        // Get supplier details for email
+        const supplierDoc = await getDoc(doc(this.suppliersCollection, request.supplierId))
+        const supplier = supplierDoc.data()
+        
+        if (supplier) {
+          // Import email service dynamically to avoid circular dependencies
+          const { emailService } = await import('./emailService')
+          
+          const emailData = {
+            ticketId,
+            supplierId: request.supplierId,
+            supplierEmail: supplier.email,
+            supplierName: supplier.name,
+            ticketTitle: ticket.title,
+            ticketDescription: ticket.description,
+            ticketLocation: ticket.location,
+            ticketUrgency: ticket.urgency,
+            requestedBy,
+            expiresAt: request.expiresAt
+          }
+          
+          // Send email (this will be handled by Cloud Functions in production)
+          await emailService.sendQuoteRequestEmail(emailData)
+        }
       }
     } catch (error) {
       console.error('Error requesting quotes:', error)

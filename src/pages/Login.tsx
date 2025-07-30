@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
-import { authService } from '../services/authService'
-import { Building, Mail, Lock, Eye, EyeOff, User, Plus } from 'lucide-react'
+import { Building, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 
 const Login = () => {
   const [isRegistering, setIsRegistering] = useState(false)
@@ -52,34 +51,12 @@ const Login = () => {
     }
   }
 
-  const createDemoUsers = async () => {
-    setLoading(true)
-    try {
-      await authService.createDemoUsers()
-      addNotification({
-        title: 'Demo Users Created!',
-        message: 'Demo users have been created. You can now login with any of the demo credentials.',
-        type: 'success',
-        userId: 'current'
-      })
-    } catch (error: any) {
-      addNotification({
-        title: 'Error',
-        message: error.message || 'Failed to create demo users.',
-        type: 'error',
-        userId: 'current'
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-primary-100">
-            <Building className="h-6 w-6 text-primary-600" />
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
+            <Building className="h-6 w-6 text-blue-600" />
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Building Management System
@@ -89,7 +66,7 @@ const Login = () => {
           </p>
         </div>
         
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit} data-testid="login-form">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
             {isRegistering && (
               <div>
@@ -107,9 +84,8 @@ const Login = () => {
                     required={isRegistering}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="input pl-10"
+                    className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="Enter your full name"
-                    data-testid="register-name"
                   />
                 </div>
               </div>
@@ -131,9 +107,8 @@ const Login = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input pl-10"
+                  className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter your email"
-                  data-testid="email-input"
                 />
               </div>
             </div>
@@ -154,9 +129,8 @@ const Login = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input pl-10 pr-10"
+                  className="w-full px-3 py-2 pl-10 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter your password"
-                  data-testid="password-input"
                 />
                 <button
                   type="button"
@@ -177,8 +151,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex justify-center py-3"
-              data-testid="signin-button"
+              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -188,35 +161,14 @@ const Login = () => {
             </button>
           </div>
 
-          <div className="text-center space-y-4">
+          <div className="text-center">
             <button
               type="button"
               onClick={() => setIsRegistering(!isRegistering)}
-              className="text-sm text-primary-600 hover:text-primary-500"
-              data-testid="create-account-link"
+              className="text-sm text-blue-600 hover:text-blue-500"
             >
               {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
             </button>
-
-            <div className="border-t border-gray-200 pt-4">
-              <button
-                type="button"
-                onClick={createDemoUsers}
-                disabled={loading}
-                className="btn-secondary w-full flex justify-center py-3"
-                data-testid="demo-login-button"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Demo Users
-              </button>
-              
-              <div className="mt-3 text-xs text-gray-500 space-y-1">
-                <p>Demo credentials (after creation):</p>
-                <p>• manager@building.com / password123</p>
-                <p>• supplier@building.com / password123</p>
-                <p>• requester@building.com / password123</p>
-              </div>
-            </div>
           </div>
         </form>
       </div>

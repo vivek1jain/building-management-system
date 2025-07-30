@@ -110,3 +110,5 @@ ui-debug.log
 
 # TernJS port file
 .tern-port
+
+.vercel

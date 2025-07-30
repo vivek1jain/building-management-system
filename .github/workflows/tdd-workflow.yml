@@ -1,0 +1,378 @@
+name: TDD Workflow
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # Quick regression tests for immediate feedback
+  quick-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Start application
+        run: npm run dev &
+        
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3005
+        
+      - name: Run quick regression tests
+        run: npm run test:quick
+        
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quick-test-results
+          path: |
+            cypress/screenshots
+            cypress/videos
+            cypress/reports
+
+  # Comprehensive baseline tests
+  baseline-tests:
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Start application
+        run: npm run dev &
+        
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3005
+        
+      - name: Run baseline tests
+        run: npm run test:baseline
+        
+      - name: Generate test reports
+        run: npm run test:multi-report
+        
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline-test-results
+          path: |
+            cypress/screenshots
+            cypress/videos
+            cypress/reports
+
+  # Cross-browser testing
+  cross-browser-tests:
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    timeout-minutes: 20
+    strategy:
+      matrix:
+        browser: [chrome, firefox, edge]
+        
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Start application
+        run: npm run dev &
+        
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3005
+        
+      - name: Run tests in ${{ matrix.browser }}
+        run: npm run test:regression -- --browser ${{ matrix.browser }}
+        
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.browser }}-test-results
+          path: |
+            cypress/screenshots
+            cypress/videos
+
+  # Performance testing
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Start application
+        run: npm run dev &
+        
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3005
+        
+      - name: Run performance tests
+        run: npm run test:performance
+        
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-test-results
+          path: cypress/reports
+
+  # Accessibility testing
+  accessibility-tests:
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    timeout-minutes: 15
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Start application
+        run: npm run dev &
+        
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3005
+        
+      - name: Run accessibility tests
+        run: npm run test:accessibility
+        
+      - name: Upload accessibility results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: accessibility-test-results
+          path: cypress/reports
+
+  # Security testing
+  security-tests:
+    runs-on: ubuntu-latest
+    needs: quick-tests
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Start application
+        run: npm run dev &
+        
+      - name: Wait for application to start
+        run: npx wait-on http://localhost:3005
+        
+      - name: Run security tests
+        run: npm run test:regression -- --grep "Security"
+        
+      - name: Upload security results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-test-results
+          path: cypress/reports
+
+  # Code quality checks
+  code-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run linting
+        run: npm run lint
+        
+      - name: Check TypeScript
+        run: npx tsc --noEmit
+        
+      - name: Run build check
+        run: npm run build
+
+  # Test summary and reporting
+  test-summary:
+    runs-on: ubuntu-latest
+    needs: [quick-tests, baseline-tests, cross-browser-tests, performance-tests, accessibility-tests, security-tests, code-quality]
+    if: always()
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download all test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: test-results
+          
+      - name: Generate test summary
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Tests: ${{ needs.quick-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Baseline Tests: ${{ needs.baseline-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Cross-Browser Tests: ${{ needs.cross-browser-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Performance Tests: ${{ needs.performance-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Accessibility Tests: ${{ needs.accessibility-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Security Tests: ${{ needs.security-tests.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Code Quality: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
+          
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('## Test Results Summary')
+            );
+            
+            const summary = `## Test Results Summary
+            
+            ### Quick Tests: ${{ needs.quick-tests.result }}
+            ### Baseline Tests: ${{ needs.baseline-tests.result }}
+            ### Cross-Browser Tests: ${{ needs.cross-browser-tests.result }}
+            ### Performance Tests: ${{ needs.performance-tests.result }}
+            ### Accessibility Tests: ${{ needs.accessibility-tests.result }}
+            ### Security Tests: ${{ needs.security-tests.result }}
+            ### Code Quality: ${{ needs.code-quality.result }}
+            
+            [View Test Artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: summary
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: summary
+              });
+            }
+
+  # Deployment (only on main branch)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [quick-tests, baseline-tests, code-quality]
+    if: github.ref == 'refs/heads/main' && needs.quick-tests.result == 'success' && needs.baseline-tests.result == 'success' && needs.code-quality.result == 'success'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          projectId: building-management-system
+          channelId: live 

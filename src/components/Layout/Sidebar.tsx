@@ -1,11 +1,18 @@
 import { NavLink } from 'react-router-dom'
-import { 
-  Home, 
-  Ticket, 
-  Users, 
-  Calendar, 
+import {
+  Home,
+  Ticket,
+  Users,
+  Calendar,
   Settings,
-  Plus
+  Plus,
+  DollarSign,
+  FileText,
+  Building,
+  CreditCard,
+  Wrench,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -14,9 +21,16 @@ const Sidebar = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
+    { name: 'Comprehensive', href: '/comprehensive', icon: BarChart3 },
+    { name: 'Flats', href: '/flats', icon: Building },
+    { name: 'People', href: '/people', icon: Users },
+    { name: 'Financial Management', href: '/financial-management', icon: TrendingUp },
+    { name: 'Work Orders', href: '/work-orders', icon: Wrench },
     { name: 'Tickets', href: '/tickets', icon: Ticket },
     { name: 'Suppliers', href: '/suppliers', icon: Users },
     { name: 'Events', href: '/events', icon: Calendar },
+    { name: 'Budget', href: '/budget', icon: DollarSign },
+    { name: 'Invoices', href: '/invoices', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
 
@@ -50,7 +64,7 @@ const Sidebar = () => {
               })}
             </nav>
           </div>
-          
+
           {/* Quick Actions */}
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
             <NavLink
@@ -61,20 +75,24 @@ const Sidebar = () => {
               New Ticket
             </NavLink>
           </div>
-          
+
           {/* User Profile */}
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center">
-                  <span className="text-sm font-medium text-white">
+                <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                  <span className="text-sm font-medium text-gray-700">
                     {currentUser?.name?.charAt(0) || 'U'}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
-                <p className="text-sm font-medium text-gray-700">{currentUser?.name}</p>
-                <p className="text-xs text-gray-500 capitalize">{currentUser?.role}</p>
+                <p className="text-sm font-medium text-gray-700">
+                  {currentUser?.name || 'User'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {currentUser?.role || 'User'}
+                </p>
               </div>
             </div>
           </div>
