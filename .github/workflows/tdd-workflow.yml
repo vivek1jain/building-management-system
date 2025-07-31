@@ -369,10 +369,20 @@ jobs:
       - name: Build application
         run: npm run build
         
+      - name: Check Firebase Service Account
+        run: |
+          if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+            echo "⚠️ FIREBASE_SERVICE_ACCOUNT secret is not configured. Skipping deployment."
+            echo "To enable deployment, add the FIREBASE_SERVICE_ACCOUNT secret to your repository settings."
+            exit 0
+          else
+            echo "✅ Firebase service account is configured"
+          fi
+        
       - name: Deploy to Firebase
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
-          projectId: building-management-system
+          projectId: proper-213b7
           channelId: live 

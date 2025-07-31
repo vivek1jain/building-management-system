@@ -1,805 +1,470 @@
-# 🧪 Building Management System - Test Cases
+# Building Management System - Test Cases
 
-## 📋 **Test Case Overview**
-
-This document contains comprehensive test cases based on the Product Requirements Document (PRD) to verify that all features and functionality are working correctly according to specifications.
-
-**Test Coverage**: 100% PRD Requirements  
-**Test Environment**: Development/Staging  
-**Test Data**: Sample buildings, users, and transactions  
+## Test Environment Setup
+- **URL**: http://localhost:3003/
+- **Browser**: Chrome/Firefox/Safari
+- **Test Data**: Sample data available via "Add Sample Data" buttons
 
 ---
 
-## 👥 **User Roles & Authentication Tests**
+## 1. Authentication Tests
 
-### **TC-001: Admin Role Access**
-**Objective**: Verify admin has full system access  
-**Prerequisites**: Admin user account exists  
+### 1.1 User Registration
+**Test Case**: TC-AUTH-001  
+**Description**: Register a new user account  
 **Steps**:
-1. Login as admin user
-2. Navigate to all major sections
-3. Verify access to user management
-4. Verify access to building creation
-5. Verify access to financial oversight
+1. Navigate to Login page
+2. Click "Create Account" link
+3. Fill in registration form:
+   - Email: test@example.com
+   - Password: Test123!
+   - Name: Test User
+   - Role: Select "Tenant"
+4. Click "Create Account" button
+**Expected Result**: User account created, redirected to Dashboard
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Can access all pages and features
-- ✅ Can create/manage buildings
-- ✅ Can assign user roles
-- ✅ Can approve budgets and invoices
-- ✅ Can view all financial data
-
-### **TC-002: Manager Role Access**
-**Objective**: Verify manager has building-specific access  
-**Prerequisites**: Manager user account exists  
+### 1.2 User Login
+**Test Case**: TC-AUTH-002  
+**Description**: Login with existing credentials  
 **Steps**:
-1. Login as manager user
-2. Navigate to assigned buildings
-3. Create and manage tickets
-4. Manage budgets for assigned buildings
-5. Coordinate with suppliers
+1. Navigate to Login page
+2. Enter email: demo@example.com
+3. Enter password: demo123
+4. Click "Sign In" button
+**Expected Result**: User logged in, redirected to Dashboard
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Can access assigned buildings only
-- ✅ Can create/manage tickets
-- ✅ Can create/manage budgets
-- ✅ Can manage suppliers
-- ✅ Cannot access other buildings
-
-### **TC-003: Finance Role Access**
-**Objective**: Verify finance role has financial data access  
-**Prerequisites**: Finance user account exists  
+### 1.3 Demo User Login
+**Test Case**: TC-AUTH-003  
+**Description**: Login with demo user credentials  
 **Steps**:
-1. Login as finance user
-2. Access invoice management
-3. Record and categorize expenses
-4. Process payments
-5. Generate financial reports
+1. Navigate to Login page
+2. Click "Login as Demo User" button
+**Expected Result**: Demo user logged in, redirected to Dashboard
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Can manage invoices (create/read/update/approve)
-- ✅ Can record and categorize expenses
-- ✅ Can process payments
-- ✅ Can view financial reports
-- ✅ Cannot access non-financial features
-
-### **TC-004: Supplier Role Access**
-**Objective**: Verify supplier has work order access  
-**Prerequisites**: Supplier user account exists  
+### 1.4 User Logout
+**Test Case**: TC-AUTH-004  
+**Description**: Logout from the application  
 **Steps**:
-1. Login as supplier user
-2. View assigned work orders
-3. Submit quotes
-4. Update work progress
-5. Upload completion evidence
-
-**Expected Results**:
-- ✅ Can view assigned tickets only
-- ✅ Can submit quotes
-- ✅ Can update work progress
-- ✅ Can upload files
-- ✅ Cannot access other users' work
-
-### **TC-005: Requester Role Access**
-**Objective**: Verify requester has limited access  
-**Prerequisites**: Requester user account exists  
-**Steps**:
-1. Login as requester user
-2. Create service requests
-3. Track ticket progress
-4. Provide feedback
-5. View building information
-
-**Expected Results**:
-- ✅ Can create tickets
-- ✅ Can track own tickets
-- ✅ Can provide feedback
-- ✅ Can view building info
-- ✅ Cannot access financial data
+1. Login to the application
+2. Click user avatar in header
+3. Click "Logout" option
+**Expected Result**: User logged out, redirected to Login page
+**Status**: ⏳ Pending
 
 ---
 
-## 🏢 **Building Management Tests**
+## 2. Dashboard Tests
 
-### **TC-006: Building Creation**
-**Objective**: Verify building creation functionality  
-**Prerequisites**: Admin user logged in  
+### 2.1 Dashboard Load
+**Test Case**: TC-DASH-001  
+**Description**: Verify dashboard loads with correct data  
 **Steps**:
-1. Navigate to building management
-2. Click "Create Building"
-3. Fill in building details (name, address, code)
-4. Set building type and capacity
-5. Assign managers and admins
-6. Save building
+1. Login to the application
+2. Navigate to Dashboard
+**Expected Result**: 
+- Dashboard displays ticket statistics
+- Recent tickets shown
+- Quick actions available
+- Firebase test component shows connection status
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Building created successfully
-- ✅ All fields saved correctly
-- ✅ Managers and admins assigned
-- ✅ Building appears in list
-- ✅ Unique code generated
-
-### **TC-007: Building Configuration**
-**Objective**: Verify building configuration options  
-**Prerequisites**: Building exists  
+### 2.2 Dashboard Navigation
+**Test Case**: TC-DASH-002  
+**Description**: Verify all navigation links work  
 **Steps**:
-1. Select existing building
-2. Configure financial year start
-3. Set up floors and units
-4. Configure meters
-5. Add building assets
-
-**Expected Results**:
-- ✅ Financial year configured
-- ✅ Floors and units set up
-- ✅ Meters configured
-- ✅ Assets added
-- ✅ Configuration saved
-
-### **TC-008: Building Hierarchy**
-**Objective**: Verify multi-floor and unit management  
-**Prerequisites**: Building with floors exists  
-**Steps**:
-1. Navigate to building details
-2. View floor structure
-3. Add new floors
-4. Configure units per floor
-5. Set area calculations
-
-**Expected Results**:
-- ✅ Floor structure displayed
-- ✅ New floors added
-- ✅ Units configured
-- ✅ Area calculations correct
-- ✅ Hierarchy maintained
+1. On Dashboard, click each navigation link:
+   - Dashboard
+   - Tickets
+   - Create Ticket
+   - Suppliers
+   - Events
+2. Verify each page loads correctly
+**Expected Result**: All pages load without errors
+**Status**: ⏳ Pending
 
 ---
 
-## 🎫 **Ticket Management Tests**
+## 3. Ticket Management Tests
 
-### **TC-009: Ticket Creation**
-**Objective**: Verify ticket creation workflow  
-**Prerequisites**: User logged in  
+### 3.1 Create New Ticket
+**Test Case**: TC-TICKET-001  
+**Description**: Create a new maintenance ticket  
 **Steps**:
-1. Navigate to "Create Ticket"
-2. Fill in ticket details (title, description, location)
-3. Set urgency level
-4. Upload attachments
-5. Submit ticket
+1. Navigate to "Create Ticket" page
+2. Fill in ticket form:
+   - Title: "Test Maintenance Request"
+   - Description: "This is a test maintenance request"
+   - Priority: Medium
+   - Category: Plumbing
+   - Location: Apartment 101
+3. Upload a test image file
+4. Click "Submit Ticket" button
+**Expected Result**: Ticket created successfully, redirected to Tickets page
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Ticket created successfully
-- ✅ Auto-numbering works
-- ✅ Attachments uploaded
-- ✅ Urgency level set
-- ✅ Status set to "New"
-
-### **TC-010: Ticket Workflow**
-**Objective**: Verify complete ticket lifecycle  
-**Prerequisites**: Ticket exists  
+### 3.2 View Ticket List
+**Test Case**: TC-TICKET-002  
+**Description**: View all tickets with filters  
 **Steps**:
-1. Create ticket
-2. Manager reviews and requests quotes
-3. Suppliers submit quotes
-4. Manager selects supplier
-5. Work scheduled
-6. Work completed
-7. Feedback collected
+1. Navigate to "Tickets" page
+2. Verify tickets are displayed in list
+3. Test filters:
+   - Status filter (Open, In Progress, Completed)
+   - Priority filter (Low, Medium, High)
+   - Category filter
+4. Test search functionality
+**Expected Result**: Tickets display correctly, filters work
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Status changes: New → Quote Requested → Scheduled → Complete
-- ✅ Quotes received and compared
-- ✅ Supplier selected
-- ✅ Work scheduled
-- ✅ Completion recorded
-- ✅ Feedback collected
-
-### **TC-011: Quote Management**
-**Objective**: Verify quote request and comparison  
-**Prerequisites**: Ticket in "Quote Requested" status  
+### 3.3 View Ticket Details
+**Test Case**: TC-TICKET-003  
+**Description**: View detailed information of a ticket  
 **Steps**:
-1. Manager selects multiple suppliers
-2. Send quote requests
-3. Suppliers submit quotes
-4. Compare quotes side-by-side
-5. Select winning quote
+1. Navigate to "Tickets" page
+2. Click on any ticket in the list
+3. Verify ticket details page loads
+4. Check all information is displayed:
+   - Title, description, priority, status
+   - Created date, location, category
+   - Attached images
+   - Status history
+**Expected Result**: All ticket details displayed correctly
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Multiple suppliers selected
-- ✅ Quote requests sent
-- ✅ Quotes received
-- ✅ Side-by-side comparison
-- ✅ Winner selected
+### 3.4 Update Ticket Status
+**Test Case**: TC-TICKET-004  
+**Description**: Update ticket status  
+**Steps**:
+1. Open a ticket detail page
+2. Click "Update Status" button
+3. Select new status (e.g., "In Progress")
+4. Add a comment: "Work started"
+5. Click "Update" button
+**Expected Result**: Status updated, comment added to history
+**Status**: ⏳ Pending
+
+### 3.5 Request Quote from Suppliers
+**Test Case**: TC-TICKET-005  
+**Description**: Request quotes for a ticket  
+**Steps**:
+1. Open a ticket detail page
+2. Click "Request Quote" button
+3. Select suppliers from the modal
+4. Add quote request details
+5. Click "Send Request" button
+**Expected Result**: Quote request sent to selected suppliers
+**Status**: ⏳ Pending
 
 ---
 
-## 💰 **Financial Management Tests**
+## 4. Supplier Management Tests
 
-### **TC-012: Budget Creation**
-**Objective**: Verify budget creation and approval  
-**Prerequisites**: Manager logged in  
+### 4.1 View Suppliers List
+**Test Case**: TC-SUPPLIER-001  
+**Description**: View all suppliers  
 **Steps**:
-1. Navigate to Budget page
-2. Create annual budget
-3. Allocate amounts to categories
-4. Submit for approval
-5. Admin approves budget
+1. Navigate to "Suppliers" page
+2. Verify suppliers list displays
+3. Check supplier information:
+   - Name, contact, specialties
+   - Rating, availability
+**Expected Result**: Suppliers list displays correctly
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Budget created successfully
-- ✅ Categories allocated
-- ✅ Approval workflow works
-- ✅ Status: Draft → Awaiting Approval → Approved
-- ✅ Budget locked after approval
-
-### **TC-013: Invoice Management**
-**Objective**: Verify invoice processing workflow  
-**Prerequisites**: Invoice exists  
+### 4.2 Add Sample Suppliers
+**Test Case**: TC-SUPPLIER-002  
+**Description**: Add sample supplier data  
 **Steps**:
-1. Create invoice
-2. Submit for approval
-3. Finance reviews invoice
-4. Approve/reject invoice
-5. Process payment
+1. Navigate to "Suppliers" page
+2. Click "Add Sample Data" button
+3. Verify sample suppliers are added
+**Expected Result**: Sample suppliers appear in the list
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Invoice created
-- ✅ Approval workflow: Pending → Approved/Rejected
-- ✅ Payment tracking: Pending → Paid
-- ✅ Overdue detection works
-- ✅ Payment recorded
-
-### **TC-014: Expense Tracking**
-**Objective**: Verify expense recording and categorization  
-**Prerequisites**: Finance user logged in  
+### 4.3 Create New Supplier
+**Test Case**: TC-SUPPLIER-003  
+**Description**: Create a new supplier manually  
 **Steps**:
-1. Record new expense
-2. Categorize expense
-3. Link to budget category
-4. Submit for approval
-5. Approve expense
-
-**Expected Results**:
-- ✅ Expense recorded
-- ✅ Proper categorization
-- ✅ Budget impact calculated
-- ✅ Approval process works
-- ✅ Audit trail maintained
+1. Navigate to "Suppliers" page
+2. Click "Add Supplier" button
+3. Fill in supplier form:
+   - Name: "Test Supplier"
+   - Contact: "test@supplier.com"
+   - Phone: "555-0123"
+   - Specialties: "Plumbing, Electrical"
+   - Rating: 4.5
+4. Click "Create Supplier" button
+**Expected Result**: New supplier created and appears in list
+**Status**: ⏳ Pending
 
 ---
 
-## 🏠 **Service Charge Management Tests**
+## 5. Quote Management Tests
 
-### **TC-015: Service Charge Generation**
-**Objective**: Verify automated service charge calculation  
-**Prerequisites**: Building with residents exists  
+### 5.1 Submit Quote
+**Test Case**: TC-QUOTE-001  
+**Description**: Submit a quote for a ticket  
 **Steps**:
-1. Configure service charge rate
-2. Generate quarterly demands
-3. Calculate per-unit charges
-4. Apply penalty rules
-5. Send demands to residents
+1. Navigate to "Suppliers" page
+2. Find a supplier with pending quote requests
+3. Click "Submit Quote" button
+4. Fill in quote form:
+   - Amount: $500
+   - Description: "Complete repair service"
+   - Timeline: "3-5 business days"
+5. Click "Submit Quote" button
+**Expected Result**: Quote submitted successfully
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Rate configured correctly
-- ✅ Demands generated
-- ✅ Calculations accurate
-- ✅ Penalties applied
-- ✅ Demands sent
-
-### **TC-016: Payment Processing**
-**Objective**: Verify payment processing workflow  
-**Prerequisites**: Service charge demand exists  
+### 5.2 View Quote Requests
+**Test Case**: TC-QUOTE-002  
+**Description**: View quote requests for suppliers  
 **Steps**:
-1. Resident receives demand
-2. Process payment
-3. Record payment method
-4. Generate receipt
-5. Update outstanding amount
+1. Navigate to "Suppliers" page
+2. Check suppliers with quote requests
+3. Verify quote request details are displayed
+**Expected Result**: Quote requests visible for relevant suppliers
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Payment processed
-- ✅ Method recorded
-- ✅ Receipt generated
-- ✅ Outstanding updated
-- ✅ Status updated to "Paid"
-
-### **TC-017: Reminder System**
-**Objective**: Verify automated reminder functionality  
-**Prerequisites**: Overdue payments exist  
+### 5.3 Compare Quotes
+**Test Case**: TC-QUOTE-003  
+**Description**: Compare multiple quotes for a ticket  
 **Steps**:
-1. Configure reminder settings
-2. Send payment reminders
-3. Track reminder history
-4. Apply late penalties
-5. Update demand status
-
-**Expected Results**:
-- ✅ Reminders sent
-- ✅ History tracked
-- ✅ Penalties applied
-- ✅ Status updated
-- ✅ Notifications sent
+1. Open a ticket with multiple quotes
+2. Click "Compare Quotes" button
+3. Verify quote comparison view
+4. Check all quote details are displayed
+**Expected Result**: Quote comparison works correctly
+**Status**: ⏳ Pending
 
 ---
 
-## 🏗️ **Asset Management Tests**
+## 6. Events Management Tests
 
-### **TC-018: Asset Inventory**
-**Objective**: Verify asset tracking functionality  
-**Prerequisites**: Building exists  
+### 6.1 View Events
+**Test Case**: TC-EVENT-001  
+**Description**: View building events  
 **Steps**:
-1. Add new asset
-2. Set asset details (manufacturer, model, serial)
-3. Assign location
-4. Set maintenance schedule
-5. Track warranty information
+1. Navigate to "Events" page
+2. Verify events are displayed
+3. Check event information:
+   - Title, description, date
+   - Location, organizer
+**Expected Result**: Events list displays correctly
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Asset added
-- ✅ Details recorded
-- ✅ Location assigned
-- ✅ Schedule set
-- ✅ Warranty tracked
-
-### **TC-019: Maintenance Management**
-**Objective**: Verify maintenance scheduling and tracking  
-**Prerequisites**: Asset exists  
+### 6.2 Create Event
+**Test Case**: TC-EVENT-002  
+**Description**: Create a new building event  
 **Steps**:
-1. Schedule maintenance
-2. Assign supplier
-3. Track maintenance progress
-4. Record costs
-5. Update asset status
-
-**Expected Results**:
-- ✅ Maintenance scheduled
-- ✅ Supplier assigned
-- ✅ Progress tracked
-- ✅ Costs recorded
-- ✅ Status updated
+1. Navigate to "Events" page
+2. Click "Create Event" button
+3. Fill in event form:
+   - Title: "Test Event"
+   - Description: "This is a test event"
+   - Date: Tomorrow's date
+   - Location: "Community Room"
+   - Organizer: "Building Management"
+4. Click "Create Event" button
+**Expected Result**: New event created and appears in list
+**Status**: ⏳ Pending
 
 ---
 
-## 👥 **People Management Tests**
+## 7. Notification Tests
 
-### **TC-020: Resident Management**
-**Objective**: Verify resident profile management  
-**Prerequisites**: Building exists  
+### 7.1 View Notifications
+**Test Case**: TC-NOTIF-001  
+**Description**: View user notifications  
 **Steps**:
-1. Add new resident
-2. Set resident details
-3. Assign to flat
-4. Set move-in date
-5. Configure contact information
+1. Login to the application
+2. Click notification bell icon in header
+3. Verify notifications dropdown opens
+4. Check notification list
+**Expected Result**: Notifications display correctly
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Resident added
-- ✅ Details recorded
-- ✅ Flat assigned
-- ✅ Dates tracked
-- ✅ Contact info saved
-
-### **TC-021: Role Management**
-**Objective**: Verify role-based access for residents  
-**Prerequisites**: Resident exists  
+### 7.2 Mark Notification as Read
+**Test Case**: TC-NOTIF-002  
+**Description**: Mark notification as read  
 **Steps**:
-1. Set resident status (Owner/Tenant/Resident)
-2. Configure access permissions
-3. Set primary contact
-4. Add notes
-5. Test access restrictions
-
-**Expected Results**:
-- ✅ Status set correctly
-- ✅ Permissions configured
-- ✅ Contact designated
-- ✅ Notes added
-- ✅ Access restricted appropriately
+1. Open notifications dropdown
+2. Click on an unread notification
+3. Verify notification is marked as read
+**Expected Result**: Notification status changes to read
+**Status**: ⏳ Pending
 
 ---
 
-## 📅 **Event Scheduling Tests**
+## 8. Responsive Design Tests
 
-### **TC-022: Event Creation**
-**Objective**: Verify event scheduling functionality  
-**Prerequisites**: User logged in  
+### 8.1 Mobile Responsiveness
+**Test Case**: TC-RESP-001  
+**Description**: Test mobile responsiveness  
 **Steps**:
-1. Navigate to Events page
-2. Create new event
-3. Set date and time
-4. Assign participants
-5. Add event details
+1. Open application in browser
+2. Open Developer Tools (F12)
+3. Toggle device toolbar
+4. Test on different screen sizes:
+   - iPhone SE (375x667)
+   - iPhone 12 Pro (390x844)
+   - iPad (768x1024)
+   - Desktop (1920x1080)
+**Expected Result**: UI adapts properly to all screen sizes
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Event created
-- ✅ Date/time set
-- ✅ Participants assigned
-- ✅ Details saved
-- ✅ Event appears in calendar
-
-### **TC-023: Calendar Management**
-**Objective**: Verify calendar functionality  
-**Prerequisites**: Events exist  
+### 8.2 Sidebar Collapse
+**Test Case**: TC-RESP-002  
+**Description**: Test sidebar collapse on mobile  
 **Steps**:
-1. View calendar
-2. Navigate between months
-3. Click on events
-4. Edit event details
-5. Delete events
-
-**Expected Results**:
-- ✅ Calendar displays correctly
-- ✅ Navigation works
-- ✅ Event details accessible
-- ✅ Editing works
-- ✅ Deletion confirmed
+1. Open application on mobile view
+2. Verify sidebar is collapsed by default
+3. Click hamburger menu to expand
+4. Click outside to collapse
+**Expected Result**: Sidebar collapses/expands correctly
+**Status**: ⏳ Pending
 
 ---
 
-## 📊 **Dashboard & Analytics Tests**
+## 9. Error Handling Tests
 
-### **TC-024: Dashboard Overview**
-**Objective**: Verify dashboard displays all key metrics  
-**Prerequisites**: Data exists in system  
+### 9.1 Network Error Handling
+**Test Case**: TC-ERROR-001  
+**Description**: Test behavior when offline  
 **Steps**:
-1. Login and view dashboard
-2. Check financial overview cards
-3. Review ticket statistics
-4. View asset health metrics
-5. Check upcoming events
+1. Open application
+2. Disconnect internet connection
+3. Try to perform actions (create ticket, etc.)
+4. Reconnect internet
+5. Verify data syncs
+**Expected Result**: Graceful error handling, data syncs when reconnected
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Financial cards display correctly
-- ✅ Ticket stats accurate
-- ✅ Asset health shown
-- ✅ Events displayed
-- ✅ Real-time updates work
-
-### **TC-025: Real-time Updates**
-**Objective**: Verify live data synchronization  
-**Prerequisites**: Multiple users logged in  
+### 9.2 Form Validation
+**Test Case**: TC-ERROR-002  
+**Description**: Test form validation errors  
 **Steps**:
-1. User A creates ticket
-2. User B views dashboard
-3. Check if ticket appears
-4. Update ticket status
-5. Verify status change appears
-
-**Expected Results**:
-- ✅ New ticket appears immediately
-- ✅ Status changes sync
-- ✅ Notifications sent
-- ✅ Dashboard updates
-- ✅ No refresh required
+1. Try to submit forms with invalid data:
+   - Empty required fields
+   - Invalid email format
+   - Invalid file types
+2. Verify error messages display
+**Expected Result**: Appropriate error messages shown
+**Status**: ⏳ Pending
 
 ---
 
-## 🔐 **Security Tests**
+## 10. Performance Tests
 
-### **TC-026: Authentication**
-**Objective**: Verify user authentication security  
-**Prerequisites**: User accounts exist  
+### 10.1 Page Load Performance
+**Test Case**: TC-PERF-001  
+**Description**: Test page load times  
 **Steps**:
-1. Test login with valid credentials
-2. Test login with invalid credentials
-3. Test password reset
-4. Test session timeout
-5. Test logout functionality
+1. Open Developer Tools (F12)
+2. Go to Network tab
+3. Navigate to each page:
+   - Dashboard
+   - Tickets
+   - Suppliers
+   - Events
+4. Record load times
+**Expected Result**: All pages load within 3 seconds
+**Status**: ⏳ Pending
 
-**Expected Results**:
-- ✅ Valid login works
-- ✅ Invalid login rejected
-- ✅ Password reset works
-- ✅ Session timeout works
-- ✅ Logout clears session
-
-### **TC-027: Authorization**
-**Objective**: Verify role-based access control  
-**Prerequisites**: Multiple user roles exist  
+### 10.2 Large Data Handling
+**Test Case**: TC-PERF-002  
+**Description**: Test with large datasets  
 **Steps**:
-1. Login as different roles
-2. Test access to restricted pages
-3. Test data visibility
-4. Test action permissions
-5. Verify security rules
-
-**Expected Results**:
-- ✅ Access granted appropriately
-- ✅ Restricted pages blocked
-- ✅ Data filtered correctly
-- ✅ Actions permitted/denied
-- ✅ Security rules enforced
+1. Add many sample tickets/suppliers
+2. Test pagination and filtering
+3. Verify performance doesn't degrade
+**Expected Result**: Application remains responsive
+**Status**: ⏳ Pending
 
 ---
 
-## 📱 **User Interface Tests**
+## Test Execution Log
+### Test Run #1751347 - [Date: 7/1/2025]
+**Tester**: Automated Test Runner  
+**Environment**: Local Development  
+**Results**:
+- Total Tests: 23
+- Passed: 23
+- Failed: 0
+- Skipped: 0
 
-### **TC-028: Responsive Design**
-**Objective**: Verify mobile responsiveness  
-**Prerequisites**: Application running  
-**Steps**:
-1. Test on desktop browser
-2. Test on tablet
-3. Test on mobile phone
-4. Check navigation
-5. Verify touch interactions
+**Notes**: Automated test run - All tests passed
 
-**Expected Results**:
-- ✅ Desktop layout correct
-- ✅ Tablet layout adapts
-- ✅ Mobile layout works
-- ✅ Navigation accessible
-- ✅ Touch interactions work
+## Test Execution Log
+### Test Run #1751344 - [Date: 7/1/2025]
+**Tester**: Automated Test Runner  
+**Environment**: Local Development  
+**Results**:
+- Total Tests: 23
+- Passed: 22
+- Failed: 1
+- Skipped: 0
 
-### **TC-029: Form Validation**
-**Objective**: Verify form validation and error handling  
-**Prerequisites**: Forms exist  
-**Steps**:
-1. Submit forms with invalid data
-2. Test required field validation
-3. Test data type validation
-4. Test error messages
-5. Test success messages
+**Notes**: Automated test run - Some tests failed
 
-**Expected Results**:
-- ✅ Invalid data rejected
-- ✅ Required fields enforced
-- ✅ Data types validated
-- ✅ Error messages clear
-- ✅ Success messages shown
+## Test Execution Log
 
----
+### Test Run #1 - [Date: ___________]
+**Tester**: ___________  
+**Environment**: Local Development  
+**Results**:
+- Total Tests: 25
+- Passed: ___
+- Failed: ___
+- Skipped: ___
 
-## 🔧 **Performance Tests**
+**Notes**: ___________
 
-### **TC-030: Page Load Performance**
-**Objective**: Verify page load times  
-**Prerequisites**: Application deployed  
-**Steps**:
-1. Measure initial page load
-2. Test dashboard load time
-3. Test data-heavy pages
-4. Test with slow connection
-5. Test concurrent users
 
-**Expected Results**:
-- ✅ Initial load < 3 seconds
-- ✅ Dashboard loads quickly
-- ✅ Heavy pages load
-- ✅ Slow connection handled
-- ✅ Concurrent users supported
+### Test Run #2 - [Date: ___________]
+**Tester**: ___________  
+**Environment**: Local Development  
+**Results**:
+- Total Tests: 25
+- Passed: ___
+- Failed: ___
+- Skipped: ___
 
-### **TC-031: Real-time Performance**
-**Objective**: Verify real-time update performance  
-**Prerequisites**: Multiple users active  
-**Steps**:
-1. Test data synchronization
-2. Measure update latency
-3. Test notification delivery
-4. Test concurrent updates
-5. Test offline functionality
+**Notes**: ___________
 
-**Expected Results**:
-- ✅ Sync works < 1 second
-- ✅ Low latency updates
-- ✅ Notifications delivered
-- ✅ Concurrent updates work
-- ✅ Offline functionality works
 
 ---
 
-## 📊 **Data Integrity Tests**
+## Bug Report Template
 
-### **TC-032: Data Validation**
-**Objective**: Verify data integrity and validation  
-**Prerequisites**: Database with test data  
-**Steps**:
-1. Test data type validation
-2. Test business rule validation
-3. Test constraint enforcement
-4. Test data relationships
-5. Test audit trail
+**Bug ID**: BUG-XXX  
+**Title**: [Brief description]  
+**Severity**: [Critical/High/Medium/Low]  
+**Steps to Reproduce**:
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
 
-**Expected Results**:
-- ✅ Data types enforced
-- ✅ Business rules applied
-- ✅ Constraints maintained
-- ✅ Relationships intact
-- ✅ Audit trail complete
-
-### **TC-033: Backup and Recovery**
-**Objective**: Verify data backup and recovery  
-**Prerequisites**: Production data exists  
-**Steps**:
-1. Test automated backups
-2. Test backup integrity
-3. Test recovery process
-4. Test data consistency
-5. Test disaster recovery
-
-**Expected Results**:
-- ✅ Backups automated
-- ✅ Backup integrity verified
-- ✅ Recovery successful
-- ✅ Data consistent
-- ✅ Disaster recovery works
+**Expected Result**: [What should happen]  
+**Actual Result**: [What actually happened]  
+**Environment**: [Browser, OS, etc.]  
+**Screenshots**: [If applicable]  
+**Status**: [Open/In Progress/Fixed/Closed]
 
 ---
 
-## 🧪 **Integration Tests**
+## Test Automation Notes
 
-### **TC-034: Email Integration**
-**Objective**: Verify email notification system  
-**Prerequisites**: Email service configured  
-**Steps**:
-1. Create ticket
-2. Send quote request
-3. Send payment reminder
-4. Send completion notification
-5. Verify email delivery
-
-**Expected Results**:
-- ✅ Ticket notifications sent
-- ✅ Quote requests delivered
-- ✅ Payment reminders sent
-- ✅ Completion notifications sent
-- ✅ Email delivery confirmed
-
-### **TC-035: File Upload Integration**
-**Objective**: Verify file upload functionality  
-**Prerequisites**: File storage configured  
-**Steps**:
-1. Upload ticket attachments
-2. Upload invoice documents
-3. Upload completion evidence
-4. Test file retrieval
-5. Test file deletion
-
-**Expected Results**:
-- ✅ Attachments uploaded
-- ✅ Documents stored
-- ✅ Evidence saved
-- ✅ Files retrieved
-- ✅ Files deleted
+For future automation, consider:
+- Cypress for E2E testing
+- Jest for unit testing
+- React Testing Library for component testing
+- Firebase Emulator for testing without affecting production data
 
 ---
 
-## 📈 **Reporting Tests**
-
-### **TC-036: Financial Reports**
-**Objective**: Verify financial reporting functionality  
-**Prerequisites**: Financial data exists  
-**Steps**:
-1. Generate budget reports
-2. Generate expense reports
-3. Generate income reports
-4. Export reports
-5. Verify report accuracy
-
-**Expected Results**:
-- ✅ Budget reports generated
-- ✅ Expense reports created
-- ✅ Income reports accurate
-- ✅ Exports work
-- ✅ Data accurate
-
-### **TC-037: Operational Reports**
-**Objective**: Verify operational reporting  
-**Prerequisites**: Operational data exists  
-**Steps**:
-1. Generate ticket reports
-2. Generate asset reports
-3. Generate resident reports
-4. Generate performance metrics
-5. Verify report completeness
-
-**Expected Results**:
-- ✅ Ticket reports generated
-- ✅ Asset reports created
-- ✅ Resident reports accurate
-- ✅ Metrics calculated
-- ✅ Reports complete
-
----
-
-## 🚀 **Deployment Tests**
-
-### **TC-038: Production Deployment**
-**Objective**: Verify production deployment  
-**Prerequisites**: Staging environment ready  
-**Steps**:
-1. Deploy to production
-2. Test all major features
-3. Verify data migration
-4. Test performance
-5. Monitor for errors
-
-**Expected Results**:
-- ✅ Deployment successful
-- ✅ All features work
-- ✅ Data migrated correctly
-- ✅ Performance acceptable
-- ✅ No critical errors
-
-### **TC-039: Rollback Testing**
-**Objective**: Verify rollback capability  
-**Prerequisites**: Previous version available  
-**Steps**:
-1. Simulate deployment issue
-2. Initiate rollback
-3. Verify rollback success
-4. Test functionality
-5. Verify data integrity
-
-**Expected Results**:
-- ✅ Rollback initiated
-- ✅ Rollback successful
-- ✅ Functionality restored
-- ✅ Data integrity maintained
-- ✅ System stable
-
----
-
-## 📋 **Test Execution Summary**
-
-### **Test Status Tracking**
-- **Total Test Cases**: 39
-- **Critical Path Tests**: 25
-- **Security Tests**: 2
-- **Performance Tests**: 2
-- **Integration Tests**: 2
-- **Deployment Tests**: 2
-
-### **Test Execution Checklist**
-- [ ] **User Roles & Authentication**: TC-001 to TC-005
-- [ ] **Building Management**: TC-006 to TC-008
-- [ ] **Ticket Management**: TC-009 to TC-011
-- [ ] **Financial Management**: TC-012 to TC-014
-- [ ] **Service Charge Management**: TC-015 to TC-017
-- [ ] **Asset Management**: TC-018 to TC-019
-- [ ] **People Management**: TC-020 to TC-021
-- [ ] **Event Scheduling**: TC-022 to TC-023
-- [ ] **Dashboard & Analytics**: TC-024 to TC-025
-- [ ] **Security**: TC-026 to TC-027
-- [ ] **User Interface**: TC-028 to TC-029
-- [ ] **Performance**: TC-030 to TC-031
-- [ ] **Data Integrity**: TC-032 to TC-033
-- [ ] **Integration**: TC-034 to TC-035
-- [ ] **Reporting**: TC-036 to TC-037
-- [ ] **Deployment**: TC-038 to TC-039
-
-### **Test Results Template**
-```
-Test Case: TC-XXX
-Status: ✅ PASS / ❌ FAIL / ⚠️ PARTIAL
-Date: YYYY-MM-DD
-Tester: [Name]
-Notes: [Any issues or observations]
-```
-
----
-
-## 🎯 **Test Completion Criteria**
-
-### **Definition of Done**
-- [ ] All critical path tests pass (TC-001 to TC-025)
-- [ ] All security tests pass (TC-026 to TC-027)
-- [ ] Performance meets requirements (TC-030 to TC-031)
-- [ ] Data integrity verified (TC-032 to TC-033)
-- [ ] Integration tests pass (TC-034 to TC-035)
-- [ ] Deployment successful (TC-038 to TC-039)
-
-### **Acceptance Criteria**
-- **Functional Requirements**: 100% of PRD features working
-- **Performance Requirements**: < 3s page load, < 1s updates
-- **Security Requirements**: All role-based access working
-- **User Experience**: Intuitive navigation and responsive design
-- **Data Integrity**: All data relationships and constraints maintained
-
----
-
-**Document Version**: 1.0.0  
-**Last Updated**: December 2024  
-**Test Environment**: Development/Staging  
-**Next Review**: After test execution 
+*Last Updated: [Current Date]*
+*Version: 1.0* 

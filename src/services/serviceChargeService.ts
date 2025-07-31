@@ -42,6 +42,56 @@ export const getServiceChargeDemands = async (buildingId: string): Promise<Servi
   }
 }
 
+// Service Charge Statistics
+export const getServiceChargeStats = async (buildingId: string): Promise<any> => {
+  try {
+    const q = query(
+      collection(db, 'serviceChargeDemands'),
+      where('buildingId', '==', buildingId),
+      orderBy('issuedDate', 'desc')
+    )
+    const querySnapshot = await getDocs(q)
+    const demands = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as ServiceChargeDemand[]
+
+    const totalDemands = demands.length
+    const totalAmountDue = demands.reduce((sum, demand) => sum + demand.totalAmountDue, 0)
+    const totalAmountPaid = demands.reduce((sum, demand) => sum + demand.amountPaid, 0)
+    const totalOutstanding = demands.reduce((sum, demand) => sum + demand.outstandingAmount, 0)
+    
+    // Group by status
+    const byStatus = demands.reduce((acc, demand) => {
+      const status = demand.status || ServiceChargeDemandStatus.ISSUED
+      acc[status] = (acc[status] || 0) + 1
+      return acc
+    }, {} as Record<ServiceChargeDemandStatus, number>)
+
+    // Calculate overdue demands
+    const currentDate = new Date()
+    const overdueDemands = demands.filter(demand => {
+      const dueDate = demand.dueDate instanceof Timestamp ? demand.dueDate.toDate() : new Date(demand.dueDate)
+      return dueDate < currentDate && demand.status !== ServiceChargeDemandStatus.PAID
+    })
+    
+    const overdueAmount = overdueDemands.reduce((sum, demand) => sum + demand.outstandingAmount, 0)
+
+    return {
+      totalDemands,
+      totalAmountDue,
+      totalAmountPaid,
+      totalOutstanding,
+      byStatus,
+      overdueDemands: overdueDemands.length,
+      overdueAmount
+    }
+  } catch (error) {
+    console.error('Error fetching service charge stats:', error)
+    throw error
+  }
+}
+
 export const getServiceChargeDemand = async (id: string): Promise<ServiceChargeDemand | null> => {
   try {
     const docRef = doc(db, 'serviceChargeDemands', id)
@@ -437,4 +487,136 @@ export const generateServiceChargeDemands = async (
     console.error('Error generating service charge demands:', error)
     throw error
   }
+}
+
+// Global Financial Settings
+export const getGlobalFinancialSettings = async (buildingId: string): Promise<any> => {
+  try {
+    const docRef = doc(db, 'buildings', buildingId)
+    const docSnap = await getDoc(docRef)
+    
+    if (docSnap.exists()) {
+      const building = docSnap.data()
+      return {
+        serviceChargeRatePerSqFt: building.financialInfo?.serviceChargeRate || 0,
+        paymentDueLeadDays: building.financialInfo?.paymentDueLeadDays || 30,
+        financialYearStartDate: building.financialInfo?.financialYearStartDate || new Date().toISOString().split('T')[0]
+      }
+    }
+    return {
+      serviceChargeRatePerSqFt: 0,
+      paymentDueLeadDays: 30,
+      financialYearStartDate: new Date().toISOString().split('T')[0]
+    }
+  } catch (error) {
+    console.error('Error fetching global financial settings:', error)
+    throw error
+  }
+}
+
+export const updateGlobalFinancialSettings = async (buildingId: string, settings: any): Promise<void> => {
+  try {
+    const docRef = doc(db, 'buildings', buildingId)
+    await updateDoc(docRef, {
+      'financialInfo.serviceChargeRate': settings.serviceChargeRatePerSqFt,
+      'financialInfo.paymentDueLeadDays': settings.paymentDueLeadDays,
+      'financialInfo.financialYearStartDate': settings.financialYearStartDate,
+      updatedAt: serverTimestamp()
+    })
+  } catch (error) {
+    console.error('Error updating global financial settings:', error)
+    throw error
+  }
+}
+
+// Reminder and Penalty Functions
+export const sendReminder = async (demandId: string): Promise<void> => {
+  try {
+    const docRef = doc(db, 'serviceChargeDemands', demandId)
+    const docSnap = await getDoc(docRef)
+    
+    if (docSnap.exists()) {
+      const demand = docSnap.data() as ServiceChargeDemand
+      const currentReminders = demand.remindersSent || 0
+      const maxReminders = demand.remindersConfig?.maxReminders || 3
+      
+      if (currentReminders < maxReminders) {
+        await updateDoc(docRef, {
+          remindersSent: currentReminders + 1,
+          updatedAt: serverTimestamp()
+        })
+      }
+    }
+  } catch (error) {
+    console.error('Error sending reminder:', error)
+    throw error
+  }
+}
+
+export const checkAndApplyPenalties = async (buildingId: string): Promise<number> => {
+  try {
+    const q = query(
+      collection(db, 'serviceChargeDemands'),
+      where('buildingId', '==', buildingId),
+      where('status', 'in', [ServiceChargeDemandStatus.ISSUED, ServiceChargeDemandStatus.PARTIALLY_PAID])
+    )
+    const querySnapshot = await getDocs(q)
+    const demands = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    })) as ServiceChargeDemand[]
+    
+    const batch = writeBatch(db)
+    let penaltiesApplied = 0
+    const currentDate = new Date()
+    
+    for (const demand of demands) {
+      const dueDate = demand.dueDate instanceof Timestamp ? demand.dueDate.toDate() : new Date(demand.dueDate)
+      const gracePeriod = demand.penaltyConfig?.gracePeriodDays || 7
+      const graceDate = new Date(dueDate.getTime() + (gracePeriod * 24 * 60 * 60 * 1000))
+      
+      if (currentDate > graceDate && !demand.penaltyAppliedAt) {
+        const penaltyAmount = demand.penaltyConfig?.flatAmount || 50
+        const newTotalAmount = demand.totalAmountDue + penaltyAmount
+        const newOutstandingAmount = demand.outstandingAmount + penaltyAmount
+        
+        batch.update(doc(db, 'serviceChargeDemands', demand.id), {
+          penaltyAmountApplied: penaltyAmount,
+          totalAmountDue: newTotalAmount,
+          outstandingAmount: newOutstandingAmount,
+          penaltyAppliedAt: serverTimestamp(),
+          status: ServiceChargeDemandStatus.OVERDUE,
+          updatedAt: serverTimestamp()
+        })
+        
+        penaltiesApplied++
+      }
+    }
+    
+    if (penaltiesApplied > 0) {
+      await batch.commit()
+    }
+    
+    return penaltiesApplied
+  } catch (error) {
+    console.error('Error checking and applying penalties:', error)
+    throw error
+  }
+}
+
+// Income and Expenditure Functions
+export const recordIncome = async (buildingId: string, income: Omit<Income, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  return createIncome(income)
+}
+
+export const recordExpenditure = async (buildingId: string, expenditure: Omit<Expenditure, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  return createExpenditure(expenditure)
+}
+
+export const getIncomeEntries = async (buildingId: string): Promise<Income[]> => {
+  return getIncome(buildingId)
+}
+
+export const getExpenditureEntries = async (buildingId: string): Promise<Expenditure[]> => {
+  return getExpenditure(buildingId)
 } 

@@ -56,16 +56,7 @@
         }
       ]
     },
-    {
-      "collectionGroup": "buildingEvents",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "startDate",
-          "order": "ASCENDING"
-        }
-      ]
-    },
+
 
     {
       "collectionGroup": "budgets",
@@ -78,6 +69,62 @@
         {
           "fieldPath": "year",
           "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "income",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buildingId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "expenditure",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buildingId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "date",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "serviceChargeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buildingId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "issuedDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "serviceChargeDemands",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "buildingId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
         }
       ]
     }
