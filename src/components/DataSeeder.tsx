@@ -22,7 +22,7 @@ const DataSeeder: React.FC = () => {
       if (result.success) {
         addNotification({
           title: 'Data Seeding Successful',
-          message: `Successfully seeded ${Object.values(result.dataCount).reduce((a, b) => a + b, 0)} records across all collections`,
+          message: `Successfully seeded ${Object.values(result.dataCount || {}).reduce((a: number, b: unknown) => a + (typeof b === 'number' ? b : 0), 0)} records across all collections`,
           type: 'success',
           userId: currentUser.id
         })
