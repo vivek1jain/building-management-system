@@ -1,4 +1,4 @@
-import { Supplier, Person, Flat, Asset, PersonStatus, AssetStatus, PaymentFrequency } from '../types'
+import { Supplier, Person, PersonStatus } from '../types'
 
 // Generic CSV parser
 export const parseCSV = (csvText: string): string[][] => {

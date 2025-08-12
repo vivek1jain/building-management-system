@@ -58,6 +58,7 @@ const ScheduleModal = ({
         title: `Work on ${ticket.title}`,
         description: `Scheduled work for ticket: ${ticket.description}`,
         location: ticket.location,
+        buildingId: ticket.buildingId || 'building-1',
         startDate: startDateTime,
         endDate: endDateTime,
         ticketId: ticket.id,
