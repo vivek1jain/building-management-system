@@ -16,6 +16,7 @@ import {
   getBuildingFinancialSummary
 } from '../services/serviceChargeService'
 import { getAllBuildings } from '../services/buildingService'
+import { getFlatsByBuilding } from '../services/flatService'
 import { Building, ServiceChargeDemand, Income, Expenditure, BuildingFinancialSummary } from '../types'
 import { 
   Plus, 
@@ -260,27 +261,21 @@ const ServiceCharges: React.FC = () => {
   const handleCreateDemand = async () => {
     try {
       setLoading(true)
-      const result = await generateServiceChargeDemands(
+      // Get flats for the building first
+      const flats = await getFlatsByBuilding(selectedBuilding)
+      
+      const demandIds = await generateServiceChargeDemands(
         selectedBuilding,
         `${demandForm.quarter} ${demandForm.year}`,
         demandForm.ratePerSqFt,
-        new Date(demandForm.dueDate),
-        firebaseUser?.uid || '',
-        {
-          includeGroundRent: demandForm.includeGroundRent,
-          invoiceGrouping: demandForm.invoiceGrouping,
-          showBreakdown: demandForm.showBreakdown,
-          penaltyConfig: demandForm.penaltyConfig,
-          remindersConfig: demandForm.remindersConfig,
-          chargeBreakdown: demandForm.chargeBreakdown
-        }
+        flats
       )
       
-      if (result.success) {
+      if (demandIds && demandIds.length > 0) {
         if (currentUser) {
           addNotification({
             title: 'Success',
-            message: result.message,
+            message: `Successfully created ${demandIds.length} service charge demands`,
             type: 'success',
             userId: currentUser.id
           })
@@ -291,7 +286,7 @@ const ServiceCharges: React.FC = () => {
         if (currentUser) {
           addNotification({
             title: 'Error',
-            message: result.message,
+            message: 'No service charge demands were created',
             type: 'error',
             userId: currentUser.id
           })
@@ -315,7 +310,7 @@ const ServiceCharges: React.FC = () => {
   const handleRecordIncome = async () => {
     try {
       setLoading(true)
-      await recordIncome({
+      await recordIncome(selectedBuilding, {
         buildingId: selectedBuilding,
         date: new Date(incomeForm.date),
         amount: incomeForm.amount,
@@ -354,7 +349,7 @@ const ServiceCharges: React.FC = () => {
   const handleRecordExpenditure = async () => {
     try {
       setLoading(true)
-      await recordExpenditure({
+      await recordExpenditure(selectedBuilding, {
         buildingId: selectedBuilding,
         date: new Date(expenditureForm.date),
         amount: expenditureForm.amount,
@@ -717,7 +712,7 @@ const ServiceCharges: React.FC = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-green-600">${income.amount.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{income.date.toLocaleDateString()}</p>
+                            <p className="text-xs text-gray-500">{new Date(income.date).toLocaleDateString()}</p>
                           </div>
                         </div>
                       ))}
@@ -744,7 +739,7 @@ const ServiceCharges: React.FC = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-red-600">${expenditure.amount.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{expenditure.date.toLocaleDateString()}</p>
+                            <p className="text-xs text-gray-500">{new Date(expenditure.date).toLocaleDateString()}</p>
                           </div>
                         </div>
                       ))}

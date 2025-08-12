@@ -49,7 +49,15 @@ export interface Person {
   updatedByUid?: string;
 }
 
-// Flat Management System
+// Payment frequency options for UK market
+export enum PaymentFrequency {
+  MONTHLY = "Monthly",
+  QUARTERLY = "Quarterly",
+  ANNUALLY = "Annually",
+  WEEKLY = "Weekly"
+}
+
+// Flat Management System - UK Market Localized
 export interface Flat {
   id: string;
   flatNumber: string;
@@ -59,9 +67,22 @@ export interface Flat {
   bedrooms?: number;
   bathrooms?: number;
   areaSqFt?: number;
+  
+  // UK Market: Ground Rent (typically annual, per sq ft)
   groundRent?: number | null;
-  status?: string;
+  groundRentPerSqFt?: number | null;
+  groundRentFrequency?: PaymentFrequency;
+  
+  // UK Market: Maintenance/Service Charge (typically quarterly, per sq ft)
+  maintenanceCharge?: number | null;
+  maintenanceChargePerSqFt?: number | null;
+  maintenanceFrequency?: PaymentFrequency;
+  
+  // Current rent for tenanted properties
   currentRent?: number;
+  rentFrequency?: PaymentFrequency;
+  
+  status?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -71,32 +92,198 @@ export interface Flat {
 export enum AssetStatus {
   OPERATIONAL = "Operational",
   NEEDS_REPAIR = "Needs Repair", 
+  NEEDS_MAINTENANCE = "Needs Maintenance",
   IN_REPAIR = "In Repair",
+  UNDER_WARRANTY = "Under Warranty",
+  WARRANTY_EXPIRED = "Warranty Expired",
   DECOMMISSIONED = "Decommissioned",
+  DISPOSED = "Disposed",
   UNKNOWN = "Unknown",
+}
+
+export enum AssetCategory {
+  HVAC = "HVAC",
+  ELECTRICAL = "Electrical",
+  PLUMBING = "Plumbing",
+  SECURITY = "Security",
+  FIRE_SAFETY = "Fire Safety",
+  ELEVATORS = "Elevators",
+  LIGHTING = "Lighting",
+  APPLIANCES = "Appliances",
+  FURNITURE = "Furniture",
+  IT_EQUIPMENT = "IT Equipment",
+  CLEANING_EQUIPMENT = "Cleaning Equipment",
+  LANDSCAPING = "Landscaping",
+  OTHER = "Other",
+}
+
+export enum MaintenanceType {
+  PREVENTIVE = "Preventive",
+  CORRECTIVE = "Corrective",
+  EMERGENCY = "Emergency",
+  INSPECTION = "Inspection",
+  CALIBRATION = "Calibration",
+  CLEANING = "Cleaning",
+  REPLACEMENT = "Replacement",
+}
+
+export enum MaintenanceFrequency {
+  DAILY = "Daily",
+  WEEKLY = "Weekly",
+  MONTHLY = "Monthly",
+  QUARTERLY = "Quarterly",
+  SEMI_ANNUALLY = "Semi-Annually",
+  ANNUALLY = "Annually",
+  BI_ANNUALLY = "Bi-Annually",
+  AS_NEEDED = "As Needed",
 }
 
 export interface Asset {
   id: string;
   name: string;
   buildingId: string;
+  category: AssetCategory;
   type?: string;
   status: AssetStatus;
   locationDescription?: string;
+  location?: string;
+  description?: string;
+  model?: string;
+  maintenanceSchedule?: string;
+  lastMaintenanceDate?: Date | null;
   flatId?: string | null;
   flatNumber?: string | null;
   manufacturer?: string;
   modelNumber?: string;
   serialNumber?: string;
+  qrCode?: string;
+  barcodeId?: string;
   purchaseDate?: Date | null;
+  purchaseCost?: number;
   installationDate?: Date | null;
   commissionedDate?: Date | null;
   decommissionedDate?: Date | null;
   warrantyExpiryDate?: Date | null;
+  warrantyProvider?: string;
+  warrantyTerms?: string;
   nextServiceDate?: Date | null;
   supplierId?: string | null;
   supplierName?: string | null;
+  depreciationRate?: number;
+  currentValue?: number;
+  replacementCost?: number;
+  energyRating?: string;
+  complianceCertificates?: string[];
+  maintenanceHistory?: AssetMaintenanceRecord[];
+  documents?: AssetDocument[];
+  photos?: string[];
+  criticalityLevel?: 'Low' | 'Medium' | 'High' | 'Critical';
   notes?: string;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUid: string;
+}
+
+export interface AssetMaintenanceRecord {
+  id: string;
+  assetId: string;
+  workOrderId?: string;
+  maintenanceType: MaintenanceType;
+  scheduledDate: Date;
+  completedDate?: Date | null;
+  performedBy?: string;
+  supplierId?: string;
+  description: string;
+  cost?: number;
+  partsUsed?: AssetPart[];
+  notes?: string;
+  photos?: string[];
+  documents?: string[];
+  nextMaintenanceDate?: Date | null;
+  status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled';
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUid: string;
+}
+
+export interface AssetPart {
+  id: string;
+  name: string;
+  partNumber?: string;
+  quantity: number;
+  unitCost?: number;
+  supplier?: string;
+  warrantyPeriod?: number; // in months
+}
+
+export interface AssetDocument {
+  id: string;
+  assetId: string;
+  name: string;
+  type: 'Manual' | 'Warranty' | 'Certificate' | 'Invoice' | 'Photo' | 'Other';
+  fileUrl: string;
+  fileSize?: number;
+  mimeType?: string;
+  uploadedAt: Date;
+  uploadedBy: string;
+  description?: string;
+  expiryDate?: Date | null;
+}
+
+export interface AssetMaintenanceSchedule {
+  id: string;
+  assetId: string;
+  maintenanceType: MaintenanceType;
+  frequency: MaintenanceFrequency;
+  description: string;
+  estimatedDuration?: number; // in hours
+  estimatedCost?: number;
+  requiredSkills?: string[];
+  requiredParts?: AssetPart[];
+  safetyRequirements?: string[];
+  isActive: boolean;
+  nextDueDate?: Date | null;
+  lastCompletedDate?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUid: string;
+}
+
+export interface AssetWarranty {
+  id: string;
+  assetId: string;
+  provider: string;
+  type: 'Manufacturer' | 'Extended' | 'Service Contract';
+  startDate: Date;
+  endDate: Date;
+  terms: string;
+  coverage: string[];
+  contactInfo?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+  };
+  claimHistory?: AssetWarrantyClaim[];
+  isActive: boolean;
+  renewalDate?: Date | null;
+  cost?: number;
+  documents?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+  createdByUid: string;
+}
+
+export interface AssetWarrantyClaim {
+  id: string;
+  warrantyId: string;
+  claimNumber: string;
+  issueDescription: string;
+  claimDate: Date;
+  status: 'Submitted' | 'Under Review' | 'Approved' | 'Rejected' | 'Completed';
+  resolution?: string;
+  cost?: number;
+  documents?: string[];
   createdAt: Date;
   updatedAt: Date;
   createdByUid: string;
@@ -372,6 +559,8 @@ export interface BuildingFinancialSummary {
   totalIncome: number;
   totalExpenditure: number;
   netCashFlow: number;
+  netPosition: number; // totalIncome - totalExpenditure
+  outstandingAmount?: number; // unpaid invoices/demands
   incomeBreakdown: Record<string, number>; // by source
   expenditureBreakdown: Record<string, number>; // by category
   maintenanceBreakdown: {
@@ -397,9 +586,24 @@ export type TicketStatus =
 // Urgency levels
 export type UrgencyLevel = 'Low' | 'Medium' | 'High' | 'Critical';
 
+// Comment interface for tickets
+export interface TicketComment {
+  id: string;
+  ticketId: string;
+  authorId: string; // User ID
+  authorName: string;
+  authorRole: UserRole;
+  content: string;
+  isInternal?: boolean; // For manager-only comments
+  attachments?: string[]; // File URLs
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
 // Ticket interface (enhanced)
 export interface Ticket {
   id: string;
+  buildingId: string; // Building ID for multi-building support
   title: string;
   description: string;
   location: string;
@@ -410,6 +614,7 @@ export interface Ticket {
   attachments: string[]; // File URLs
   activityLog: ActivityLogEntry[];
   quotes: Quote[];
+  comments: TicketComment[]; // Comments from residents and managers
   scheduledDate?: Date;
   completedDate?: Date;
   feedback?: Feedback;
@@ -457,6 +662,7 @@ export interface BuildingEvent {
   title: string;
   description: string;
   location: string;
+  buildingId: string; // Building association for multi-building support
   startDate: Date;
   endDate: Date;
   ticketId?: string; // Linked ticket
@@ -491,6 +697,7 @@ export interface CreateTicketForm {
   description: string;
   location: string;
   urgency: UrgencyLevel;
+  buildingId: string;
   attachments: File[];
 }
 
@@ -545,6 +752,7 @@ export interface Building {
   meters: Meter[];
   totalFloors?: number;
   totalUnits?: number;
+  totalFlats?: number; // Add missing totalFlats property
   yearBuilt?: number;
   propertyType?: string;
   amenities?: string[];
@@ -580,9 +788,15 @@ export interface Budget {
   id: string;
   buildingId: string;
   year: number;
+  financialYearStart?: Date;
   status: BudgetStatus;
   categories: BudgetCategoryItem[];
   totalAmount: number;
+  totalIncome?: number;
+  totalExpenditure?: number;
+  netBudget?: number;
+  serviceChargeRate?: number;
+  groundRentRate?: number;
   allocatedAmount: number;
   spentAmount: number;
   remainingAmount: number;
@@ -595,16 +809,20 @@ export interface Budget {
 
 export interface BudgetCategoryItem {
   id: string;
-  budgetId: string;
+  budgetId?: string;
   name: string;
+  type: 'income' | 'expenditure';
+  budgetAmount: number;
+  actualAmount: number;
   allocatedAmount: number;
   spentAmount: number;
   remainingAmount: number;
-  approvalThreshold: number;
+  approvalThreshold?: number;
+  frequency?: PaymentFrequency;
   notes?: string;
-  attachments: string[]; // File URLs
-  createdAt: Date;
-  updatedAt: Date;
+  attachments?: string[]; // File URLs
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface Invoice {

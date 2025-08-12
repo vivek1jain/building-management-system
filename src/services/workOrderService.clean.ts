@@ -1,4 +1,4 @@
-import { WorkOrder, WorkOrderStatus, WorkOrderPriority } from '../types'
+import { WorkOrder } from '../types'
 
 // Get all work orders for a building
 export const getWorkOrdersByBuilding = async (buildingId: string): Promise<WorkOrder[]> => {
@@ -31,18 +31,16 @@ export const createWorkOrder = async (workOrderData: Partial<WorkOrder>): Promis
       buildingId: workOrderData.buildingId || '',
       title: workOrderData.title || '',
       description: workOrderData.description || '',
-      priority: workOrderData.priority || WorkOrderPriority.MEDIUM,
-      status: workOrderData.status || WorkOrderStatus.SCHEDULED,
+      priority: workOrderData.priority || 'medium',
+      status: workOrderData.status || 'scheduled',
       flatId: workOrderData.flatId,
       scheduledDate: workOrderData.scheduledDate,
       assignedToUid: workOrderData.assignedToUid || '',
-      createdByUid: workOrderData.createdByUid || '',
-      createdByUserEmail: workOrderData.createdByUserEmail || '',
       createdAt: new Date(),
       updatedAt: new Date(),
-      resolutionNotes: [],
-      quoteRequests: [],
-      managerCommunication: []
+      activityLog: [],
+      quotes: [],
+      userFeedback: undefined
     }
     
     console.log('Mock work order created:', newWorkOrder)
@@ -64,33 +62,5 @@ export const updateWorkOrderStatus = async (
   } catch (error) {
     console.error('Error updating work order status:', error)
     throw error
-  }
-}
-
-// Get work order statistics (mock implementation)
-export const getWorkOrderStats = async (buildingId?: string) => {
-  try {
-    const { mockWorkOrders, getDataByBuilding } = await import('./mockData')
-    const workOrders = buildingId ? getDataByBuilding(mockWorkOrders, buildingId) : mockWorkOrders
-    
-    return {
-      total: workOrders.length,
-      scheduled: workOrders.filter(wo => wo.status === WorkOrderStatus.SCHEDULED).length,
-      in_progress: workOrders.filter(wo => wo.status === WorkOrderStatus.TRIAGE).length,
-      completed: workOrders.filter(wo => wo.status === WorkOrderStatus.RESOLVED).length,
-      overdue: workOrders.filter(wo => {
-        if (!wo.scheduledDate) return false
-        return wo.scheduledDate < new Date() && wo.status !== WorkOrderStatus.RESOLVED
-      }).length
-    }
-  } catch (error) {
-    console.error('Error getting work order stats:', error)
-    return {
-      total: 0,
-      scheduled: 0,
-      in_progress: 0,
-      completed: 0,
-      overdue: 0
-    }
   }
 }

@@ -7,6 +7,8 @@ interface NotificationContextType {
   removeNotification: (id: string) => void
   markAsRead: (id: string) => void
   clearAll: () => void
+  isDropdownOpen: boolean
+  setIsDropdownOpen: (open: boolean) => void
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined)
@@ -21,6 +23,7 @@ export const useNotifications = () => {
 
 export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const addNotification = (notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => {
     const newNotification: Notification = {
@@ -32,11 +35,11 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     
     setNotifications(prev => [newNotification, ...prev])
     
-    // Auto-remove after 10 seconds for non-error notifications (increased for testing)
+    // Auto-remove after 5 seconds for non-error notifications
     if (notification.type !== 'error') {
       setTimeout(() => {
-        removeNotification(newNotification.id)
-      }, 10000)
+        setNotifications(current => current.filter(n => n.id !== newNotification.id))
+      }, 5000)
     }
   }
 
@@ -64,6 +67,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     removeNotification,
     markAsRead,
     clearAll,
+    isDropdownOpen,
+    setIsDropdownOpen,
   }
 
   return (

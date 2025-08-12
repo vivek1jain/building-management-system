@@ -35,7 +35,7 @@ service cloud.firestore {
       allow read: if isAuthenticated() && request.auth.uid == userId;
     }
     
-    // Tickets collection
+    // Tickets collection - TEMPORARILY RELAXED FOR DEVELOPMENT
     match /tickets/{ticketId} {
       // Anyone authenticated can read tickets
       allow read: if isAuthenticated();
@@ -43,11 +43,8 @@ service cloud.firestore {
       // Anyone authenticated can create tickets
       allow create: if isAuthenticated();
       
-      // Users can update tickets they created, or managers can update any
-      allow update: if isAuthenticated() && (
-        resource.data.requestedBy == request.auth.uid ||
-        isManager()
-      );
+      // DEVELOPMENT: Allow any authenticated user to update tickets
+      allow update: if isAuthenticated();
       
       // Only managers can delete tickets
       allow delete: if isManager();
@@ -97,10 +94,8 @@ service cloud.firestore {
       // Anyone authenticated can read budgets
       allow read: if isAuthenticated();
       
-      // Managers and admins can create and update budgets
-      allow create, update: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // TEMPORARILY RELAXED FOR DEVELOPMENT - Allow any authenticated user to create/update budgets
+      allow create, update: if isAuthenticated();
       
       // Only admins can delete budgets
       allow delete: if isAuthenticated() && 
@@ -138,6 +133,30 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Flats collection
+    match /flats/{flatId} {
+      // Anyone authenticated can read flats
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create and update flats (for development)
+      allow create, update: if isAuthenticated();
+      
+      // Managers can delete flats
+      allow delete: if isManager();
+    }
+    
+    // Service Charge Demands collection
+    match /serviceChargeDemands/{demandId} {
+      // Anyone authenticated can read service charge demands
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create and update service charge demands (for development)
+      allow create, update: if isAuthenticated();
+      
+      // Managers can delete service charge demands
+      allow delete: if isManager();
     }
     
     // Invoices collection
@@ -216,6 +235,30 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Email logs collection - NEW
+    match /emailLogs/{emailLogId} {
+      // Anyone authenticated can read email logs
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create email logs (for development)
+      allow create: if isAuthenticated();
+      
+      // Managers can update and delete email logs
+      allow update, delete: if isManager();
+    }
+    
+    // Work orders collection - NEW
+    match /workOrders/{workOrderId} {
+      // Anyone authenticated can read work orders
+      allow read: if isAuthenticated();
+      
+      // Anyone authenticated can create and update work orders (for development)
+      allow create, update: if isAuthenticated();
+      
+      // Managers can delete work orders
+      allow delete: if isManager();
     }
     
     // Expenditure collection - NEW

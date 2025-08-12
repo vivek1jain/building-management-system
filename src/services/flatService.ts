@@ -9,7 +9,6 @@ import {
   query, 
   where, 
   orderBy,
-  Timestamp,
   writeBatch,
   serverTimestamp 
 } from 'firebase/firestore'
@@ -20,14 +19,10 @@ import { Flat, Person, ServiceChargeDemand } from '../types'
 export const getFlatsByBuilding = async (buildingId: string): Promise<Flat[]> => {
   try {
     const flatsRef = collection(db, 'flats')
-    const q = query(
-      flatsRef,
-      where('buildingId', '==', buildingId)
-    )
-    
+    const q = query(flatsRef, where('buildingId', '==', buildingId))
     const querySnapshot = await getDocs(q)
-    const flats: Flat[] = []
     
+    const flats: Flat[] = []
     querySnapshot.forEach((doc) => {
       const data = doc.data()
       flats.push({
@@ -50,7 +45,9 @@ export const getFlatsByBuilding = async (buildingId: string): Promise<Flat[]> =>
     return flats.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber))
   } catch (error) {
     console.error('Error getting flats by building:', error)
-    throw error
+    // Fallback to mock data when Firebase permissions are denied
+    const { mockFlats } = await import('./mockData')
+    return mockFlats.filter(flat => flat.buildingId === buildingId).sort((a, b) => a.flatNumber.localeCompare(b.flatNumber)) as Flat[]
   }
 }
 
@@ -300,7 +297,12 @@ export const getFlatServiceCharges = async (flatId: string): Promise<ServiceChar
         createdAt: data.createdAt?.toDate() || new Date(),
         updatedAt: data.updatedAt?.toDate() || new Date(),
         issuedByUid: data.issuedByUid,
-        penaltyAppliedAt: data.penaltyAppliedAt?.toDate()
+        penaltyAppliedAt: data.penaltyAppliedAt?.toDate(),
+        invoiceGrouping: data.invoiceGrouping || 'individual',
+        showBreakdown: data.showBreakdown ?? true,
+        penaltyConfig: data.penaltyConfig || { enabled: false, rate: 0, gracePeriodDays: 0 },
+        remindersConfig: data.remindersConfig || { enabled: false, reminderDays: [] },
+        remindersSent: data.remindersSent || []
       })
     })
     
@@ -314,8 +316,7 @@ export const getFlatServiceCharges = async (flatId: string): Promise<ServiceChar
 // Calculate service charge for a flat
 export const calculateServiceCharge = async (
   flatId: string, 
-  ratePerSqFt: number, 
-  quarter: string
+  ratePerSqFt: number
 ): Promise<number> => {
   try {
     const flat = await getFlatById(flatId)

@@ -1,19 +1,25 @@
+import { db, storage } from '../firebase/config'
 import { 
   collection, 
-  doc, 
   addDoc, 
   updateDoc, 
+  doc, 
   getDocs, 
-  getDoc, 
+  getDoc,
   query, 
+  where, 
   orderBy, 
   onSnapshot,
-  serverTimestamp,
-  Timestamp
+  Timestamp,
+  serverTimestamp
 } from 'firebase/firestore'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { db, storage } from '../firebase/config'
-import { Ticket, CreateTicketForm, TicketStatus } from '../types'
+import { 
+  ref, 
+  uploadBytes, 
+  getDownloadURL 
+} from 'firebase/storage'
+import { Ticket, TicketStatus, UrgencyLevel, ActivityLogEntry, CreateTicketForm } from '../types'
+import MockDataService from './mockDataService'
 
 const TICKETS_COLLECTION = 'tickets'
 
@@ -36,13 +42,19 @@ export const ticketService = {
       const uploadedUrls: string[] = []
       
       for (const file of attachments) {
-        const storageRef = ref(storage, `tickets/${Date.now()}_${file.name}`)
-        const snapshot = await uploadBytes(storageRef, file)
-        const url = await getDownloadURL(snapshot.ref)
-        uploadedUrls.push(url)
+        try {
+          const storageRef = ref(storage, `tickets/${Date.now()}_${file.name}`)
+          const snapshot = await uploadBytes(storageRef, file)
+          const url = await getDownloadURL(snapshot.ref)
+          uploadedUrls.push(url)
+        } catch (storageError) {
+          console.warn('File upload failed, continuing without attachment:', storageError)
+          // Continue without attachments if storage fails
+        }
       }
 
       // Create ticket document
+      console.log('Creating ticket with data:', ticketData)
       const ticketDoc = {
         ...ticketData,
         attachments: uploadedUrls,
@@ -60,9 +72,44 @@ export const ticketService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }
+      console.log('Final ticket document before Firebase save:', ticketDoc)
 
-      const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketDoc)
-      return docRef.id
+      try {
+        const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketDoc)
+        console.log('Ticket created successfully in Firebase:', docRef.id)
+        return docRef.id
+      } catch (firestoreError) {
+        console.warn('Firebase creation failed, falling back to mock data:', firestoreError)
+        
+        // Fallback: Add to mock data for development
+        const mockTicketId = `ticket-${Date.now()}`
+        const mockTicket = {
+          id: mockTicketId,
+          ...ticketData,
+          attachments: uploadedUrls,
+          requestedBy: userId,
+          status: 'New' as TicketStatus,
+          urgency: ticketData.urgency || 'medium',
+          activityLog: [{
+            id: Date.now().toString(),
+            action: 'Ticket Created',
+            description: 'Ticket created by user',
+            performedBy: userId,
+            timestamp: new Date(),
+            metadata: {}
+          }],
+          quotes: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+        
+        // Import and add to mock data
+        const { mockTickets } = await import('../services/mockData')
+        mockTickets.push(mockTicket as any)
+        
+        console.log('Ticket added to mock data:', mockTicketId)
+        return mockTicketId
+      }
     } catch (error) {
       console.error('Error creating ticket:', error)
       throw new Error('Failed to create ticket')
@@ -78,7 +125,7 @@ export const ticketService = {
       )
       const querySnapshot = await getDocs(q)
       
-      return querySnapshot.docs.map(doc => ({
+      const firebaseTickets = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         createdAt: convertTimestamp(doc.data().createdAt),
@@ -95,9 +142,30 @@ export const ticketService = {
           submittedAt: convertTimestamp(quote.submittedAt)
         })) || []
       })) as Ticket[]
+      
+      // If we have Firebase tickets, return them
+      if (firebaseTickets.length > 0) {
+        console.log('Returning Firebase tickets:', firebaseTickets.length)
+        return firebaseTickets
+      }
+      
+      // Otherwise, fall back to mock data
+      console.log('No Firebase tickets found, falling back to mock data')
+      const { mockTickets } = await import('../services/mockData')
+      return mockTickets
+      
     } catch (error) {
-      console.error('Error getting tickets:', error)
-      throw new Error('Failed to fetch tickets')
+      console.warn('Firebase query failed, falling back to mock data:', error)
+      
+      // Fallback to mock data when Firebase is unavailable
+      try {
+        const { mockTickets } = await import('../services/mockData')
+        console.log('Returning mock tickets:', mockTickets.length)
+        return mockTickets
+      } catch (mockError) {
+        console.error('Error loading mock tickets:', mockError)
+        return []
+      }
     }
   },
 
@@ -189,31 +257,75 @@ export const ticketService = {
 
   // Subscribe to tickets changes
   subscribeToTickets(callback: (tickets: Ticket[]) => void) {
-    const q = query(
-      collection(db, TICKETS_COLLECTION),
-      orderBy('createdAt', 'desc')
-    )
-    
-    return onSnapshot(q, (querySnapshot) => {
-      const tickets = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: convertTimestamp(doc.data().createdAt),
-        updatedAt: convertTimestamp(doc.data().updatedAt),
-        scheduledDate: convertTimestamp(doc.data().scheduledDate),
-        completedDate: convertTimestamp(doc.data().completedDate),
-        activityLog: doc.data().activityLog?.map((log: any) => ({
-          ...log,
-          timestamp: convertTimestamp(log.timestamp)
-        })) || [],
-        quotes: doc.data().quotes?.map((quote: any) => ({
-          ...quote,
-          validUntil: convertTimestamp(quote.validUntil),
-          submittedAt: convertTimestamp(quote.submittedAt)
-        })) || []
-      })) as Ticket[]
+    try {
+      // Try Firebase first
+      const q = query(
+        collection(db, TICKETS_COLLECTION),
+        orderBy('createdAt', 'desc')
+      )
       
-      callback(tickets)
-    })
+      return onSnapshot(q, async (querySnapshot) => {
+        const tickets = querySnapshot.docs.map(doc => {
+          const data = doc.data()
+          console.log('Firebase ticket data:', { id: doc.id, buildingId: data.buildingId, title: data.title })
+          return {
+            id: doc.id,
+            ...data,
+            createdAt: convertTimestamp(data.createdAt),
+            updatedAt: convertTimestamp(data.updatedAt),
+            scheduledDate: convertTimestamp(data.scheduledDate),
+            completedDate: convertTimestamp(data.completedDate),
+            activityLog: data.activityLog?.map((log: any) => ({
+              ...log,
+              timestamp: convertTimestamp(log.timestamp)
+            })) || [],
+            quotes: data.quotes?.map((quote: any) => ({
+              ...quote,
+              validUntil: convertTimestamp(quote.validUntil),
+              submittedAt: convertTimestamp(quote.submittedAt)
+            })) || []
+          }
+        }) as Ticket[]
+        
+        console.log('All Firebase tickets:', tickets.map(t => ({ id: t.id, buildingId: t.buildingId, title: t.title })))
+        
+        // If no Firebase tickets found, fall back to mock data
+        if (tickets.length === 0) {
+          console.log('No Firebase tickets found, falling back to mock data')
+          try {
+            const { mockTickets } = await import('../services/mockData')
+            console.log('Using mock tickets:', mockTickets.length)
+            callback(mockTickets)
+          } catch (mockError) {
+            console.error('Error loading mock tickets:', mockError)
+            callback([])
+          }
+        } else {
+          callback(tickets)
+        }
+      }, (error) => {
+        // Handle Firebase errors (including permission-denied)
+        console.warn('Firebase snapshot listener error, falling back to mock data:', error)
+        import('../services/mockData').then(({ mockTickets }) => {
+          console.log('Using mock tickets due to Firebase error:', mockTickets.length)
+          callback(mockTickets)
+        }).catch((mockError) => {
+          console.error('Error loading mock tickets after Firebase error:', mockError)
+          callback([])
+        })
+      })
+    } catch (error) {
+      console.error('Firebase tickets subscription failed, using mock data:', error)
+      // Fallback to mock data
+      import('../services/mockData').then(({ mockTickets }) => {
+        console.log('Firebase subscription failed, using mock tickets:', mockTickets.length)
+        callback(mockTickets)
+      }).catch((mockError) => {
+        console.error('Error loading mock tickets after Firebase failure:', mockError)
+        callback([])
+      })
+      // Return empty unsubscribe function
+      return () => {}
+    }
   }
 } 

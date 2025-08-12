@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { ticketService } from '../services/ticketService'
 import { CreateTicketForm, UrgencyLevel } from '../types'
+import { mockBuildings } from '../services/mockData'
 
 const CreateTicket = () => {
   const [attachments, setAttachments] = useState<File[]>([])
@@ -137,6 +138,30 @@ const CreateTicket = () => {
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertCircle className="h-4 w-4 mr-1" />
               {errors.description.message}
+            </p>
+          )}
+        </div>
+
+        {/* Building Selection */}
+        <div>
+          <label htmlFor="buildingId" className="block text-sm font-medium text-gray-700 mb-2">
+            Building *
+          </label>
+          <select
+            {...register('buildingId', { required: 'Building selection is required' })}
+            className="input"
+          >
+            <option value="">Select a building...</option>
+            {mockBuildings.map((building) => (
+              <option key={building.id} value={building.id}>
+                {building.name}
+              </option>
+            ))}
+          </select>
+          {errors.buildingId && (
+            <p className="mt-1 text-sm text-red-600 flex items-center">
+              <AlertCircle className="h-4 w-4 mr-1" />
+              {errors.buildingId.message}
             </p>
           )}
         </div>

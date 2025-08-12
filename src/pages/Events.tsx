@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { 
@@ -11,60 +11,27 @@ import {
   AlertTriangle,
   X,
   Filter,
-  Search
+  Search,
+  Building
 } from 'lucide-react'
 import { BuildingEvent } from '../types'
-
-// Mock events data - in real app, this would come from Firebase
-const mockEvents: BuildingEvent[] = [
-  {
-    id: 'event1',
-    title: 'HVAC Maintenance',
-    description: 'Regular HVAC system maintenance and filter replacement',
-    location: 'Building A - Floor 3',
-    startDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000 + 2 * 60 * 60 * 1000), // Tomorrow + 2 hours
-    ticketId: 'ticket1',
-    assignedTo: ['supplier1'],
-    status: 'scheduled',
-    createdAt: new Date('2024-01-10'),
-    updatedAt: new Date('2024-01-10')
-  },
-  {
-    id: 'event2',
-    title: 'Electrical Inspection',
-    description: 'Annual electrical safety inspection',
-    location: 'Building B - Basement',
-    startDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-    endDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 4 * 60 * 60 * 1000), // 3 days + 4 hours
-    ticketId: 'ticket2',
-    assignedTo: ['supplier2'],
-    status: 'scheduled',
-    createdAt: new Date('2024-01-08'),
-    updatedAt: new Date('2024-01-08')
-  },
-  {
-    id: 'event3',
-    title: 'Plumbing Repair',
-    description: 'Fix leaking pipe in restroom',
-    location: 'Building A - Floor 1',
-    startDate: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-    endDate: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1 hour from now
-    ticketId: 'ticket3',
-    assignedTo: ['supplier1'],
-    status: 'in-progress',
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15')
-  }
-]
+import { mockBuildings, mockEvents } from '../services/mockData'
 
 const Events = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [events, setEvents] = useState<BuildingEvent[]>(mockEvents)
+  
+  // Multi-building state management
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('building-1')
+  const [buildings] = useState(mockBuildings)
+  const [allEvents] = useState<BuildingEvent[]>(mockEvents)
+  const [events, setEvents] = useState<BuildingEvent[]>([])
+  
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>('all')
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const [editingEvent, setEditingEvent] = useState<BuildingEvent | null>(null)
+  const [showEditForm, setShowEditForm] = useState(false)
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
@@ -73,6 +40,13 @@ const Events = () => {
     endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
     assignedTo: [] as string[]
   })
+
+  // Load events when building selection changes
+  useEffect(() => {
+    const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuilding)
+    setEvents(buildingEvents)
+    console.log(`Loaded ${buildingEvents.length} events for building:`, selectedBuilding)
+  }, [selectedBuilding, allEvents])
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -126,6 +100,7 @@ const Events = () => {
     const newEventData: BuildingEvent = {
       id: Date.now().toString(),
       ...newEvent,
+      buildingId: selectedBuilding,
       ticketId: undefined,
       status: 'scheduled',
       createdAt: new Date(),
@@ -154,21 +129,106 @@ const Events = () => {
   const handleStatusUpdate = (eventId: string, newStatus: string) => {
     setEvents(prev => prev.map(event => 
       event.id === eventId 
-        ? { ...event, status: newStatus as any, updatedAt: new Date() }
+        ? { ...event, status: newStatus as BuildingEvent['status'], updatedAt: new Date() }
         : event
     ))
 
     addNotification({
-      title: 'Status Updated',
-      message: `Event status updated to ${newStatus}.`,
+      title: 'Event Updated',
+      message: `Event status changed to ${newStatus}.`,
       type: 'success',
       userId: currentUser?.id || ''
     })
   }
 
+  const handleEditEvent = (event: BuildingEvent) => {
+    setEditingEvent(event)
+    setNewEvent({
+      title: event.title,
+      description: event.description,
+      location: event.location,
+      startDate: event.startDate,
+      endDate: event.endDate,
+      assignedTo: event.assignedTo
+    })
+    setShowEditForm(true)
+  }
+
+  const handleUpdateEvent = (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!editingEvent) return
+
+    const updatedEvent: BuildingEvent = {
+      ...editingEvent,
+      ...newEvent,
+      updatedAt: new Date()
+    }
+
+    setEvents(prev => prev.map(event => 
+      event.id === editingEvent.id ? updatedEvent : event
+    ))
+    
+    setShowEditForm(false)
+    setEditingEvent(null)
+    setNewEvent({
+      title: '',
+      description: '',
+      location: '',
+      startDate: new Date(),
+      endDate: new Date(Date.now() + 60 * 60 * 1000),
+      assignedTo: []
+    })
+
+    addNotification({
+      title: 'Event Updated',
+      message: 'The event has been updated successfully.',
+      type: 'success',
+      userId: currentUser?.id || ''
+    })
+  }
+
+  const handleDeleteEvent = (eventId: string) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      setEvents(prev => prev.filter(event => event.id !== eventId))
+      
+      addNotification({
+        title: 'Event Deleted',
+        message: 'The event has been deleted successfully.',
+        type: 'success',
+        userId: currentUser?.id || ''
+      })
+    }
+  }
+
+  const getWorkflowActions = (status: string) => {
+    switch (status) {
+      case 'scheduled':
+        return [
+          { label: 'Start Event', action: 'in-progress', color: 'btn-primary' },
+          { label: 'Cancel', action: 'cancelled', color: 'btn-secondary' }
+        ]
+      case 'in-progress':
+        return [
+          { label: 'Complete', action: 'completed', color: 'btn-primary' },
+          { label: 'Cancel', action: 'cancelled', color: 'btn-secondary' }
+        ]
+      case 'completed':
+        return [
+          { label: 'Reopen', action: 'scheduled', color: 'btn-secondary' }
+        ]
+      case 'cancelled':
+        return [
+          { label: 'Reschedule', action: 'scheduled', color: 'btn-primary' }
+        ]
+      default:
+        return []
+    }
+  }
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with Building Selector */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Events</h1>
@@ -176,13 +236,29 @@ const Events = () => {
             Manage scheduled work and building events
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateForm(true)}
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Schedule Event</span>
-        </button>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Building className="h-4 w-4 text-gray-500" />
+            <select
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              className="select min-w-[200px]"
+            >
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="btn-primary flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Schedule Event</span>
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -224,36 +300,21 @@ const Events = () => {
 
       {/* Create Event Form */}
       {showCreateForm && (
-        <div className="card">
+        <div className="card mb-6">
           <h3 className="text-lg font-medium text-gray-900 mb-4">Schedule New Event</h3>
           <form onSubmit={handleCreateEvent} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Event Title
-                </label>
-                <input
-                  type="text"
-                  value={newEvent.title}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-                  className="input"
-                  placeholder="Enter event title"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Location
-                </label>
-                <input
-                  type="text"
-                  value={newEvent.location}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
-                  className="input"
-                  placeholder="Enter location"
-                  required
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Event Title
+              </label>
+              <input
+                type="text"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                className="input"
+                placeholder="Enter event title"
+                required
+              />
             </div>
 
             <div>
@@ -263,9 +324,23 @@ const Events = () => {
               <textarea
                 value={newEvent.description}
                 onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                className="textarea"
+                className="input"
                 rows={3}
-                placeholder="Describe the event..."
+                placeholder="Enter event description"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Location
+              </label>
+              <input
+                type="text"
+                value={newEvent.location}
+                onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
+                className="input"
+                placeholder="Enter event location"
                 required
               />
             </div>
@@ -313,6 +388,99 @@ const Events = () => {
         </div>
       )}
 
+      {/* Edit Event Form */}
+      {showEditForm && editingEvent && (
+        <div className="card mb-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Event</h3>
+          <form onSubmit={handleUpdateEvent} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Event Title
+              </label>
+              <input
+                type="text"
+                value={newEvent.title}
+                onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+                className="input"
+                placeholder="Enter event title"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                value={newEvent.description}
+                onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+                className="input"
+                rows={3}
+                placeholder="Enter event description"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Location
+              </label>
+              <input
+                type="text"
+                value={newEvent.location}
+                onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
+                className="input"
+                placeholder="Enter event location"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newEvent.startDate.toISOString().slice(0, 16)}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
+                  className="input"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={newEvent.endDate.toISOString().slice(0, 16)}
+                  onChange={(e) => setNewEvent(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
+                  className="input"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEditForm(false)
+                  setEditingEvent(null)
+                }}
+                className="btn-secondary"
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary">
+                Update Event
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {/* Events List */}
       <div className="space-y-4">
         {filteredEvents.map((event) => (
@@ -346,30 +514,32 @@ const Events = () => {
               </div>
               
               <div className="flex items-center space-x-2 ml-4">
-                {event.status === 'scheduled' && (
-                  <>
-                    <button
-                      onClick={() => handleStatusUpdate(event.id, 'in-progress')}
-                      className="btn-secondary text-sm"
-                    >
-                      Start
-                    </button>
-                    <button
-                      onClick={() => handleStatusUpdate(event.id, 'cancelled')}
-                      className="btn-secondary text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-                {event.status === 'in-progress' && (
+                {/* Edit and Delete buttons */}
+                <button
+                  onClick={() => handleEditEvent(event)}
+                  className="btn-secondary text-sm"
+                  title="Edit Event"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteEvent(event.id)}
+                  className="btn-secondary text-sm text-red-600 hover:text-red-700"
+                  title="Delete Event"
+                >
+                  Delete
+                </button>
+                
+                {/* Workflow action buttons */}
+                {getWorkflowActions(event.status).map((action) => (
                   <button
-                    onClick={() => handleStatusUpdate(event.id, 'completed')}
-                    className="btn-primary text-sm"
+                    key={action.action}
+                    onClick={() => handleStatusUpdate(event.id, action.action)}
+                    className={`${action.color} text-sm`}
                   >
-                    Complete
+                    {action.label}
                   </button>
-                )}
+                ))}
               </div>
             </div>
           </div>

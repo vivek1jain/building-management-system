@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Building, Asset, Meter, AssetStatus } from '../types'
+import { mockBuildings, mockAssets } from './mockData'
 
   // Get all buildings
 export const getAllBuildings = async (): Promise<Building[]> => {

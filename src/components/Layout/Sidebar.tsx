@@ -1,18 +1,12 @@
 import { NavLink } from 'react-router-dom'
 import {
   Home,
-  Ticket,
-  Users,
   Calendar,
   Settings,
   Plus,
   DollarSign,
-  FileText,
   Building,
-  CreditCard,
-  Wrench,
-  BarChart3,
-  TrendingUp
+  Wrench
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -21,16 +15,10 @@ const Sidebar = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
-    { name: 'Comprehensive', href: '/comprehensive', icon: BarChart3 },
-    { name: 'Flats', href: '/flats', icon: Building },
-    { name: 'People', href: '/people', icon: Users },
-    { name: 'Financial Management', href: '/financial-management', icon: TrendingUp },
-    { name: 'Work Orders', href: '/work-orders', icon: Wrench },
-    { name: 'Tickets', href: '/tickets', icon: Ticket },
-    { name: 'Suppliers', href: '/suppliers', icon: Users },
+    { name: 'Building Data', href: '/building-data', icon: Building },
+    { name: 'Finances', href: '/finances', icon: DollarSign },
+    { name: 'Tickets & Work Orders', href: '/tickets', icon: Wrench },
     { name: 'Events', href: '/events', icon: Calendar },
-    { name: 'Budget', href: '/budget', icon: DollarSign },
-    { name: 'Invoices', href: '/invoices', icon: FileText },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
 

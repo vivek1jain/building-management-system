@@ -1,3 +1,4 @@
+
 import { Bell, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
@@ -5,9 +6,13 @@ import NotificationDropdown from '../Notifications/NotificationDropdown'
 
 const Header = () => {
   const { currentUser, logout } = useAuth()
-  const { notifications } = useNotifications()
+  const { notifications, isDropdownOpen, setIsDropdownOpen } = useNotifications()
 
   const unreadCount = notifications.filter(n => !n.isRead).length
+
+  const handleBellClick = () => {
+    setIsDropdownOpen(!isDropdownOpen)
+  }
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
@@ -19,7 +24,11 @@ const Header = () => {
         <div className="flex items-center space-x-4">
           {/* Notifications */}
           <div className="relative">
-            <button className="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg">
+            <button 
+              onClick={handleBellClick}
+              className="relative p-2 text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg transition-colors duration-200"
+              title={isDropdownOpen ? "Hide notifications" : "Show notifications"}
+            >
               <Bell className="h-6 w-6" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-5 w-5 bg-danger-500 text-white text-xs rounded-full flex items-center justify-center">
@@ -27,7 +36,7 @@ const Header = () => {
                 </span>
               )}
             </button>
-            <NotificationDropdown />
+            {isDropdownOpen && <NotificationDropdown />}
           </div>
           
           {/* User Menu */}

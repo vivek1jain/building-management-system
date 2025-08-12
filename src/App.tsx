@@ -4,22 +4,19 @@ import { NotificationProvider } from './contexts/NotificationContext'
 import Layout from './components/Layout/Layout'
 import Dashboard from './pages/Dashboard'
 import ComprehensiveDashboard from './pages/ComprehensiveDashboard'
-import Tickets from './pages/Tickets'
 import CreateTicket from './pages/CreateTicket'
 import TicketDetail from './pages/TicketDetail'
 import Suppliers from './pages/Suppliers'
 import Events from './pages/Events'
-import BudgetPage from './pages/Budget'
-import Invoices from './pages/Invoices'
 import Login from './pages/Login'
 import ProtectedRoute from './components/Auth/ProtectedRoute'
 import NotificationList from './components/Notifications/NotificationList'
 // Import new comprehensive feature pages
-import FlatsPage from './pages/Flats'
-import PeoplePage from './pages/People'
+import BuildingDataManagement from './pages/BuildingDataManagement'
 import ServiceChargesPage from './pages/ServiceCharges'
-import WorkOrdersPage from './pages/WorkOrders'
-import FinancialManagementPage from './pages/ServiceCharges' // Consolidated Financial Management
+import TicketsWorkOrders from './pages/TicketsWorkOrders'
+import Finances from './pages/Finances' // Unified Financial Management
+import Settings from './pages/Settings'
 
 function App() {
   return (
@@ -38,20 +35,21 @@ function App() {
               <Route path="comprehensive" element={<ComprehensiveDashboard />} />
               
               {/* New Comprehensive Features */}
-              <Route path="flats" element={<FlatsPage />} />
-              <Route path="people" element={<PeoplePage />} />
-              <Route path="service-charges" element={<FinancialManagementPage />} />
-              <Route path="financial-management" element={<FinancialManagementPage />} />
-              <Route path="work-orders" element={<WorkOrdersPage />} />
+              <Route path="building-data" element={<BuildingDataManagement />} />
+              <Route path="finances" element={<Finances />} />
               
-              {/* Existing Features */}
-              <Route path="tickets" element={<Tickets />} />
+              {/* Unified Tickets & Work Orders */}
+              <Route path="tickets" element={<TicketsWorkOrders />} />
+              <Route path="work-orders" element={<TicketsWorkOrders />} />
               <Route path="tickets/new" element={<CreateTicket />} />
               <Route path="tickets/:id" element={<TicketDetail />} />
               <Route path="suppliers" element={<Suppliers />} />
               <Route path="events" element={<Events />} />
-              <Route path="budget" element={<BudgetPage />} />
-              <Route path="invoices" element={<Invoices />} />
+              <Route path="settings" element={<Settings />} />
+              {/* Legacy routes - redirect to unified finances */}
+              <Route path="budget" element={<Finances />} />
+              <Route path="invoices" element={<Finances />} />
+              <Route path="service-charges" element={<Finances />} />
             </Route>
           </Routes>
         </div>

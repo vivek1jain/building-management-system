@@ -1,9 +1,11 @@
-# Building Management System - Test Cases
+# Building Management System - Comprehensive Test Cases
 
 ## Test Environment Setup
-- **URL**: http://localhost:3003/
+- **URL**: http://localhost:3012/
 - **Browser**: Chrome/Firefox/Safari
-- **Test Data**: Sample data available via "Add Sample Data" buttons
+- **Test Data**: Mock data automatically loaded in development mode
+- **Authentication**: Development mode bypass enabled (auto-login as admin)
+- **Buildings**: Riverside Gardens, Victoria Heights, Canary Wharf Towers
 
 ---
 
@@ -242,7 +244,275 @@
 
 ---
 
-## 6. Events Management Tests
+## 6. Building Data Management Tests
+
+### 6.1 Building Selection
+**Test Case**: TC-BUILDING-001  
+**Description**: Test building selection across all tabs  
+**Steps**:
+1. Navigate to "Building Data" page
+2. Select "Riverside Gardens" from building dropdown
+3. Switch between tabs: People, Flats, Suppliers, Assets
+4. Verify selected building persists across tabs
+5. Change to "Victoria Heights"
+6. Verify all data filters to new building
+**Expected Result**: Building selection works consistently, data filters correctly
+**Status**: ⏳ Pending
+
+### 6.2 People Management
+**Test Case**: TC-BUILDING-002  
+**Description**: Test people/residents management  
+**Steps**:
+1. Navigate to "Building Data" → "People" tab
+2. Select a building from dropdown
+3. Verify residents display for selected building
+4. Test search functionality
+5. Click on a resident to view details
+6. Test status filters (Owner, Tenant, Resident)
+**Expected Result**: People data displays correctly, filters work
+**Status**: ⏳ Pending
+
+### 6.3 Flats Management
+**Test Case**: TC-BUILDING-003  
+**Description**: Test flats management functionality  
+**Steps**:
+1. Navigate to "Building Data" → "Flats" tab
+2. Select a building from dropdown
+3. Verify flats display for selected building
+4. Check flat information: number, floor, bedrooms, area
+5. Test search and filter functionality
+6. Verify ground rent and maintenance charge data
+**Expected Result**: Flats data displays correctly with UK-specific information
+**Status**: ⏳ Pending
+
+### 6.4 Suppliers Management
+**Test Case**: TC-BUILDING-004  
+**Description**: Test suppliers management per building  
+**Steps**:
+1. Navigate to "Building Data" → "Suppliers" tab
+2. Select a building from dropdown
+3. Verify suppliers display for selected building
+4. Test supplier categories and specialties
+5. Check contact information and ratings
+6. Test search functionality
+**Expected Result**: Suppliers data displays correctly per building
+**Status**: ⏳ Pending
+
+### 6.5 Assets Management
+**Test Case**: TC-BUILDING-005  
+**Description**: Test assets management functionality  
+**Steps**:
+1. Navigate to "Building Data" → "Assets" tab
+2. Select a building from dropdown
+3. Verify assets display for selected building
+4. Check asset categories: HVAC, Electrical, Plumbing, etc.
+5. Test asset status and maintenance information
+6. Test search and filter functionality
+**Expected Result**: Assets data displays correctly with categories
+**Status**: ⏳ Pending
+
+---
+
+## 7. Financial Management Tests
+
+### 7.1 Budget Management
+**Test Case**: TC-FINANCE-001  
+**Description**: Test budget creation and management  
+**Steps**:
+1. Navigate to "Finances" page
+2. Select a building from dropdown
+3. Click "Create Budget" button
+4. Fill in budget form:
+   - Financial Year: 2024-2025
+   - Service Charge Rate: £2.50 per sq ft
+   - Ground Rent Rate: £0.50 per sq ft
+5. Add income categories with amounts
+6. Add expenditure categories with amounts
+7. Click "Save Budget" button
+**Expected Result**: Budget created successfully, summary cards update
+**Status**: ⏳ Pending
+
+### 7.2 Service Charge Management
+**Test Case**: TC-FINANCE-002  
+**Description**: Test service charge demand generation  
+**Steps**:
+1. Navigate to "Finances" → "Service Charges" tab
+2. Select a building from dropdown
+3. Select quarter (Q1-2024)
+4. Click "Generate Demands" button
+5. Verify service charge demands are created
+6. Check demand details: flat number, resident, amount due
+7. Verify status indicators and due dates
+**Expected Result**: Service charge demands generated correctly
+**Status**: ⏳ Pending
+
+### 7.3 Payment Recording
+**Test Case**: TC-FINANCE-003  
+**Description**: Test payment recording functionality  
+**Steps**:
+1. Navigate to "Finances" → "Service Charges" tab
+2. Find a demand with outstanding amount
+3. Click the "Record Payment" button (credit card icon)
+4. Fill in payment modal:
+   - Payment Amount: £500.00
+   - Payment Date: Today's date
+5. Click "Record Payment" button
+6. Verify payment is recorded and outstanding amount updates
+**Expected Result**: Payment recorded successfully, amounts update correctly
+**Status**: ⏳ Pending
+
+### 7.4 View Demand Details
+**Test Case**: TC-FINANCE-004  
+**Description**: Test viewing detailed demand information  
+**Steps**:
+1. Navigate to "Finances" → "Service Charges" tab
+2. Click the "View" button (eye icon) on any demand
+3. Verify demand details modal opens
+4. Check all information displays:
+   - Flat and resident information
+   - Financial breakdown (Total Due, Paid, Outstanding)
+   - Payment history if available
+   - Important dates (Issue Date, Due Date)
+5. Test "Record Payment" button from details modal
+**Expected Result**: All demand details display correctly
+**Status**: ⏳ Pending
+
+### 7.5 Send Reminder
+**Test Case**: TC-FINANCE-005  
+**Description**: Test sending payment reminders  
+**Steps**:
+1. Navigate to "Finances" → "Service Charges" tab
+2. Find an overdue demand
+3. Click the "Send Reminder" button (send icon)
+4. Verify notification appears confirming reminder sent
+5. Check that reminder action is logged
+**Expected Result**: Reminder sent successfully with confirmation
+**Status**: ⏳ Pending
+
+---
+
+## 8. Tickets & Work Orders Tests
+
+### 8.1 Unified Workflow View
+**Test Case**: TC-WORKFLOW-001  
+**Description**: Test unified tickets and work orders workflow  
+**Steps**:
+1. Navigate to "Tickets & Work Orders" page
+2. Verify workflow view displays with 5 stages:
+   - New Tickets
+   - Manager Review
+   - Quote Management
+   - Work Orders
+   - Completed
+3. Check stage counts and progress indicators
+4. Test building selection and filtering
+**Expected Result**: Workflow view displays correctly with accurate counts
+**Status**: ⏳ Pending
+
+### 8.2 Ticket Comments
+**Test Case**: TC-WORKFLOW-002  
+**Description**: Test ticket commenting functionality  
+**Steps**:
+1. Navigate to "Tickets & Work Orders" → "Tickets" tab
+2. Click on any ticket to open detail modal
+3. Scroll to comments section
+4. Add a new comment: "Test comment from admin"
+5. Click "Add Comment" button
+6. Verify comment appears with timestamp and user info
+7. Test role-based access (admin can comment on all tickets)
+**Expected Result**: Comments work correctly with role-based access
+**Status**: ⏳ Pending
+
+### 8.3 Multi-Building Filtering
+**Test Case**: TC-WORKFLOW-003  
+**Description**: Test multi-building filtering for tickets and work orders  
+**Steps**:
+1. Navigate to "Tickets & Work Orders" page
+2. Select "Riverside Gardens" from building dropdown
+3. Verify only tickets for that building display
+4. Switch to "Victoria Heights"
+5. Verify tickets filter to new building
+6. Test across all tabs: Workflow, Tickets, Work Orders
+**Expected Result**: Multi-building filtering works consistently
+**Status**: ⏳ Pending
+
+---
+
+## 9. Settings Management Tests
+
+### 9.1 Building Management Settings
+**Test Case**: TC-SETTINGS-001  
+**Description**: Test building management in settings  
+**Steps**:
+1. Navigate to "Settings" page
+2. Verify "Building Management" tab is active by default
+3. View existing buildings list
+4. Click "Add Building" button
+5. Fill in building form:
+   - Name: "Test Building"
+   - Address: "123 Test Street, London"
+   - Units: 25
+   - Status: Active
+6. Click "Save" button
+7. Verify building appears in list
+8. Test edit and delete functionality
+**Expected Result**: Building management works correctly with CRUD operations
+**Status**: ⏳ Pending
+
+### 9.2 User Management Settings
+**Test Case**: TC-SETTINGS-002  
+**Description**: Test user management functionality  
+**Steps**:
+1. Navigate to "Settings" → "User Management" tab
+2. View existing users list
+3. Click "Create User" button
+4. Fill in user form:
+   - Name: "Test User"
+   - Email: "testuser@example.com"
+   - Role: Manager
+   - Buildings: Select building associations
+5. Click "Create User" button
+6. Verify user appears in list
+7. Test password generation and notifications
+**Expected Result**: User management works with role assignments and building associations
+**Status**: ⏳ Pending
+
+### 9.3 Financial Setup Settings
+**Test Case**: TC-SETTINGS-003  
+**Description**: Test financial year and payment setup  
+**Steps**:
+1. Navigate to "Settings" → "Financial Setup" tab
+2. Configure financial year settings:
+   - Start Month: April (UK financial year)
+   - Budget Lock Date: March 31st
+   - Service Charge Frequency: Quarterly
+   - Ground Rent Frequency: Annually
+3. Click "Save Changes" button
+4. Verify settings are saved and notification appears
+**Expected Result**: Financial settings save correctly with UK-specific defaults
+**Status**: ⏳ Pending
+
+### 9.4 Security Settings
+**Test Case**: TC-SETTINGS-004  
+**Description**: Test security and access control settings  
+**Steps**:
+1. Navigate to "Settings" → "Security & Access Control" tab
+2. Test domain whitelist functionality:
+   - Add domain: "company.com"
+   - Verify domain appears in list
+   - Remove domain and verify removal
+3. Configure authentication settings:
+   - Enable email verification
+   - Set session timeout: 120 minutes
+   - Set max login attempts: 3
+4. Test password policy checkboxes
+5. Click "Save Changes" button
+**Expected Result**: Security settings work correctly with validation
+**Status**: ⏳ Pending
+
+---
+
+## 10. Event Management Tests
 
 ### 6.1 View Events
 **Test Case**: TC-EVENT-001  
