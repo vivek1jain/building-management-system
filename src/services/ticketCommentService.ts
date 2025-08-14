@@ -59,26 +59,14 @@ export class TicketCommentService {
     userRole: 'resident' | 'manager',
     userBuildingIds: string[] = []
   ): boolean {
-    const ticket = mockTickets.find(t => t.id === ticketId);
-    if (!ticket) return false;
-
     // For development/testing: Allow all authenticated users to comment
     // This ensures the comment functionality can be tested
-    if (userId) {
+    if (userId && userId.trim() !== '') {
+      console.log('Comment permission granted for user:', userId, 'role:', userRole);
       return true;
     }
 
-    // Fallback to original logic for production
-    // Managers can comment on tickets for buildings they manage
-    if (userRole === 'manager') {
-      return userBuildingIds.includes(ticket.buildingId);
-    }
-
-    // Residents can comment on their own tickets
-    if (userRole === 'resident') {
-      return ticket.requestedBy === userId;
-    }
-
+    console.log('Comment permission denied - no valid userId:', userId);
     return false;
   }
 

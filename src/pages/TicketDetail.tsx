@@ -31,6 +31,8 @@ import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent } from '../
 import QuoteComparison from '../components/Quotes/QuoteComparison'
 import ScheduleModal from '../components/Scheduling/ScheduleModal'
 import EmailNotification from '../components/EmailNotification'
+import { TicketComments } from '../components/TicketComments'
+import { TicketCommentService } from '../services/ticketCommentService'
 
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -50,6 +52,8 @@ const TicketDetail = () => {
   const [requesting, setRequesting] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [scheduledEvents, setScheduledEvents] = useState<BuildingEvent[]>([])
+  const [comments, setComments] = useState<any[]>([])
+  const [canComment, setCanComment] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -81,6 +85,42 @@ const TicketDetail = () => {
     }
     fetchEvents()
   }, [id])
+
+  // Load comments and check permissions
+  useEffect(() => {
+    if (!id || !ticket || !currentUser) return
+
+    const loadComments = async () => {
+      try {
+        const ticketComments = await TicketCommentService.getComments(id)
+        setComments(ticketComments)
+        
+        // Check if user can comment
+        console.log('Current user data:', currentUser);
+        console.log('Checking comment permission for:', {
+          ticketId: id,
+          userId: currentUser.id,
+          userRole: currentUser.role
+        });
+        
+        const canUserComment = TicketCommentService.canUserComment(
+          id,
+          currentUser.id,
+          currentUser.role as 'resident' | 'manager',
+          [] // userBuildingIds - can be enhanced later
+        )
+        
+        console.log('Comment permission result:', canUserComment);
+        setCanComment(canUserComment)
+      } catch (error) {
+        console.error('Error loading comments:', error)
+        setComments([])
+        setCanComment(false)
+      }
+    }
+
+    loadComments()
+  }, [id, ticket, currentUser])
 
   const getStatusColor = (status: TicketStatus) => {
     switch (status) {
@@ -284,6 +324,38 @@ const TicketDetail = () => {
         className={`h-4 w-4 ${i < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
       />
     ))
+  }
+
+  const handleAddComment = async (content: string) => {
+    if (!id || !currentUser) return
+
+    try {
+      const newComment = await TicketCommentService.addComment(
+        id,
+        content,
+        currentUser.id,
+        currentUser.name || 'Unknown User',
+        currentUser.role as 'resident' | 'manager'
+      )
+      
+      // Update local comments state
+      setComments(prev => [...prev, newComment])
+      
+      addNotification({
+        title: 'Comment Added',
+        message: 'Your comment has been added successfully.',
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error adding comment:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to add comment. Please try again.',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
   }
 
   const handleScheduleWork = async (event: BuildingEvent) => {
@@ -764,8 +836,20 @@ const TicketDetail = () => {
           </ul>
         </div>
       )}
+
+      {/* Comments Section */}
+      {ticket && (
+        <div className="mt-6">
+          <TicketComments
+            ticketId={id!}
+            comments={comments}
+            onAddComment={handleAddComment}
+            canComment={canComment}
+          />
+        </div>
+      )}
     </div>
   )
 }
 
-export default TicketDetail 
+export default TicketDetail

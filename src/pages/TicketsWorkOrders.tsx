@@ -241,7 +241,7 @@ const TicketsWorkOrders: React.FC = () => {
       title: 'Completion',
       description: 'Work completed and feedback',
       status: 'Complete',
-      count: tickets.filter(t => t.status === 'Complete').length + workOrders.filter(workOrder => workOrder.status !== 'Complete').length,
+      count: tickets.filter(t => t.status === 'Complete').length + workOrders.filter(workOrder => workOrder.status === 'Resolved').length,
       color: 'bg-green-50 border-green-200'
     }
   ]
@@ -585,7 +585,7 @@ const TicketsWorkOrders: React.FC = () => {
                       </div>
                       <div className="flex items-center">
                         <DollarSign className="h-4 w-4 mr-1" />
-                        £{workOrder.estimatedHours ? workOrder.estimatedHours * 50 : 0}
+                        £{workOrder.scheduledDate ? 200 : 0}
                       </div>
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />

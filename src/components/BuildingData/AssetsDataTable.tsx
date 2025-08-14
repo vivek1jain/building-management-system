@@ -6,7 +6,8 @@ import { Asset, Building, AssetStatus } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportAssetsToCSV } from '../../utils/csvExport'
 import { ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockAssets } from '../../services/mockData'
+import { mockBuildings } from '../../services/mockData'
+import { assetService } from '../../services/assetService'
 
 const AssetsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -55,8 +56,6 @@ const AssetsDataTable: React.FC = () => {
       if (mockBuildings.length > 0) {
         setSelectedBuilding(mockBuildings[0].id)
       }
-      // Load all assets from mock data
-      setAssets(mockAssets)
     } catch (error) {
       console.error('Error initializing data:', error)
     } finally {
@@ -69,9 +68,9 @@ const AssetsDataTable: React.FC = () => {
     
     try {
       setLoading(true)
-      // Filter mock assets data by selected building
-      const buildingAssets = mockAssets.filter(asset => asset.buildingId === selectedBuilding)
-      setAssets(buildingAssets)
+      // Load assets from Firebase for the selected building
+      const buildingAssets = await assetService.getAssetsByBuilding(selectedBuilding)
+      setAssets(buildingAssets.map(asset => ({ ...asset, isActive: true })))
     } catch (error) {
       console.error('Error loading assets:', error)
       if (currentUser) {
@@ -101,8 +100,7 @@ const AssetsDataTable: React.FC = () => {
     }
     
     try {
-      const newAsset: Asset & { isActive: boolean } = {
-        id: `asset-${Date.now()}`,
+      const newAssetData = {
         name: assetForm.name,
         buildingId: selectedBuilding,
         type: assetForm.type,
@@ -114,13 +112,13 @@ const AssetsDataTable: React.FC = () => {
         installationDate: assetForm.installationDate ? new Date(assetForm.installationDate) : null,
         warrantyExpiryDate: assetForm.warrantyExpiryDate ? new Date(assetForm.warrantyExpiryDate) : null,
         notes: assetForm.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdByUid: currentUser.id,
-        isActive: true
+        createdByUid: currentUser.id
       }
 
-      setAssets(prev => [...prev, newAsset])
+      await assetService.createAsset(newAssetData)
+      
+      // Reload assets to get the updated list
+      await loadAssets()
       
       // Reset form
       setAssetForm({
@@ -195,27 +193,40 @@ const AssetsDataTable: React.FC = () => {
     }
     
     try {
-      setAssets(prev => prev.map(a => 
-        a.id === selectedAsset.id 
-          ? {
-              ...a,
-              name: assetForm.name,
-              type: assetForm.type,
-              status: assetForm.status,
-              locationDescription: assetForm.locationDescription,
-              manufacturer: assetForm.manufacturer,
-              modelNumber: assetForm.modelNumber,
-              serialNumber: assetForm.serialNumber,
-              installationDate: assetForm.installationDate ? new Date(assetForm.installationDate) : null,
-              warrantyExpiryDate: assetForm.warrantyExpiryDate ? new Date(assetForm.warrantyExpiryDate) : null,
-              notes: assetForm.notes,
-              updatedAt: new Date()
-            }
-          : a
-      ))
+      const updateData = {
+        name: assetForm.name,
+        type: assetForm.type,
+        status: assetForm.status,
+        locationDescription: assetForm.locationDescription,
+        manufacturer: assetForm.manufacturer,
+        modelNumber: assetForm.modelNumber,
+        serialNumber: assetForm.serialNumber,
+        installationDate: assetForm.installationDate ? new Date(assetForm.installationDate) : null,
+        warrantyExpiryDate: assetForm.warrantyExpiryDate ? new Date(assetForm.warrantyExpiryDate) : null,
+        notes: assetForm.notes
+      }
+
+      await assetService.updateAsset(selectedAsset!.id, updateData)
+      
+      // Reload assets to get the updated list
+      await loadAssets()
+      
+      // Reset form
+      setAssetForm({
+        name: '',
+        type: '',
+        locationDescription: '',
+        installationDate: '',
+        manufacturer: '',
+        modelNumber: '',
+        serialNumber: '',
+        warrantyExpiryDate: '',
+        status: AssetStatus.OPERATIONAL,
+        notes: '',
+        buildingId: ''
+      })
       
       setShowEditAsset(false)
-      setSelectedAsset(null)
       
       addNotification({
         title: 'Success',
@@ -238,17 +249,16 @@ const AssetsDataTable: React.FC = () => {
     console.log('Delete asset clicked:', assetId)
     if (!currentUser) return
     
-    if (window.confirm('Are you sure you want to delete this asset? This will hide the asset but it can be restored later.')) {
+    if (window.confirm('Are you sure you want to delete this asset?')) {
       try {
-        // Soft delete: mark as inactive instead of removing
-        setAssets(prev => prev.map(a => 
-          a.id === assetId 
-            ? { ...a, isActive: false, updatedAt: new Date() }
-            : a
-        ))
+        await assetService.deleteAsset(assetId)
+        
+        // Reload assets to get the updated list
+        await loadAssets()
+        
         addNotification({
           title: 'Success',
-          message: 'Asset deleted successfully (can be restored)',
+          message: 'Asset deleted successfully',
           type: 'success',
           userId: currentUser.id
         })

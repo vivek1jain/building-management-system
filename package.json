@@ -40,8 +40,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:prod": "npm run type-check && npm run lint && vite build",
+    "type-check": "tsc --noEmit",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
     "preview": "vite preview",
+    "deploy:check": "npm run type-check && npm run lint && npm run build",
     "test": "cypress run",
     "test:open": "cypress open",
     "test:baseline": "cypress run --spec 'cypress/e2e/baseline-tests.cy.ts'",

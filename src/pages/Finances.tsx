@@ -66,12 +66,77 @@ const Finances: React.FC = () => {
   // Financial data
   const [budget, setBudget] = useState<Budget | null>(null)
   const [serviceCharges, setServiceCharges] = useState<ServiceChargeDemand[]>([])
-  const [, setInvoices] = useState<Invoice[]>([])
-  // Remove static financial summary - we'll use dynamic calculation instead
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [flats, setFlats] = useState<Flat[]>([])
   
+  // Service charge period selection
+  const [selectedQuarter, setSelectedQuarter] = useState<string>('')
+  
+  // Quarter calculation functions
+  const getCurrentQuarter = () => {
+    const now = new Date()
+    const month = now.getMonth() + 1 // getMonth() returns 0-11
+    const year = now.getFullYear()
+    
+    if (month >= 1 && month <= 3) return `Q1-${year}`
+    if (month >= 4 && month <= 6) return `Q2-${year}`
+    if (month >= 7 && month <= 9) return `Q3-${year}`
+    return `Q4-${year}`
+  }
+  
+  const getAvailableQuarters = () => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentQuarter = getCurrentQuarter()
+    
+    // Generate quarters: previous, current, current+1, current+2
+    const quarters = []
+    
+    // Previous quarter
+    const prevQuarter = getPreviousQuarter(currentQuarter)
+    quarters.push({ value: prevQuarter, label: `${prevQuarter} (Previous)` })
+    
+    // Current quarter
+    quarters.push({ value: currentQuarter, label: `${currentQuarter} (Current)` })
+    
+    // Next quarter
+    const nextQuarter = getNextQuarter(currentQuarter)
+    quarters.push({ value: nextQuarter, label: `${nextQuarter} (Next)` })
+    
+    // Quarter after next
+    const quarterAfterNext = getNextQuarter(nextQuarter)
+    quarters.push({ value: quarterAfterNext, label: `${quarterAfterNext} (Future)` })
+    
+    return quarters
+  }
+  
+  const getPreviousQuarter = (quarter: string) => {
+    const [q, year] = quarter.split('-')
+    const yearNum = parseInt(year)
+    
+    switch (q) {
+      case 'Q1': return `Q4-${yearNum - 1}`
+      case 'Q2': return `Q1-${yearNum}`
+      case 'Q3': return `Q2-${yearNum}`
+      case 'Q4': return `Q3-${yearNum}`
+      default: return quarter
+    }
+  }
+  
+  const getNextQuarter = (quarter: string) => {
+    const [q, year] = quarter.split('-')
+    const yearNum = parseInt(year)
+    
+    switch (q) {
+      case 'Q1': return `Q2-${yearNum}`
+      case 'Q2': return `Q3-${yearNum}`
+      case 'Q3': return `Q4-${yearNum}`
+      case 'Q4': return `Q1-${yearNum + 1}`
+      default: return quarter
+    }
+  }
+
   // Service Charges state
-  const [selectedQuarter, setSelectedQuarter] = useState('Q1-2024')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDemandDetails, setShowDemandDetails] = useState(false)
   const [selectedDemand, setSelectedDemand] = useState<ServiceChargeDemand | null>(null)
@@ -152,6 +217,7 @@ const Finances: React.FC = () => {
 
   useEffect(() => {
     loadBuildings()
+    setSelectedQuarter(getCurrentQuarter())
   }, [])
 
   useEffect(() => {
@@ -494,39 +560,37 @@ const Finances: React.FC = () => {
       return
     }
 
-    // Check if flats exist, if not, offer to create sample flats
-    if (!flats.length) {
-      const shouldCreateSampleFlats = window.confirm(
-        'No flats found for this building. Would you like to create some sample flats for testing service charges?\n\n' +
-        'This will create 5 sample flats (1A, 1B, 2A, 2B, 3A) with typical UK property details.'
-      )
+    try {
+      setLoading(true)
       
-      if (shouldCreateSampleFlats) {
-        await createSampleFlats()
-        return // Exit and let user try again after flats are created
-      } else {
+      // Load actual flats from the database for the selected building
+      const buildingFlats = await getFlatsByBuilding(selectedBuilding)
+      
+      if (!buildingFlats.length) {
         addNotification({ 
           userId: currentUser?.id || '', 
-          title: 'Info', 
-          message: 'Service charges require flats to be associated with the building. Please add flats first or create sample flats.', 
-          type: 'info' 
+          title: 'Error', 
+          message: 'No flats found for this building. Please add flats first in Building Data Management.', 
+          type: 'error' 
         })
         return
       }
-    }
 
-    try {
-      setLoading(true)
-      const rate = 2.50 // £2.50 per sq ft per quarter
+      // Get building-specific service charge rate from budget or use default
+      let serviceChargeRate = 2.50 // Default £2.50 per sq ft per quarter
+      
+      if (budget && budget.serviceChargeRate) {
+        serviceChargeRate = budget.serviceChargeRate
+      }
       
       console.log('Generating service charge demands for:', {
         buildingId: selectedBuilding,
         quarter: selectedQuarter,
-        rate,
-        flatsCount: flats.length
+        rate: serviceChargeRate,
+        flatsCount: buildingFlats.length
       })
       
-      const demands = await generateServiceChargeDemands(selectedBuilding, selectedQuarter, rate, flats)
+      const demands = await generateServiceChargeDemands(selectedBuilding, selectedQuarter, serviceChargeRate, buildingFlats)
       
       console.log('Generated demands:', demands)
       
@@ -835,10 +899,12 @@ const Finances: React.FC = () => {
                     onChange={(e) => setSelectedQuarter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
                   >
-                    <option value="Q1-2024">Q1 2024 (Apr-Jun)</option>
-                    <option value="Q2-2024">Q2 2024 (Jul-Sep)</option>
-                    <option value="Q3-2024">Q3 2024 (Oct-Dec)</option>
-                    <option value="Q4-2024">Q4 2024 (Jan-Mar)</option>
+                    <option value="">Select Quarter</option>
+                    {getAvailableQuarters().map((quarter) => (
+                      <option key={quarter.value} value={quarter.value}>
+                        {quarter.label}
+                      </option>
+                    ))}
                   </select>
                   <button
                     onClick={() => {

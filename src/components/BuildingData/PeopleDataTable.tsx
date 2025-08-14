@@ -6,14 +6,17 @@ import { Person, Building, PersonStatus } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportPeopleToCSV } from '../../utils/csvExport'
 import { importPeopleFromCSV, ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockResidents } from '../../services/mockData'
+import { mockBuildings } from '../../services/mockData'
+import { getPeopleByBuilding, createPerson, updatePerson, deletePerson } from '../../services/peopleService'
+import { getFlatsByBuilding } from '../../services/flatService'
 
 const PeopleDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedBuilding, setSelectedBuilding] = useState<string>('')
-  const [people, setPeople] = useState<(Person & { isActive: boolean })[]>([])
+  const [people, setPeople] = useState<Person[]>([])
+  const [availableFlats, setAvailableFlats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreatePerson, setShowCreatePerson] = useState(false)
   const [showViewPerson, setShowViewPerson] = useState(false)
@@ -54,8 +57,6 @@ const PeopleDataTable: React.FC = () => {
       if (mockBuildings.length > 0) {
         setSelectedBuilding(mockBuildings[0].id)
       }
-      // Load all people from mock data
-      setPeople(mockResidents)
     } catch (error) {
       console.error('Error initializing data:', error)
     } finally {
@@ -68,9 +69,13 @@ const PeopleDataTable: React.FC = () => {
     
     try {
       setLoading(true)
-      // Filter mock residents data by selected building
-      const buildingPeople = mockResidents.filter(person => person.buildingId === selectedBuilding)
+      // Load people from Firebase service
+      const buildingPeople = await getPeopleByBuilding(selectedBuilding)
       setPeople(buildingPeople)
+      
+      // Load available flats for the building
+      const flats = await getFlatsByBuilding(selectedBuilding)
+      setAvailableFlats(flats)
     } catch (error) {
       console.error('Error loading people:', error)
       if (currentUser) {
@@ -100,12 +105,16 @@ const PeopleDataTable: React.FC = () => {
     }
     
     try {
-      const newPerson: Person & { isActive: boolean } = {
-        id: `person-${Date.now()}`,
+      // Find the selected flat to get flatNumber
+      const selectedFlat = availableFlats.find(flat => flat.id === personForm.flatId)
+      
+      const newPersonData = {
         name: personForm.name,
         buildingId: selectedBuilding,
-        flatId: personForm.flatId,
-        flatNumber: personForm.flatId, // Using flatId as flatNumber for now
+        accessibleBuildingIds: [selectedBuilding],
+        flatId: personForm.flatId || null,
+        flatNumber: selectedFlat?.flatNumber || null,
+        role: personForm.role as any,
         status: personForm.status,
         email: personForm.email,
         phone: personForm.phone,
@@ -113,12 +122,15 @@ const PeopleDataTable: React.FC = () => {
         moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : null,
         moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
         notes: personForm.notes,
-        createdAt: new Date(),
         createdByUid: currentUser.id,
-        isActive: true
+        updatedByUid: currentUser.id
       }
 
-      setPeople(prev => [...prev, newPerson])
+      // Create person using Firebase service
+      const createdPerson = await createPerson(newPersonData)
+      
+      // Reload people data to get the updated list
+      await loadPeople()
       
       // Reset form
       setPersonForm({
@@ -153,26 +165,24 @@ const PeopleDataTable: React.FC = () => {
     }
   }
 
-  const handleViewPerson = (person: Person & { isActive: boolean }) => {
-    console.log('View person clicked:', person.id)
+  const handleViewPerson = (person: Person) => {
     setSelectedPerson(person)
     setShowViewPerson(true)
   }
 
-  const handleEditPerson = (person: Person & { isActive: boolean }) => {
-    console.log('Edit person clicked:', person.id)
+  const handleEditPerson = (person: Person) => {
     setSelectedPerson(person)
     setPersonForm({
       name: person.name,
       email: person.email || '',
       phone: person.phone || '',
-      role: 'resident', // Default role
+      role: person.role || 'resident',
       status: person.status,
       flatId: person.flatId || '',
       moveInDate: person.moveInDate ? person.moveInDate.toISOString().split('T')[0] : '',
       moveOutDate: person.moveOutDate ? person.moveOutDate.toISOString().split('T')[0] : '',
       notes: person.notes || '',
-      buildingId: person.buildingId || ''
+      buildingId: person.buildingId
     })
     setShowEditPerson(true)
   }
@@ -191,22 +201,28 @@ const PeopleDataTable: React.FC = () => {
     }
     
     try {
-      setPeople(prev => prev.map(p => 
-        p.id === selectedPerson.id 
-          ? {
-              ...p,
-              name: personForm.name,
-              email: personForm.email,
-              phone: personForm.phone,
-              status: personForm.status,
-              flatId: personForm.flatId,
-              flatNumber: personForm.flatId,
-              moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : null,
-              moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
-              notes: personForm.notes
-            }
-          : p
-      ))
+      // Find the selected flat to get flatNumber
+      const selectedFlat = availableFlats.find(flat => flat.id === personForm.flatId)
+      
+      const updateData = {
+        name: personForm.name,
+        flatId: personForm.flatId || null,
+        flatNumber: selectedFlat?.flatNumber || null,
+        role: personForm.role as any,
+        status: personForm.status,
+        email: personForm.email,
+        phone: personForm.phone,
+        moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : null,
+        moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
+        notes: personForm.notes,
+        updatedByUid: currentUser.id
+      }
+
+      // Update person using Firebase service
+      await updatePerson(selectedPerson.id, updateData)
+      
+      // Reload people data to get the updated list
+      await loadPeople()
       
       setShowEditPerson(false)
       setSelectedPerson(null)
@@ -237,7 +253,7 @@ const PeopleDataTable: React.FC = () => {
         // Soft delete: mark as inactive instead of removing
         setPeople(prev => prev.map(p => 
           p.id === personId 
-            ? { ...p, isActive: false }
+            ? { ...p }
             : p
         ))
         addNotification({
@@ -276,7 +292,7 @@ const PeopleDataTable: React.FC = () => {
 
   const filteredPeople = people.filter(person => {
     // Only show active people (soft delete implementation)
-    const isActive = person.isActive
+    // const isActive = person.isActive
     
     // Building-scoped filtering: only show people for the selected building
     const matchesBuilding = !selectedBuilding || person.buildingId === selectedBuilding
@@ -287,7 +303,7 @@ const PeopleDataTable: React.FC = () => {
     
     const matchesStatus = filterStatus === 'all' || person.status === filterStatus
     
-    return isActive && matchesBuilding && matchesSearch && matchesStatus
+    return matchesBuilding && matchesSearch && matchesStatus
   })
 
   if (loading) {
@@ -535,13 +551,19 @@ const PeopleDataTable: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Flat ID</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Flat</label>
+                <select
                   value={personForm.flatId}
                   onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-                />
+                >
+                  <option value="">Select a flat (optional)</option>
+                  {availableFlats.map((flat) => (
+                    <option key={flat.id} value={flat.id}>
+                      {flat.flatNumber} - Floor {flat.floor} ({flat.areaSqFt} sq ft)
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -766,13 +788,19 @@ const PeopleDataTable: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Flat ID</label>
-                <input
-                  type="text"
+                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Flat</label>
+                <select
                   value={personForm.flatId}
                   onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-                />
+                >
+                  <option value="">Select a flat (optional)</option>
+                  {availableFlats.map((flat) => (
+                    <option key={flat.id} value={flat.id}>
+                      {flat.flatNumber} - Floor {flat.floor} ({flat.areaSqFt} sq ft)
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

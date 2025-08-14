@@ -19,6 +19,8 @@ import { mockBuildings } from '../services/mockData'
 const CreateTicket = () => {
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
+  const [buildings, setBuildings] = useState(mockBuildings)
+  const [selectedBuilding, setSelectedBuilding] = useState('')
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const navigate = useNavigate()
@@ -27,8 +29,18 @@ const CreateTicket = () => {
     register,
     handleSubmit,
     formState: { errors },
-    watch
+    watch,
+    setValue
   } = useForm<CreateTicketForm>()
+
+  // Initialize with default building on component mount
+  useState(() => {
+    if (buildings.length > 0) {
+      const defaultBuilding = buildings[0].id
+      setSelectedBuilding(defaultBuilding)
+      setValue('buildingId', defaultBuilding)
+    }
+  })
 
   const urgency = watch('urgency')
 
@@ -59,10 +71,16 @@ const CreateTicket = () => {
       return
     }
 
+    // Ensure buildingId is set
+    const ticketData = {
+      ...data,
+      buildingId: selectedBuilding || buildings[0]?.id
+    }
+
     setLoading(true)
     
     try {
-      await ticketService.createTicket(data, attachments, currentUser.id)
+      await ticketService.createTicket(ticketData, attachments, currentUser.id)
       
       addNotification({
         title: 'Ticket Created!',
@@ -101,6 +119,36 @@ const CreateTicket = () => {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Building Selection - Only show for managers */}
+        {currentUser?.role === 'manager' && (
+          <div>
+            <label htmlFor="buildingId" className="block text-sm font-medium text-gray-700 mb-2">
+              Building *
+            </label>
+            <select
+              {...register('buildingId', { required: 'Building is required' })}
+              value={selectedBuilding}
+              onChange={(e) => {
+                setSelectedBuilding(e.target.value)
+                setValue('buildingId', e.target.value)
+              }}
+              className="input"
+            >
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            {errors.buildingId && (
+              <p className="mt-1 text-sm text-red-600 flex items-center">
+                <AlertCircle className="h-4 w-4 mr-1" />
+                {errors.buildingId.message}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Title */}
         <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">

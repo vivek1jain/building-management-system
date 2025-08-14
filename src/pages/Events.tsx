@@ -15,7 +15,8 @@ import {
   Building
 } from 'lucide-react'
 import { BuildingEvent } from '../types'
-import { mockBuildings, mockEvents } from '../services/mockData'
+import { mockBuildings } from '../services/mockData'
+import { eventService } from '../services/eventService'
 
 const Events = () => {
   const { currentUser } = useAuth()
@@ -24,8 +25,8 @@ const Events = () => {
   // Multi-building state management
   const [selectedBuilding, setSelectedBuilding] = useState<string>('building-1')
   const [buildings] = useState(mockBuildings)
-  const [allEvents] = useState<BuildingEvent[]>(mockEvents)
   const [events, setEvents] = useState<BuildingEvent[]>([])
+  const [loading, setLoading] = useState(false)
   
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>('all')
@@ -43,10 +44,31 @@ const Events = () => {
 
   // Load events when building selection changes
   useEffect(() => {
-    const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuilding)
-    setEvents(buildingEvents)
-    console.log(`Loaded ${buildingEvents.length} events for building:`, selectedBuilding)
-  }, [selectedBuilding, allEvents])
+    loadEvents()
+  }, [selectedBuilding])
+
+  const loadEvents = async () => {
+    if (!selectedBuilding) return
+    
+    try {
+      setLoading(true)
+      // Use getEvents and filter by building since getEventsByBuilding may not exist
+      const allEvents = await eventService.getEvents()
+      const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuilding)
+      setEvents(buildingEvents)
+      console.log(`Loaded ${buildingEvents.length} events for building:`, selectedBuilding)
+    } catch (error) {
+      console.error('Error loading events:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to load events',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -94,51 +116,80 @@ const Events = () => {
     return `${start} - ${end}`
   }
 
-  const handleCreateEvent = (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    const newEventData: BuildingEvent = {
-      id: Date.now().toString(),
-      ...newEvent,
-      buildingId: selectedBuilding,
-      ticketId: undefined,
-      status: 'scheduled',
-      createdAt: new Date(),
-      updatedAt: new Date()
+    if (!currentUser) return
+    
+    try {
+      setLoading(true)
+      const newEventData = {
+        ...newEvent,
+        buildingId: selectedBuilding,
+        status: 'scheduled' as const,
+        createdByUid: currentUser.id
+      }
+
+      await eventService.createEvent(newEventData)
+      
+      // Reload events to get the updated list
+      await loadEvents()
+      
+      setShowCreateForm(false)
+      setNewEvent({
+        title: '',
+        description: '',
+        location: '',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 60 * 60 * 1000),
+        assignedTo: []
+      })
+
+      addNotification({
+        title: 'Event Created',
+        message: 'The event has been scheduled successfully.',
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error creating event:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to create event',
+        type: 'error',
+        userId: currentUser.id
+      })
+    } finally {
+      setLoading(false)
     }
-
-    setEvents(prev => [newEventData, ...prev])
-    setShowCreateForm(false)
-    setNewEvent({
-      title: '',
-      description: '',
-      location: '',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 60 * 1000),
-      assignedTo: []
-    })
-
-    addNotification({
-      title: 'Event Created',
-      message: 'The event has been scheduled successfully.',
-      type: 'success',
-      userId: currentUser?.id || ''
-    })
   }
 
-  const handleStatusUpdate = (eventId: string, newStatus: string) => {
-    setEvents(prev => prev.map(event => 
-      event.id === eventId 
-        ? { ...event, status: newStatus as BuildingEvent['status'], updatedAt: new Date() }
-        : event
-    ))
-
-    addNotification({
-      title: 'Event Updated',
-      message: `Event status changed to ${newStatus}.`,
-      type: 'success',
-      userId: currentUser?.id || ''
-    })
+  const handleStatusUpdate = async (eventId: string, newStatus: string) => {
+    if (!currentUser) return
+    
+    try {
+      await eventService.updateEvent(eventId, { 
+        status: newStatus as any
+      })
+      
+      // Reload events to get the updated list
+      await loadEvents()
+      
+      addNotification({
+        title: 'Status Updated',
+        message: `Event status changed to ${newStatus}`,
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error updating event status:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update event status',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
   }
 
   const handleEditEvent = (event: BuildingEvent) => {
@@ -154,50 +205,83 @@ const Events = () => {
     setShowEditForm(true)
   }
 
-  const handleUpdateEvent = (e: React.FormEvent) => {
+  const handleUpdateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!editingEvent) return
-
-    const updatedEvent: BuildingEvent = {
-      ...editingEvent,
-      ...newEvent,
-      updatedAt: new Date()
-    }
-
-    setEvents(prev => prev.map(event => 
-      event.id === editingEvent.id ? updatedEvent : event
-    ))
+    if (!editingEvent || !currentUser) return
     
-    setShowEditForm(false)
-    setEditingEvent(null)
-    setNewEvent({
-      title: '',
-      description: '',
-      location: '',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 60 * 1000),
-      assignedTo: []
-    })
+    try {
+      setLoading(true)
+      const updateData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        location: newEvent.location,
+        startDate: newEvent.startDate,
+        endDate: newEvent.endDate,
+        assignedTo: newEvent.assignedTo,
+        updatedByUid: currentUser.id
+      }
 
-    addNotification({
-      title: 'Event Updated',
-      message: 'The event has been updated successfully.',
-      type: 'success',
-      userId: currentUser?.id || ''
-    })
+      await eventService.updateEvent(editingEvent.id, updateData)
+      
+      // Reload events to get the updated list
+      await loadEvents()
+      
+      setShowEditForm(false)
+      setEditingEvent(null)
+      setNewEvent({
+        title: '',
+        description: '',
+        location: '',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 60 * 60 * 1000),
+        assignedTo: []
+      })
+
+      addNotification({
+        title: 'Event Updated',
+        message: 'The event has been updated successfully.',
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error updating event:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update event',
+        type: 'error',
+        userId: currentUser.id
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleDeleteEvent = (eventId: string) => {
+  const handleDeleteEvent = async (eventId: string) => {
+    if (!currentUser) return
+    
     if (window.confirm('Are you sure you want to delete this event?')) {
-      setEvents(prev => prev.filter(event => event.id !== eventId))
-      
-      addNotification({
-        title: 'Event Deleted',
-        message: 'The event has been deleted successfully.',
-        type: 'success',
-        userId: currentUser?.id || ''
-      })
+      try {
+        await eventService.deleteEvent(eventId)
+        
+        // Reload events to get the updated list
+        await loadEvents()
+        
+        addNotification({
+          title: 'Event Deleted',
+          message: 'The event has been removed.',
+          type: 'success',
+          userId: currentUser.id
+        })
+      } catch (error) {
+        console.error('Error deleting event:', error)
+        addNotification({
+          title: 'Error',
+          message: 'Failed to delete event',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
     }
   }
 

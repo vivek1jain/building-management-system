@@ -85,7 +85,11 @@ interface ServiceChargeStats {
 }
 
 interface WorkOrderStats {
-  totalWorkOrders: number
+  total: number
+  scheduled: number
+  in_progress: number
+  completed: number
+  overdue: number
   byStatus: Record<WorkOrderStatus, number>
   byPriority: Record<string, number>
   urgentWorkOrders: number
@@ -128,7 +132,11 @@ const ComprehensiveDashboard = () => {
   })
   
   const [workOrderStats, setWorkOrderStats] = useState<WorkOrderStats>({
-    totalWorkOrders: 0,
+    total: 0,
+    scheduled: 0,
+    in_progress: 0,
+    completed: 0,
+    overdue: 0,
     byStatus: {} as Record<WorkOrderStatus, number>,
     byPriority: {} as Record<string, number>,
     urgentWorkOrders: 0,
@@ -376,7 +384,7 @@ const ComprehensiveDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Work Orders</p>
-              <p className="text-2xl font-bold text-gray-900">{workOrderStats.totalWorkOrders}</p>
+              <p className="text-2xl font-bold text-gray-900">{workOrderStats.total}</p>
             </div>
           </div>
           <div className="mt-4">
@@ -481,7 +489,7 @@ const ComprehensiveDashboard = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">In Progress</span>
                 <span className="font-semibold text-yellow-600">
-                  {workOrderStats.byStatus[WorkOrderStatus.IN_REPAIR] || 0}
+                  {workOrderStats.byStatus[WorkOrderStatus.TRIAGE] || 0}
                 </span>
               </div>
             </div>

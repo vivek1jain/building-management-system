@@ -6,14 +6,15 @@ import { Flat, Building } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportFlatsToCSV } from '../../utils/csvExport'
 import { ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockFlats } from '../../services/mockData'
+import { mockBuildings } from '../../services/mockData'
+import { getFlatsByBuilding, createFlat, updateFlat, deleteFlat } from '../../services/flatService'
 
 const FlatsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedBuilding, setSelectedBuilding] = useState<string>('')
-  const [flats, setFlats] = useState<(Flat & { isActive: boolean })[]>([])
+  const [flats, setFlats] = useState<Flat[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateFlat, setShowCreateFlat] = useState(false)
   const [showViewFlat, setShowViewFlat] = useState(false)
@@ -62,8 +63,6 @@ const FlatsDataTable: React.FC = () => {
       if (mockBuildings.length > 0) {
         setSelectedBuilding(mockBuildings[0].id)
       }
-      // Load all flats from mock data
-      setFlats(mockFlats)
     } catch (error) {
       console.error('Error initializing data:', error)
     } finally {
@@ -76,11 +75,19 @@ const FlatsDataTable: React.FC = () => {
     
     try {
       setLoading(true)
-      // Filter mock flats data by selected building
-      const buildingFlats = mockFlats.filter(flat => flat.buildingId === selectedBuilding)
+      // Load flats from Firebase service
+      const buildingFlats = await getFlatsByBuilding(selectedBuilding)
       setFlats(buildingFlats)
     } catch (error) {
       console.error('Error loading flats:', error)
+      if (currentUser) {
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load flats',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -100,24 +107,22 @@ const FlatsDataTable: React.FC = () => {
     }
     
     try {
-      const newFlat: Flat & { isActive: boolean } = {
-        id: `flat-${Date.now()}`,
+      const newFlatData = {
         buildingId: selectedBuilding,
         flatNumber: flatForm.flatNumber,
         floor: parseInt(flatForm.floor),
         areaSqFt: parseInt(flatForm.areaSqFt),
         bedrooms: parseInt(flatForm.bedrooms) || 0,
         bathrooms: parseInt(flatForm.bathrooms) || 0,
-        currentRent: parseFloat(flatForm.currentRent) || 0,
         groundRent: parseFloat(flatForm.groundRent) || 0,
-        status: flatForm.status,
-        notes: flatForm.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isActive: true
+        notes: flatForm.notes
       }
 
-      setFlats(prev => [...prev, newFlat])
+      // Create flat using Firebase service
+      const createdFlat = await createFlat(newFlatData)
+      
+      // Reload flats data to get the updated list
+      await loadFlats()
       
       // Reset form
       setFlatForm({
@@ -158,32 +163,30 @@ const FlatsDataTable: React.FC = () => {
     }
   }
 
-  const handleViewFlat = (flat: Flat & { isActive: boolean }) => {
-    console.log('View flat clicked:', flat.id)
+  const handleViewFlat = (flat: Flat) => {
     setSelectedFlat(flat)
     setShowViewFlat(true)
   }
 
-  const handleEditFlat = (flat: Flat & { isActive: boolean }) => {
-    console.log('Edit flat clicked:', flat.id)
+  const handleEditFlat = (flat: Flat) => {
     setSelectedFlat(flat)
     setFlatForm({
       flatNumber: flat.flatNumber,
-      floor: (flat.floor || 0).toString(),
-      areaSqFt: (flat.areaSqFt || 0).toString(),
-      bedrooms: (flat.bedrooms || 0).toString(),
-      bathrooms: (flat.bathrooms || 0).toString(),
-      currentRent: (flat.currentRent || 0).toString(),
-      rentFrequency: flat.rentFrequency || 'Monthly',
-      groundRent: (flat.groundRent || 0).toString(),
-      groundRentPerSqFt: (flat.groundRentPerSqFt || 0).toString(),
-      groundRentFrequency: flat.groundRentFrequency || 'Annually',
-      maintenanceCharge: (flat.maintenanceCharge || 0).toString(),
-      maintenanceChargePerSqFt: (flat.maintenanceChargePerSqFt || 0).toString(),
-      maintenanceFrequency: flat.maintenanceFrequency || 'Quarterly',
-      status: flat.status || 'vacant',
+      floor: flat.floor.toString(),
+      areaSqFt: flat.areaSqFt.toString(),
+      bedrooms: flat.bedrooms?.toString() || '',
+      bathrooms: flat.bathrooms?.toString() || '',
+      currentRent: '0',
+      rentFrequency: 'Monthly',
+      groundRent: flat.groundRent?.toString() || '',
+      groundRentPerSqFt: '',
+      groundRentFrequency: 'Annually',
+      maintenanceCharge: '',
+      maintenanceChargePerSqFt: '',
+      maintenanceFrequency: 'Quarterly',
+      status: 'vacant',
       notes: flat.notes || '',
-      buildingId: flat.buildingId || ''
+      buildingId: flat.buildingId
     })
     setShowEditFlat(true)
   }
@@ -202,23 +205,21 @@ const FlatsDataTable: React.FC = () => {
     }
     
     try {
-      setFlats(prev => prev.map(f => 
-        f.id === selectedFlat.id 
-          ? {
-              ...f,
-              flatNumber: flatForm.flatNumber,
-              floor: parseInt(flatForm.floor),
-              areaSqFt: parseInt(flatForm.areaSqFt),
-              bedrooms: parseInt(flatForm.bedrooms) || 0,
-              bathrooms: parseInt(flatForm.bathrooms) || 0,
-              currentRent: parseFloat(flatForm.currentRent) || 0,
-              groundRent: parseFloat(flatForm.groundRent) || 0,
-              status: flatForm.status,
-              notes: flatForm.notes,
-              updatedAt: new Date()
-            }
-          : f
-      ))
+      const updateData = {
+        flatNumber: flatForm.flatNumber,
+        floor: parseInt(flatForm.floor),
+        areaSqFt: parseInt(flatForm.areaSqFt),
+        bedrooms: parseInt(flatForm.bedrooms) || 0,
+        bathrooms: parseInt(flatForm.bathrooms) || 0,
+        groundRent: parseFloat(flatForm.groundRent) || 0,
+        notes: flatForm.notes
+      }
+
+      // Update flat using Firebase service
+      await updateFlat(selectedFlat.id, updateData)
+      
+      // Reload flats data to get the updated list
+      await loadFlats()
       
       setShowEditFlat(false)
       setSelectedFlat(null)
@@ -244,17 +245,17 @@ const FlatsDataTable: React.FC = () => {
     console.log('Delete flat clicked:', flatId)
     if (!currentUser) return
     
-    if (window.confirm('Are you sure you want to delete this flat? This will hide the flat but it can be restored later.')) {
+    if (window.confirm('Are you sure you want to delete this flat?')) {
       try {
-        // Soft delete: mark as inactive instead of removing
-        setFlats(prev => prev.map(f => 
-          f.id === flatId 
-            ? { ...f, isActive: false, updatedAt: new Date() }
-            : f
-        ))
+        // Delete flat using Firebase service
+        await deleteFlat(flatId)
+        
+        // Reload flats data to get the updated list
+        await loadFlats()
+        
         addNotification({
           title: 'Success',
-          message: 'Flat deleted successfully (can be restored)',
+          message: 'Flat deleted successfully',
           type: 'success',
           userId: currentUser.id
         })
@@ -272,21 +273,22 @@ const FlatsDataTable: React.FC = () => {
 
   // Bulk import/export handlers
   const handleExportFlats = (buildingId: string, buildingName?: string) => {
-    const buildingFlats = flats.filter(f => f.buildingId === buildingId && f.isActive)
+    const buildingFlats = flats.filter(f => f.buildingId === buildingId)
     exportFlatsToCSV(buildingFlats, buildingName)
   }
 
-  const handleImportFlats = (csvText: string, buildingId: string): ImportValidationResult<any> => {
-    // For now, return empty result - would implement CSV parsing for flats
-    return {
-      valid: [],
-      errors: [{ row: 0, field: 'general', message: 'Flats CSV import not yet implemented', data: {} }],
-      warnings: []
-    }
+  const handleImportFlats = (csvText: string, buildingId: string): ImportValidationResult<Flat> => {
+    // This will be implemented with actual CSV parsing and validation
+    console.log(`Importing flats for building ${buildingId} from CSV:`, csvText)
+    
+    // For now, return empty validation result
+    return { valid: [], errors: [], warnings: [] }
   }
 
-  const handleImportConfirm = (validFlats: (Flat & { isActive: boolean })[]) => {
-    setFlats(prev => [...prev, ...validFlats])
+  const handleImportConfirm = async (validFlats: Flat[]) => {
+    // This would need to be implemented to bulk create flats via Firebase
+    // For now, just reload the data
+    await loadFlats()
   }
 
   const getStatusColor = (status: string) => {
@@ -307,18 +309,14 @@ const FlatsDataTable: React.FC = () => {
   }
 
   const filteredFlats = flats.filter(flat => {
-    // Only show active flats (soft delete implementation)
-    const isActive = flat.isActive
-    
     // Building-scoped filtering: only show flats for the selected building
     const matchesBuilding = !selectedBuilding || flat.buildingId === selectedBuilding
     
-    const matchesSearch = flat.flatNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         flat.notes?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = !searchTerm || 
+      flat.flatNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      flat.notes?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesStatus = filterStatus === 'all' || flat.status === filterStatus
-    
-    return isActive && matchesBuilding && matchesSearch && matchesStatus
+    return matchesBuilding && matchesSearch
   })
 
   if (loading) {

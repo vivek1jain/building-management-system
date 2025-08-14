@@ -8,14 +8,15 @@ import BuildingSelector from './BuildingSelector'
 import BulkImportExport from './BulkImportExport'
 import { exportSuppliersToCSV } from '../../utils/csvExport'
 import { importSuppliersFromCSV, ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockSuppliers } from '../../services/mockData'
+import { mockBuildings } from '../../services/mockData'
+import { supplierService } from '../../services/supplierService'
 
 const SuppliersDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedBuilding, setSelectedBuilding] = useState<string>('')
-  const [suppliers, setSuppliers] = useState<(Supplier & { buildingId: string })[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateSupplier, setShowCreateSupplier] = useState(false)
   const [showViewSupplier, setShowViewSupplier] = useState(false)
@@ -45,8 +46,9 @@ const SuppliersDataTable: React.FC = () => {
         if (mockBuildings.length > 0) {
           setSelectedBuilding(mockBuildings[0].id)
         }
-        // Load all suppliers from mock data
-        setSuppliers(mockSuppliers)
+        // Load suppliers from Firebase service
+        const allSuppliers = await supplierService.getSuppliers()
+        setSuppliers(allSuppliers)
       } catch (error) {
         console.error('Error initializing data:', error)
       } finally {
@@ -80,8 +82,7 @@ const SuppliersDataTable: React.FC = () => {
     }
     
     try {
-      const newSupplier: Supplier & { buildingId: string } = {
-        id: `supplier-${Date.now()}`,
+      const newSupplierData = {
         name: supplierForm.name,
         email: supplierForm.email,
         phone: supplierForm.phone,
@@ -90,12 +91,15 @@ const SuppliersDataTable: React.FC = () => {
         specialties: [supplierForm.specialty],
         rating: supplierForm.rating || 0,
         isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        buildingId: selectedBuilding,
+        buildingIds: [selectedBuilding] // Suppliers can work with multiple buildings
       }
 
-      setSuppliers(prev => [...prev, newSupplier])
+      // Create supplier using Firebase service
+      await supplierService.createSupplier(newSupplierData)
+      
+      // Reload suppliers data
+      const allSuppliers = await supplierService.getSuppliers()
+      setSuppliers(allSuppliers)
       setShowCreateSupplier(false)
       
       // Reset form

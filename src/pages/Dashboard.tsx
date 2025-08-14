@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { WorkOrderStatus } from '../types'
 import {
   Building,
   Users,
@@ -19,6 +20,7 @@ import {
   Bell
 } from 'lucide-react'
 import { mockBuildings, mockTickets, mockWorkOrders, mockEvents, mockFlats, mockResidents } from '../services/mockData'
+import SeedDataButton from '../components/DataSeeding/SeedDataButton'
 
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
@@ -41,11 +43,11 @@ const Dashboard: React.FC = () => {
 
     // Count urgent items
     const urgentTickets = buildingTickets.filter(t => 
-      t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high')
+      t.status === 'New' && (t.urgency === 'Critical' || t.urgency === 'High')
     ).length
     
     const pendingWorkOrders = buildingWorkOrders.filter(w => 
-      w.status === 'pending' || w.status === 'in_progress'
+      w.status === WorkOrderStatus.SCHEDULED || w.status === WorkOrderStatus.TRIAGE
     ).length
 
     const upcomingEvents = buildingEvents.filter(e => {
@@ -87,22 +89,22 @@ const Dashboard: React.FC = () => {
 
     // Add urgent tickets
     buildingTickets
-      .filter(t => t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high'))
+      .filter(t => t.status === 'New' && (t.urgency === 'Critical' || t.urgency === 'High'))
       .forEach(ticket => {
         urgentItems.push({
           id: ticket.id,
           title: ticket.title,
           type: 'ticket',
-          priority: ticket.priority,
+          priority: ticket.urgency,
           status: ticket.status,
-          assignedTo: ticket.assignedTo,
+          assignedTo: ticket.assignedTo || 'Unassigned',
           createdAt: ticket.createdAt
         })
       })
 
     // Add pending work orders
     buildingWorkOrders
-      .filter(w => w.status === 'pending' || w.status === 'in_progress')
+      .filter(w => w.status === WorkOrderStatus.SCHEDULED || w.status === WorkOrderStatus.TRIAGE)
       .forEach(workOrder => {
         urgentItems.push({
           id: workOrder.id,
@@ -110,7 +112,7 @@ const Dashboard: React.FC = () => {
           type: 'work_order',
           priority: workOrder.priority,
           status: workOrder.status,
-          assignedTo: workOrder.assignedTo,
+          assignedTo: workOrder.assignedToUid || 'Unassigned',
           createdAt: workOrder.createdAt
         })
       })
@@ -292,9 +294,7 @@ const Dashboard: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                            <p className="text-sm text-gray-500">
-                              Assigned to: {item.assignedTo || 'Unassigned'}
-                            </p>
+                            <p className="text-sm text-gray-600">Assigned to: {item.assignedTo || 'Unassigned'}</p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
