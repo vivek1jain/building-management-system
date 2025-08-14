@@ -39,7 +39,7 @@ const WorkOrdersPage: React.FC = () => {
     title: '',
     description: '',
     priority: 'medium' as WorkOrderPriority,
-    status: 'triage' as WorkOrderStatus,
+    status: WorkOrderStatus.TRIAGE,
     flatId: '',
     category: 'repairs',
     estimatedCost: 0,

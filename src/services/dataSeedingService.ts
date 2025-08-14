@@ -136,19 +136,19 @@ const sampleBudgets: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'>[] = [
 ]
 
 const sampleBudgetCategories: Omit<BudgetCategoryItem, 'id' | 'createdAt' | 'updatedAt'>[] = [
-  { budgetId: 'budget1', name: 'Maintenance', allocatedAmount: 150000, spentAmount: 120000, remainingAmount: 30000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget1', name: 'Utilities', allocatedAmount: 100000, spentAmount: 95000, remainingAmount: 5000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget1', name: 'Security', allocatedAmount: 80000, spentAmount: 75000, remainingAmount: 5000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget1', name: 'Landscaping', allocatedAmount: 60000, spentAmount: 55000, remainingAmount: 5000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget1', name: 'Insurance', allocatedAmount: 50000, spentAmount: 48000, remainingAmount: 2000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget1', name: 'Administrative', allocatedAmount: 60000, spentAmount: 52000, remainingAmount: 8000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget1', name: 'Maintenance', type: 'expenditure', budgetAmount: 150000, actualAmount: 120000, allocatedAmount: 150000, spentAmount: 120000, remainingAmount: 30000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget1', name: 'Utilities', type: 'expenditure', budgetAmount: 100000, actualAmount: 95000, allocatedAmount: 100000, spentAmount: 95000, remainingAmount: 5000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget1', name: 'Security', type: 'expenditure', budgetAmount: 80000, actualAmount: 75000, allocatedAmount: 80000, spentAmount: 75000, remainingAmount: 5000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget1', name: 'Landscaping', type: 'expenditure', budgetAmount: 60000, actualAmount: 55000, allocatedAmount: 60000, spentAmount: 55000, remainingAmount: 5000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget1', name: 'Insurance', type: 'expenditure', budgetAmount: 50000, actualAmount: 48000, allocatedAmount: 50000, spentAmount: 48000, remainingAmount: 2000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget1', name: 'Administrative', type: 'expenditure', budgetAmount: 60000, actualAmount: 52000, allocatedAmount: 60000, spentAmount: 52000, remainingAmount: 8000, approvalThreshold: 10000, attachments: [] },
   
-  { budgetId: 'budget2', name: 'Maintenance', allocatedAmount: 200000, spentAmount: 180000, remainingAmount: 20000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget2', name: 'Utilities', allocatedAmount: 150000, spentAmount: 140000, remainingAmount: 10000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget2', name: 'Marina Operations', allocatedAmount: 100000, spentAmount: 85000, remainingAmount: 15000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget2', name: 'Pool & Spa', allocatedAmount: 80000, spentAmount: 72000, remainingAmount: 8000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget2', name: 'Security', allocatedAmount: 120000, spentAmount: 110000, remainingAmount: 10000, approvalThreshold: 10000, attachments: [] },
-  { budgetId: 'budget2', name: 'Administrative', allocatedAmount: 100000, spentAmount: 93000, remainingAmount: 7000, approvalThreshold: 10000, attachments: [] }
+  { budgetId: 'budget2', name: 'Maintenance', type: 'expenditure', budgetAmount: 200000, actualAmount: 180000, allocatedAmount: 200000, spentAmount: 180000, remainingAmount: 20000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget2', name: 'Utilities', type: 'expenditure', budgetAmount: 150000, actualAmount: 140000, allocatedAmount: 150000, spentAmount: 140000, remainingAmount: 10000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget2', name: 'Marina Operations', type: 'expenditure', budgetAmount: 100000, actualAmount: 85000, allocatedAmount: 100000, spentAmount: 85000, remainingAmount: 15000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget2', name: 'Pool & Spa', type: 'expenditure', budgetAmount: 80000, actualAmount: 72000, allocatedAmount: 80000, spentAmount: 72000, remainingAmount: 8000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget2', name: 'Security', type: 'expenditure', budgetAmount: 120000, actualAmount: 110000, allocatedAmount: 120000, spentAmount: 110000, remainingAmount: 10000, approvalThreshold: 10000, attachments: [] },
+  { budgetId: 'budget2', name: 'Administrative', type: 'expenditure', budgetAmount: 100000, actualAmount: 93000, allocatedAmount: 100000, spentAmount: 93000, remainingAmount: 7000, approvalThreshold: 10000, attachments: [] }
 ]
 
 const sampleInvoices: Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>[] = [
