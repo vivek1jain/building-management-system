@@ -201,7 +201,7 @@ const FlatsPage: React.FC = () => {
       case 'available': return 'bg-blue-100 text-blue-800'
       case 'maintenance': return 'bg-yellow-100 text-yellow-800'
       case 'reserved': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -211,7 +211,7 @@ const FlatsPage: React.FC = () => {
       case 'penthouse': return 'bg-purple-100 text-purple-800'
       case 'studio': return 'bg-green-100 text-green-800'
       case 'duplex': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -242,7 +242,7 @@ const FlatsPage: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Flats Management</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Flats Management</h1>
           <p className="text-gray-600 mt-1">Manage flat units and occupancy</p>
         </div>
         <button
@@ -256,13 +256,13 @@ const FlatsPage: React.FC = () => {
 
       {/* Building Selection */}
       <div className="card">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-neutral-700 mb-2">
           Select Building
         </label>
         <select
           value={selectedBuilding}
           onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           {buildings.map((building) => (
             <option key={building.id} value={building.id}>
@@ -277,13 +277,13 @@ const FlatsPage: React.FC = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400 h-4 w-4" />
               <input
                 type="text"
                 placeholder="Search flats..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
             </div>
           </div>
@@ -291,7 +291,7 @@ const FlatsPage: React.FC = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Status</option>
               <option value="available">Available</option>
@@ -309,17 +309,17 @@ const FlatsPage: React.FC = () => {
           <div key={flat.id} className="card hover:shadow-lg transition-shadow duration-200">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">{flat.flatNumber}</h3>
+                <h3 className="text-lg font-semibold text-neutral-900">{flat.flatNumber}</h3>
                 <p className="text-sm text-gray-600">Floor {flat.floor}</p>
               </div>
               <div className="flex space-x-2">
-                <button className="p-1 text-gray-400 hover:text-blue-600">
+                <button className="p-1 text-neutral-400 hover:text-primary-600">
                   <Eye className="h-4 w-4" />
                 </button>
-                <button className="p-1 text-gray-400 hover:text-green-600">
+                <button className="p-1 text-neutral-400 hover:text-success-600">
                   <Edit className="h-4 w-4" />
                 </button>
-                <button className="p-1 text-gray-400 hover:text-red-600">
+                <button className="p-1 text-neutral-400 hover:text-red-600">
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
@@ -342,27 +342,27 @@ const FlatsPage: React.FC = () => {
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Area</span>
-                <span className="text-sm font-medium text-gray-900">{flat.area} sq ft</span>
+                <span className="text-sm font-medium text-neutral-900">{flat.area} sq ft</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Bedrooms</span>
-                <span className="text-sm font-medium text-gray-900">{flat.bedrooms}</span>
+                <span className="text-sm font-medium text-neutral-900">{flat.bedrooms}</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Ground Rent</span>
-                <span className="text-sm font-medium text-gray-900">{formatCurrency(flat.groundRent)}</span>
+                <span className="text-sm font-medium text-neutral-900">{formatCurrency(flat.groundRent)}</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Service Charge</span>
-                <span className="text-sm font-medium text-gray-900">{formatCurrency(flat.serviceCharge)}</span>
+                <span className="text-sm font-medium text-neutral-900">{formatCurrency(flat.serviceCharge)}</span>
               </div>
             </div>
             
             {flat.description && (
-              <div className="mt-4 pt-3 border-t border-gray-200">
+              <div className="mt-4 pt-3 border-t border-neutral-200">
                 <p className="text-sm text-gray-600">{flat.description}</p>
               </div>
             )}
@@ -374,67 +374,67 @@ const FlatsPage: React.FC = () => {
       {showCreateFlat && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Add New Flat</h2>
+            <h2 className="text-lg font-semibold text-neutral-900 mb-4">Add New Flat</h2>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Flat Number</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Flat Number</label>
                 <input
                   type="text"
                   value={flatForm.flatNumber}
                   onChange={(e) => setFlatForm({...flatForm, flatNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Floor</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Floor</label>
                   <input
                     type="number"
                     value={flatForm.floor}
                     onChange={(e) => setFlatForm({...flatForm, floor: parseInt(e.target.value) || 1})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Area (sq ft)</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Area (sq ft)</label>
                   <input
                     type="number"
                     value={flatForm.area}
                     onChange={(e) => setFlatForm({...flatForm, area: parseInt(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bedrooms</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Bedrooms</label>
                   <input
                     type="number"
                     value={flatForm.bedrooms}
                     onChange={(e) => setFlatForm({...flatForm, bedrooms: parseInt(e.target.value) || 1})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bathrooms</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Bathrooms</label>
                   <input
                     type="number"
                     value={flatForm.bathrooms}
                     onChange={(e) => setFlatForm({...flatForm, bathrooms: parseInt(e.target.value) || 1})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Type</label>
                 <select
                   value={flatForm.type}
                   onChange={(e) => setFlatForm({...flatForm, type: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="apartment">Apartment</option>
                   <option value="penthouse">Penthouse</option>
@@ -444,11 +444,11 @@ const FlatsPage: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
                 <select
                   value={flatForm.status}
                   onChange={(e) => setFlatForm({...flatForm, status: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="available">Available</option>
                   <option value="occupied">Occupied</option>
@@ -459,32 +459,32 @@ const FlatsPage: React.FC = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ground Rent</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Ground Rent</label>
                   <input
                     type="number"
                     value={flatForm.groundRent}
                     onChange={(e) => setFlatForm({...flatForm, groundRent: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Service Charge</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Service Charge</label>
                   <input
                     type="number"
                     value={flatForm.serviceCharge}
                     onChange={(e) => setFlatForm({...flatForm, serviceCharge: parseFloat(e.target.value) || 0})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Description</label>
                 <textarea
                   value={flatForm.description}
                   onChange={(e) => setFlatForm({...flatForm, description: e.target.value})}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -492,13 +492,13 @@ const FlatsPage: React.FC = () => {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowCreateFlat(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateFlat}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
               >
                 Create Flat
               </button>

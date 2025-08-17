@@ -1,13 +1,17 @@
-import React, { useState, useEffect } from 'react'
-import { Search, Plus, Star, MapPin, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Truck } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { Search, Plus, Star, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Truck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { getAllBuildings } from '../../services/buildingService'
+import { supplierService } from '../../services/supplierService'
 import { Supplier, Building } from '../../types'
 import BuildingSelector from './BuildingSelector'
 import BulkImportExport from './BulkImportExport'
 import { exportSuppliersToCSV } from '../../utils/csvExport'
 import { importSuppliersFromCSV, ImportValidationResult } from '../../utils/csvImport'
+import DataTable, { Column, TableAction } from '../UI/DataTable'
+import Button from '../UI/Button'
+import { tokens } from '../../styles/tokens'
 
 const SuppliersDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -46,15 +50,22 @@ const SuppliersDataTable: React.FC = () => {
         if (buildingsData.length > 0) {
           setSelectedBuilding(buildingsData[0].id)
         }
-        // For now, we'll use empty array for suppliers since we need to implement proper supplier service
-        // TODO: Implement proper supplier loading from Firebase
-        setSuppliers([])
+        // Load suppliers from Firebase
+        console.log('🔥 Loading suppliers from Firebase...')
+        const suppliersData = await supplierService.getSuppliers()
+        console.log('🔥 Suppliers loaded:', suppliersData.length)
+        // Add buildingId to suppliers for compatibility with existing code
+        const suppliersWithBuilding = suppliersData.map(supplier => ({
+          ...supplier,
+          buildingId: selectedBuilding || buildingsData[0]?.id || ''
+        }))
+        setSuppliers(suppliersWithBuilding)
       } catch (error) {
         console.error('🚨 Error initializing data:', error)
         if (currentUser) {
           addNotification({
             title: 'Error',
-            message: 'Failed to load buildings',
+            message: 'Failed to load buildings and suppliers',
             type: 'error',
             userId: currentUser.id
           })
@@ -66,6 +77,27 @@ const SuppliersDataTable: React.FC = () => {
 
     initializeData()
   }, [])
+
+  // Subscribe to real-time supplier updates
+  useEffect(() => {
+    if (!selectedBuilding) return
+
+    console.log('🔥 Setting up real-time supplier subscription...')
+    const unsubscribe = supplierService.subscribeToSuppliers((suppliersData) => {
+      console.log('🔥 Received real-time supplier update:', suppliersData.length)
+      // Add buildingId to suppliers for compatibility with existing code
+      const suppliersWithBuilding = suppliersData.map(supplier => ({
+        ...supplier,
+        buildingId: selectedBuilding
+      }))
+      setSuppliers(suppliersWithBuilding)
+    })
+
+    return () => {
+      console.log('🔥 Unsubscribing from supplier updates')
+      unsubscribe()
+    }
+  }, [selectedBuilding])
 
   useEffect(() => {
     if (selectedBuilding) {
@@ -88,10 +120,21 @@ const SuppliersDataTable: React.FC = () => {
       })
       return
     }
+
+    // Validate required fields
+    if (!supplierForm.name || !supplierForm.email || !supplierForm.companyName || !supplierForm.specialty) {
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all required fields (Name, Email, Company, Specialty)',
+        type: 'error',
+        userId: currentUser.id
+      })
+      return
+    }
     
     try {
-      const newSupplier: Supplier & { buildingId: string } = {
-        id: `supplier-${Date.now()}`,
+      console.log('🔥 Creating supplier in Firebase...')
+      const supplierData = {
         name: supplierForm.name,
         email: supplierForm.email,
         phone: supplierForm.phone,
@@ -100,6 +143,15 @@ const SuppliersDataTable: React.FC = () => {
         specialties: [supplierForm.specialty],
         rating: supplierForm.rating || 0,
         isActive: true,
+      }
+
+      const supplierId = await supplierService.createSupplier(supplierData)
+      console.log('🔥 Supplier created with ID:', supplierId)
+      
+      // Add to local state with the Firebase-generated ID
+      const newSupplier: Supplier & { buildingId: string } = {
+        id: supplierId,
+        ...supplierData,
         createdAt: new Date(),
         updatedAt: new Date(),
         buildingId: selectedBuilding,
@@ -191,16 +243,36 @@ const SuppliersDataTable: React.FC = () => {
 
   const handleUpdateSupplier = async () => {
     if (!selectedSupplier || !currentUser) return
+
+    // Validate required fields
+    if (!supplierForm.name || !supplierForm.email || !supplierForm.companyName || !supplierForm.specialty) {
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all required fields (Name, Email, Company, Specialty)',
+        type: 'error',
+        userId: currentUser.id
+      })
+      return
+    }
     
     try {
-      const updatedSupplier: Supplier = {
-        ...selectedSupplier,
+      console.log('🔥 Updating supplier in Firebase...')
+      const supplierUpdates = {
         name: supplierForm.name,
         email: supplierForm.email,
         phone: supplierForm.phone,
         companyName: supplierForm.companyName,
         specialties: [supplierForm.specialty],
         rating: supplierForm.rating || 0,
+      }
+
+      await supplierService.updateSupplier(selectedSupplier.id, supplierUpdates)
+      console.log('🔥 Supplier updated successfully')
+
+      // Update local state
+      const updatedSupplier: Supplier & { buildingId: string } = {
+        ...selectedSupplier as (Supplier & { buildingId: string }),
+        ...supplierUpdates,
         updatedAt: new Date(),
       }
 
@@ -238,15 +310,15 @@ const SuppliersDataTable: React.FC = () => {
   }
 
   const getSpecialtyColor = (specialty: string | undefined) => {
-    if (!specialty) return 'text-gray-600 bg-gray-100'
+    if (!specialty) return 'text-gray-600 bg-neutral-100'
     switch (specialty.toLowerCase()) {
-      case 'plumbing': return 'text-blue-600 bg-blue-100'
+      case 'plumbing': return 'text-primary-600 bg-blue-100'
       case 'electrical': return 'text-yellow-600 bg-yellow-100'
-      case 'hvac': return 'text-green-600 bg-green-100'
+      case 'hvac': return 'text-success-600 bg-success-100'
       case 'cleaning': return 'text-purple-600 bg-purple-100'
       case 'security': return 'text-red-600 bg-red-100'
       case 'landscaping': return 'text-emerald-600 bg-emerald-100'
-      default: return 'text-gray-600 bg-gray-100'
+      default: return 'text-gray-600 bg-neutral-100'
     }
   }
 
@@ -311,30 +383,107 @@ const SuppliersDataTable: React.FC = () => {
     )
   }
 
-  // Debug logging
-  console.log('Suppliers data:', suppliers)
-  console.log('Selected building:', selectedBuilding)
-  console.log('Search term:', searchTerm)
-  console.log('Selected specialty:', selectedSpecialty)
+  // Filter suppliers with memoization
+  const filteredSuppliers = useMemo(() => {
+    return suppliers.filter(supplier => {
+      // Only show active suppliers (soft delete implementation)
+      const isActive = supplier.isActive
+      
+      // Building-scoped filtering: only show suppliers for the selected building
+      const matchesBuilding = !selectedBuilding || supplier.buildingId === selectedBuilding
+      
+      const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      const matchesSpecialty = selectedSpecialty === 'all' || 
+                              supplier.specialties.some(s => s.toLowerCase() === selectedSpecialty.toLowerCase())
+      
+      return isActive && matchesBuilding && matchesSearch && matchesSpecialty
+    })
+  }, [suppliers, selectedBuilding, searchTerm, selectedSpecialty])
 
-  const filteredSuppliers = suppliers.filter(supplier => {
-    // Only show active suppliers (soft delete implementation)
-    const isActive = supplier.isActive
-    
-    // Building-scoped filtering: only show suppliers for the selected building
-    const matchesBuilding = !selectedBuilding || supplier.buildingId === selectedBuilding
-    
-    const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
-    
-    const matchesSpecialty = selectedSpecialty === 'all' || 
-                            supplier.specialties.some(s => s.toLowerCase() === selectedSpecialty.toLowerCase())
-    
-    return isActive && matchesBuilding && matchesSearch && matchesSpecialty
-  })
-  
-  console.log('Filtered suppliers:', filteredSuppliers)
+  // Define table columns
+  const columns: Column<Supplier & { buildingId: string }>[] = useMemo(() => [
+    {
+      key: 'supplierInfo',
+      title: 'Supplier',
+      dataIndex: 'name',
+      sortable: true,
+      render: (value, supplier) => (
+        <div>
+          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.name}</div>
+          {supplier.companyName && (
+            <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'phone',
+      title: 'Phone',
+      dataIndex: 'phone',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900 font-inter">{supplier.phone || 'N/A'}</div>
+      )
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      dataIndex: 'email',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900 font-inter">{supplier.email}</div>
+      )
+    },
+    {
+      key: 'specialty',
+      title: 'Specialty',
+      dataIndex: 'specialties',
+      sortable: false,
+      render: (value, supplier) => (
+        <div className="flex flex-wrap gap-1">
+          {supplier.specialties.map((specialty, index) => (
+            <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+              {specialty}
+            </span>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'rating',
+      title: 'Rating',
+      dataIndex: 'rating',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900">
+          {supplier.rating ? renderStars(supplier.rating) : 'No rating'}
+        </div>
+      )
+    }
+  ], [])
+
+  // Define row actions
+  const rowActions: TableAction<Supplier & { buildingId: string }>[] = useMemo(() => [
+    {
+      label: 'View',
+      onClick: handleViewSupplier,
+      variant: 'outline'
+    },
+    {
+      label: 'Edit',
+      onClick: handleEditSupplier,
+      variant: 'outline'
+    },
+    {
+      label: 'Delete',
+      onClick: (supplier) => handleDeleteSupplier(supplier.id),
+      variant: 'outline',
+      className: 'text-red-600 hover:text-red-900'
+    }
+  ], [])
 
   if (loading) {
     return (
@@ -348,23 +497,20 @@ const SuppliersDataTable: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Truck className="h-6 w-6 text-green-700" />
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900 font-inter">Suppliers Management</h2>
-            <p className="text-sm text-gray-600 font-inter">Manage service providers and contractors</p>
-          </div>
+        <div>
+          <h2 className="text-xl font-semibold text-neutral-900 font-inter">Suppliers Management</h2>
+          <p className="text-sm text-neutral-600 font-inter">Manage building suppliers and service providers</p>
         </div>
         
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
           {/* Building Selector */}
           <div className="relative flex items-center gap-2">
-            <BuildingIcon className="h-4 w-4 text-gray-400" />
+            <BuildingIcon className="h-4 w-4 text-neutral-400" />
             <select
               value={selectedBuilding}
               onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 min-w-[200px]"
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
               title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
             >
               {buildings.map((building) => (
@@ -373,16 +519,14 @@ const SuppliersDataTable: React.FC = () => {
                 </option>
               ))}
             </select>
-            {/* Dropdown Arrow */}
-            <ChevronDown className="absolute right-2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
           </div>
           
           {/* Add Supplier Button */}
           <button
             onClick={() => setShowCreateSupplier(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
+            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors font-inter"
           >
-            <Plus className="h-4 w-4" />
             Add Supplier
           </button>
         </div>
@@ -391,28 +535,31 @@ const SuppliersDataTable: React.FC = () => {
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <input
             type="text"
             placeholder="Search suppliers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+            className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
           />
         </div>
-        <select
-          value={selectedSpecialty}
-          onChange={(e) => setSelectedSpecialty(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-        >
-          <option value="all">All Specialties</option>
-          <option value="plumbing">Plumbing</option>
-          <option value="electrical">Electrical</option>
-          <option value="hvac">HVAC</option>
-          <option value="cleaning">Cleaning</option>
-          <option value="security">Security</option>
-          <option value="landscaping">Landscaping</option>
-        </select>
+        <div className="relative flex items-center gap-2">
+          <select
+            value={selectedSpecialty}
+            onChange={(e) => setSelectedSpecialty(e.target.value)}
+            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+          >
+            <option value="all">All Specialties</option>
+            <option value="plumbing">Plumbing</option>
+            <option value="electrical">Electrical</option>
+            <option value="hvac">HVAC</option>
+            <option value="cleaning">Cleaning</option>
+            <option value="security">Security</option>
+            <option value="landscaping">Landscaping</option>
+          </select>
+          <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+        </div>
         
         {/* Bulk Import/Export */}
         <BulkImportExport
@@ -427,156 +574,69 @@ const SuppliersDataTable: React.FC = () => {
       </div>
 
       {/* Suppliers Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">
-                Supplier
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">
-                Phone
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">
-                Email
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">
-                Specialty
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">
-                Rating
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredSuppliers.map((supplier) => (
-              <tr key={supplier.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 font-inter">{supplier.name}</div>
-                    {supplier.companyName && (
-                      <div className="flex items-center gap-1 mt-1">
-                        <MapPin className="h-3 w-3 text-gray-400" />
-                        <span className="text-xs text-gray-500 font-inter">{supplier.companyName}</span>
-                      </div>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-inter">{supplier.phone}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 font-inter">{supplier.email}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex flex-wrap gap-1">
-                    {supplier.specialties.map((specialty, index) => (
-                      <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {supplier.rating ? renderStars(supplier.rating) : 'No rating'}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleViewSupplier(supplier)}
-                      className="text-green-600 hover:text-green-900 transition-colors"
-                      title="View supplier details"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleEditSupplier(supplier)}
-                      className="text-blue-600 hover:text-blue-900 transition-colors"
-                      title="Edit supplier"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteSupplier(supplier.id)}
-                      className="text-red-600 hover:text-red-900 transition-colors"
-                      title="Delete supplier"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {filteredSuppliers.length === 0 && (
-          <div className="text-center py-12">
-            <BuildingIcon className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2 font-inter">No suppliers found</h3>
-            <p className="text-gray-600 font-inter">Get started by adding your first supplier</p>
-          </div>
-        )}
-      </div>
+      <DataTable
+        data={filteredSuppliers}
+        columns={columns}
+        actions={rowActions}
+        searchable={false}
+        emptyMessage="No suppliers found. Get started by adding your first supplier."
+      />
 
       {/* Create Supplier Modal */}
       {showCreateSupplier && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 font-inter">Add New Supplier</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Add New Supplier</h3>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
                 <input
                   type="text"
                   value={supplierForm.name}
                   onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Company Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
                 <input
                   type="text"
                   value={supplierForm.companyName}
                   onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Email</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
                   <input
                     type="email"
                     value={supplierForm.email}
                     onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Phone</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                   <input
                     type="tel"
                     value={supplierForm.phone}
                     onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Specialty</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
                   <select
                     value={supplierForm.specialty}
                     onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   >
                     <option value="">Select Specialty</option>
                     <option value="Plumbing">Plumbing</option>
@@ -589,11 +649,11 @@ const SuppliersDataTable: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Rating</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
                   <select
                     value={supplierForm.rating}
                     onChange={(e) => setSupplierForm({...supplierForm, rating: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   >
                     <option value={5}>5 Stars</option>
                     <option value={4.5}>4.5 Stars</option>
@@ -609,12 +669,12 @@ const SuppliersDataTable: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Notes</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
                 <textarea
                   value={supplierForm.notes}
                   onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
@@ -622,13 +682,13 @@ const SuppliersDataTable: React.FC = () => {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowCreateSupplier(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-inter"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateSupplier}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors font-inter"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
               >
                 Add Supplier
               </button>
@@ -642,10 +702,10 @@ const SuppliersDataTable: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 font-inter">Supplier Details</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Supplier Details</h3>
               <button
                 onClick={() => setShowViewSupplier(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-neutral-400 hover:text-gray-600 transition-colors"
               >
                 <span className="sr-only">Close</span>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -657,29 +717,29 @@ const SuppliersDataTable: React.FC = () => {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Name</label>
-                  <p className="text-sm text-gray-900 font-inter">{selectedSupplier.name}</p>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.name}</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Company</label>
-                  <p className="text-sm text-gray-900 font-inter">{selectedSupplier.companyName}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Email</label>
-                  <p className="text-sm text-gray-900 font-inter">{selectedSupplier.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Phone</label>
-                  <p className="text-sm text-gray-900 font-inter">{selectedSupplier.phone || 'Not provided'}</p>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company</label>
+                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.companyName}</p>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Specialties</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.email}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.phone || 'Not provided'}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialties</label>
                   <div className="flex flex-wrap gap-1">
                     {selectedSupplier.specialties.map((specialty, index) => (
                       <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
@@ -689,7 +749,7 @@ const SuppliersDataTable: React.FC = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Rating</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
                   <div className="flex items-center gap-1">
                     {selectedSupplier.rating ? renderStars(selectedSupplier.rating) : 'No rating'}
                     {selectedSupplier.rating && <span className="text-sm text-gray-600 ml-1 font-inter">{selectedSupplier.rating}</span>}
@@ -698,9 +758,9 @@ const SuppliersDataTable: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Status</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
                 <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  selectedSupplier.isActive ? 'text-green-600 bg-green-100' : 'text-red-600 bg-red-100'
+                  selectedSupplier.isActive ? 'text-success-600 bg-success-100' : 'text-red-600 bg-red-100'
                 }`}>
                   {selectedSupplier.isActive ? 'Active' : 'Inactive'}
                 </span>
@@ -710,7 +770,7 @@ const SuppliersDataTable: React.FC = () => {
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowViewSupplier(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-inter"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
               >
                 Close
               </button>
@@ -724,10 +784,10 @@ const SuppliersDataTable: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 font-inter">Edit Supplier</h3>
+              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Edit Supplier</h3>
               <button
                 onClick={() => setShowEditSupplier(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-neutral-400 hover:text-gray-600 transition-colors"
               >
                 <span className="sr-only">Close</span>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -738,53 +798,53 @@ const SuppliersDataTable: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
                 <input
                   type="text"
                   value={supplierForm.name}
                   onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Company Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
                 <input
                   type="text"
                   value={supplierForm.companyName}
                   onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Email</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
                   <input
                     type="email"
                     value={supplierForm.email}
                     onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Phone</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                   <input
                     type="tel"
                     value={supplierForm.phone}
                     onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Specialty</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
                   <select
                     value={supplierForm.specialty}
                     onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   >
                     <option value="">Select specialty</option>
                     <option value="Plumbing">Plumbing</option>
@@ -797,11 +857,11 @@ const SuppliersDataTable: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">Rating</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
                   <select
                     value={supplierForm.rating}
                     onChange={(e) => setSupplierForm({...supplierForm, rating: Number(e.target.value)})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   >
                     <option value={0}>No rating</option>
                     <option value={1}>1 Star</option>
@@ -817,13 +877,13 @@ const SuppliersDataTable: React.FC = () => {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowEditSupplier(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-inter"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
               >
                 Cancel
               </button>
               <button
                 onClick={handleUpdateSupplier}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors font-inter"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
               >
                 Update Supplier
               </button>

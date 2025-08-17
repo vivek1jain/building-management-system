@@ -213,22 +213,22 @@ const AssetsPage: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'operational': return 'text-green-600 bg-green-100'
+      case 'operational': return 'text-success-600 bg-green-100'
       case 'needs_repair': return 'text-yellow-600 bg-yellow-100'
-      case 'in_repair': return 'text-blue-600 bg-blue-100'
+      case 'in_repair': return 'text-primary-600 bg-blue-100'
       case 'decommissioned': return 'text-red-600 bg-red-100'
-      default: return 'text-gray-600 bg-gray-100'
+      default: return 'text-gray-600 bg-neutral-100'
     }
   }
 
   const getCategoryColor = (category: string) => {
     switch (category) {
       case 'elevator': return 'text-purple-600 bg-purple-100'
-      case 'hvac': return 'text-blue-600 bg-blue-100'
+      case 'hvac': return 'text-primary-600 bg-blue-100'
       case 'safety': return 'text-red-600 bg-red-100'
       case 'electrical': return 'text-yellow-600 bg-yellow-100'
       case 'plumbing': return 'text-cyan-600 bg-cyan-100'
-      default: return 'text-gray-600 bg-gray-100'
+      default: return 'text-gray-600 bg-neutral-100'
     }
   }
 
@@ -262,13 +262,13 @@ const AssetsPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <Package className="h-6 w-6 text-gray-600" />
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Assets Management</h2>
+            <h2 className="text-xl font-semibold text-neutral-900">Assets Management</h2>
             <p className="text-sm text-gray-600">Track and manage building assets and equipment</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreateAsset(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <Plus className="h-4 w-4" />
           Add Asset
@@ -277,11 +277,11 @@ const AssetsPage: React.FC = () => {
 
       {/* Building Selector */}
       <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700">Building:</label>
+        <label className="text-sm font-medium text-neutral-700">Building:</label>
         <select
           value={selectedBuilding}
           onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           {buildings.map((building) => (
             <option key={building.id} value={building.id}>
@@ -294,19 +294,19 @@ const AssetsPage: React.FC = () => {
       {/* Filters */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
           <input
             type="text"
             placeholder="Search assets..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           <option value="all">All Status</option>
           <option value="operational">Operational</option>
@@ -319,44 +319,44 @@ const AssetsPage: React.FC = () => {
       {/* Assets Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-neutral-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Asset
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Location
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Category
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Warranty
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredAssets.map((asset) => (
-              <tr key={asset.id} className="hover:bg-gray-50">
+              <tr key={asset.id} className="hover:bg-neutral-50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{asset.name}</div>
-                    <div className="text-sm text-gray-500">{asset.description}</div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-sm font-medium text-neutral-900">{asset.name}</div>
+                    <div className="text-sm text-neutral-500">{asset.description}</div>
+                    <div className="text-xs text-neutral-400">
                       {asset.manufacturer} {asset.model}
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-900">{asset.location}</span>
+                    <MapPin className="h-4 w-4 text-neutral-400" />
+                    <span className="text-sm text-neutral-900">{asset.location}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -369,15 +369,15 @@ const AssetsPage: React.FC = () => {
                     {asset.status.replace('_', ' ')}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                   {formatDate(asset.warrantyExpiry)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center gap-2">
-                    <button className="text-blue-600 hover:text-blue-900">
+                    <button className="text-primary-600 hover:text-blue-900">
                       <Eye className="h-4 w-4" />
                     </button>
-                    <button className="text-green-600 hover:text-green-900">
+                    <button className="text-success-600 hover:text-green-900">
                       <Edit className="h-4 w-4" />
                     </button>
                     <button className="text-red-600 hover:text-red-900">
@@ -393,7 +393,7 @@ const AssetsPage: React.FC = () => {
         {filteredAssets.length === 0 && (
           <div className="text-center py-12">
             <Package className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No assets found</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-2">No assets found</h3>
             <p className="text-gray-600">Get started by adding your first asset</p>
           </div>
         )}
@@ -403,77 +403,77 @@ const AssetsPage: React.FC = () => {
       {showCreateAsset && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Add New Asset</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Add New Asset</h3>
             
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Asset Name</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Asset Name</label>
                   <input
                     type="text"
                     value={assetForm.name}
                     onChange={(e) => setAssetForm({...assetForm, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Location</label>
                   <input
                     type="text"
                     value={assetForm.location}
                     onChange={(e) => setAssetForm({...assetForm, location: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Description</label>
                 <textarea
                   value={assetForm.description}
                   onChange={(e) => setAssetForm({...assetForm, description: e.target.value})}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Manufacturer</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Manufacturer</label>
                   <input
                     type="text"
                     value={assetForm.manufacturer}
                     onChange={(e) => setAssetForm({...assetForm, manufacturer: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Model</label>
                   <input
                     type="text"
                     value={assetForm.model}
                     onChange={(e) => setAssetForm({...assetForm, model: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Serial Number</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Serial Number</label>
                   <input
                     type="text"
                     value={assetForm.serialNumber}
                     onChange={(e) => setAssetForm({...assetForm, serialNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Category</label>
                   <select
                     value={assetForm.category}
                     onChange={(e) => setAssetForm({...assetForm, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="equipment">Equipment</option>
                     <option value="elevator">Elevator</option>
@@ -487,32 +487,32 @@ const AssetsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Installation Date</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Installation Date</label>
                   <input
                     type="date"
                     value={assetForm.installationDate}
                     onChange={(e) => setAssetForm({...assetForm, installationDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Warranty Expiry</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Warranty Expiry</label>
                   <input
                     type="date"
                     value={assetForm.warrantyExpiry}
                     onChange={(e) => setAssetForm({...assetForm, warrantyExpiry: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
                   <select
                     value={assetForm.status}
                     onChange={(e) => setAssetForm({...assetForm, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="operational">Operational</option>
                     <option value="needs_repair">Needs Repair</option>
@@ -521,11 +521,11 @@ const AssetsPage: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Maintenance Schedule</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Maintenance Schedule</label>
                   <select
                     value={assetForm.maintenanceSchedule}
                     onChange={(e) => setAssetForm({...assetForm, maintenanceSchedule: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
@@ -536,12 +536,12 @@ const AssetsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Notes</label>
                 <textarea
                   value={assetForm.notes}
                   onChange={(e) => setAssetForm({...assetForm, notes: e.target.value})}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
@@ -549,13 +549,13 @@ const AssetsPage: React.FC = () => {
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowCreateAsset(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateAsset}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
               >
                 Add Asset
               </button>

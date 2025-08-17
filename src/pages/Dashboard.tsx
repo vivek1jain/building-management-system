@@ -20,16 +20,18 @@ import {
   CreditCard,
   Bell,
   RefreshCw,
-  Home
+  Home,
+  ChevronDown
 } from 'lucide-react'
 import { getAllBuildings } from '../services/buildingService'
 import { ticketService } from '../services/ticketService'
 import { Building as BuildingType, Ticket } from '../types'
+import { Button, Card, CardHeader, CardTitle, CardContent } from '../components/UI'
 
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData } = useBuilding()
+  const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData, setSelectedBuildingId } = useBuilding()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -147,9 +149,9 @@ const Dashboard: React.FC = () => {
       case 'medium':
         return 'text-yellow-600 bg-yellow-100'
       case 'low':
-        return 'text-green-600 bg-green-100'
+        return 'text-success-600 bg-success-100'
       default:
-        return 'text-gray-600 bg-gray-100'
+        return 'text-gray-600 bg-neutral-100'
     }
   }
 
@@ -168,9 +170,9 @@ const Dashboard: React.FC = () => {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-4">Access Denied</h2>
           <p className="text-gray-600">Please log in to access the dashboard.</p>
         </div>
       </div>
@@ -178,27 +180,48 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Building Manager Dashboard</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Building Manager Dashboard</h1>
             <p className="text-gray-600">Welcome back, {currentUser.name}</p>
             {selectedBuildingData && (
-              <p className="text-sm text-gray-500 mt-1">Current building: {selectedBuildingData.name}</p>
+              <p className="text-sm text-neutral-500 mt-1">Current building: {selectedBuildingData.name}</p>
             )}
           </div>
-          <div className="flex items-center space-x-2">
-            <button
+          <div className="flex items-center space-x-4">
+            {/* Building Selector */}
+            <div className="relative flex items-center gap-2">
+              <Building className="h-4 w-4 text-neutral-400" />
+              <select
+                value={selectedBuildingId || ''}
+                onChange={(e) => setSelectedBuildingId(e.target.value)}
+                className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+                title={`Current building: ${selectedBuildingData?.name || 'Select building'}`}
+              >
+                <option value="">Select Building</option>
+                {buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.name}
+                  </option>
+                ))}
+              </select>
+              {/* Dropdown Arrow */}
+              <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+            </div>
+            
+            <Button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+              variant="outline"
+              size="sm"
               title="Refresh data"
+              leftIcon={<RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />}
             >
-              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              <span className="ml-2">Refresh</span>
-            </button>
+              Refresh
+            </Button>
           </div>
         </div>
 
@@ -208,11 +231,11 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Building className="h-8 w-8 text-blue-600" />
+                <Building className="h-8 w-8 text-primary-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Buildings</p>
-                <p className="text-2xl font-semibold text-gray-900">{metrics.totalBuildings}</p>
+                <p className="text-sm font-medium text-neutral-500">Total Buildings</p>
+                <p className="text-2xl font-semibold text-neutral-900">{metrics.totalBuildings}</p>
               </div>
             </div>
           </div>
@@ -221,11 +244,11 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Users className="h-8 w-8 text-green-600" />
+                <Users className="h-8 w-8 text-success-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Total Flats</p>
-                <p className="text-2xl font-semibold text-gray-900">{metrics.totalFlats}</p>
+                <p className="text-sm font-medium text-neutral-500">Total Flats</p>
+                <p className="text-2xl font-semibold text-neutral-900">{metrics.totalFlats}</p>
               </div>
             </div>
           </div>
@@ -237,8 +260,8 @@ const Dashboard: React.FC = () => {
                 <TrendingUp className="h-8 w-8 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Occupancy Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">{metrics.occupancyRate}%</p>
+                <p className="text-sm font-medium text-neutral-500">Occupancy Rate</p>
+                <p className="text-2xl font-semibold text-neutral-900">{metrics.occupancyRate}%</p>
               </div>
             </div>
           </div>
@@ -247,11 +270,11 @@ const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <DollarSign className="h-8 w-8 text-green-600" />
+                <DollarSign className="h-8 w-8 text-success-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-500">Monthly Revenue</p>
-                <p className="text-2xl font-semibold text-gray-900">£{metrics.monthlyRevenue.toLocaleString()}</p>
+                <p className="text-sm font-medium text-neutral-500">Monthly Revenue</p>
+                <p className="text-2xl font-semibold text-neutral-900">£{metrics.monthlyRevenue.toLocaleString()}</p>
               </div>
             </div>
           </div>
@@ -261,9 +284,9 @@ const Dashboard: React.FC = () => {
           {/* Urgent Items Triage */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
+              <div className="px-6 py-4 border-b border-neutral-200">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium text-gray-900">Urgent Items Triage</h2>
+                  <h2 className="text-lg font-medium text-neutral-900">Urgent Items Triage</h2>
                   <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
                     {urgentItems.length} items
                   </span>
@@ -272,9 +295,9 @@ const Dashboard: React.FC = () => {
               <div className="divide-y divide-gray-200">
                 {urgentItems.length === 0 ? (
                   <div className="px-6 py-8 text-center">
-                    <CheckCircle className="mx-auto h-12 w-12 text-green-400" />
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No urgent items</h3>
-                    <p className="mt-1 text-sm text-gray-500">All caught up! Great work.</p>
+                    <CheckCircle className="mx-auto h-12 w-12 text-success-400" />
+                    <h3 className="mt-2 text-sm font-medium text-neutral-900">No urgent items</h3>
+                    <p className="mt-1 text-sm text-neutral-500">All caught up! Great work.</p>
                   </div>
                 ) : (
                   urgentItems.slice(0, 5).map((item) => (
@@ -285,8 +308,8 @@ const Dashboard: React.FC = () => {
                             {getTypeIcon(item.type)}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm font-medium text-neutral-900">{item.title}</p>
+                            <p className="text-sm text-neutral-500">
                               Assigned to: {item.assignedTo || 'Unassigned'}
                             </p>
                           </div>
@@ -295,7 +318,7 @@ const Dashboard: React.FC = () => {
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(item.priority)}`}>
                             {item.priority}
                           </span>
-                          <span className="text-xs text-gray-500 capitalize">{item.type.replace('_', ' ')}</span>
+                          <span className="text-xs text-neutral-500 capitalize">{item.type.replace('_', ' ')}</span>
                         </div>
                       </div>
                     </div>
@@ -303,8 +326,8 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
               {urgentItems.length > 5 && (
-                <div className="px-6 py-3 bg-gray-50 text-center">
-                  <Link to="/tickets-work-orders" className="text-sm text-blue-600 hover:text-blue-500">
+                <div className="px-6 py-3 bg-neutral-50 text-center">
+                  <Link to="/tickets-work-orders" className="text-sm text-primary-600 hover:text-blue-500">
                     View all {urgentItems.length} urgent items →
                   </Link>
                 </div>
@@ -316,82 +339,82 @@ const Dashboard: React.FC = () => {
           <div className="space-y-6">
             {/* Quick Stats */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Stats</h3>
+              <h3 className="text-lg font-medium text-neutral-900 mb-4">Quick Stats</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
                     <span className="text-sm text-gray-600">Urgent Tickets</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900">{metrics.urgentTickets}</span>
+                  <span className="text-sm font-semibold text-neutral-900">{metrics.urgentTickets}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <Wrench className="h-5 w-5 text-blue-500 mr-2" />
                     <span className="text-sm text-gray-600">Pending Work Orders</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900">{metrics.pendingWorkOrders}</span>
+                  <span className="text-sm font-semibold text-neutral-900">{metrics.pendingWorkOrders}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-green-500 mr-2" />
+                    <Calendar className="h-5 w-5 text-success-500 mr-2" />
                     <span className="text-sm text-gray-600">Upcoming Events</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900">{metrics.upcomingEvents}</span>
+                  <span className="text-sm font-semibold text-neutral-900">{metrics.upcomingEvents}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <TrendingDown className="h-5 w-5 text-purple-500 mr-2" />
                     <span className="text-sm text-gray-600">Monthly Expenses</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900">£{metrics.monthlyExpenses.toLocaleString()}</span>
+                  <span className="text-sm font-semibold text-neutral-900">£{metrics.monthlyExpenses.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             {/* Quick Actions */}
             <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-medium text-neutral-900 mb-4">Quick Actions</h3>
               <div className="space-y-3">
                 <Link
                   to="/tickets-work-orders"
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-center">
                     <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
-                    <span className="text-sm font-medium text-gray-900">Manage Tickets</span>
+                    <span className="text-sm font-medium text-neutral-900">Manage Tickets</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                  <ArrowRight className="h-4 w-4 text-neutral-400" />
                 </Link>
                 <Link
                   to="/finances"
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-center">
-                    <CreditCard className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-sm font-medium text-gray-900">View Finances</span>
+                    <CreditCard className="h-5 w-5 text-success-500 mr-3" />
+                    <span className="text-sm font-medium text-neutral-900">View Finances</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                  <ArrowRight className="h-4 w-4 text-neutral-400" />
                 </Link>
                 <Link
                   to="/events"
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-center">
                     <Calendar className="h-5 w-5 text-blue-500 mr-3" />
-                    <span className="text-sm font-medium text-gray-900">Manage Events</span>
+                    <span className="text-sm font-medium text-neutral-900">Manage Events</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                  <ArrowRight className="h-4 w-4 text-neutral-400" />
                 </Link>
                 <Link
                   to="/building-data"
-                  className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
                 >
                   <div className="flex items-center">
                     <Building className="h-5 w-5 text-purple-500 mr-3" />
-                    <span className="text-sm font-medium text-gray-900">Building Data</span>
+                    <span className="text-sm font-medium text-neutral-900">Building Data</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-gray-400" />
+                  <ArrowRight className="h-4 w-4 text-neutral-400" />
                 </Link>
               </div>
             </div>

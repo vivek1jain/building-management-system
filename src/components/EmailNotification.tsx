@@ -57,7 +57,7 @@ const EmailNotification: React.FC<EmailNotificationProps> = ({ ticketId }) => {
       case 'failed':
         return <AlertCircle className="h-4 w-4 text-red-500" />
       default:
-        return <Mail className="h-4 w-4 text-gray-400" />
+        return <Mail className="h-4 w-4 text-neutral-400" />
     }
   }
 
@@ -88,18 +88,18 @@ const EmailNotification: React.FC<EmailNotificationProps> = ({ ticketId }) => {
 
   return (
     <div className="card">
-      <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+      <h3 className="text-lg font-medium text-neutral-900 mb-4 flex items-center">
         <Mail className="h-5 w-5 mr-2" />
         Email Notifications
       </h3>
       
       <div className="space-y-3">
         {emailLogs.map((log) => (
-          <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          <div key={log.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg">
             <div className="flex items-center space-x-3">
               {getStatusIcon(log.status)}
               <div>
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-neutral-900">
                   Quote request sent to {log.to}
                 </p>
                 <p className="text-xs text-gray-600">
@@ -107,7 +107,7 @@ const EmailNotification: React.FC<EmailNotificationProps> = ({ ticketId }) => {
                 </p>
               </div>
             </div>
-            <div className="text-xs text-gray-500">
+            <div className="text-xs text-neutral-500">
               {log.subject}
             </div>
           </div>

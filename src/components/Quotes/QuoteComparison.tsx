@@ -91,8 +91,8 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
       case 'pending': return 'bg-yellow-100 text-yellow-800'
       case 'accepted': return 'bg-green-100 text-green-800'
       case 'declined': return 'bg-red-100 text-red-800'
-      case 'expired': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'expired': return 'bg-neutral-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -115,7 +115,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Quote Comparison</h2>
+          <h2 className="text-xl font-bold text-neutral-900">Quote Comparison</h2>
           <p className="text-gray-600 mt-1">
             Compare quotes and select the best option for your project
           </p>
@@ -131,7 +131,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
               Sort By
             </label>
             <select
@@ -145,7 +145,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
               Order
             </label>
             <button
@@ -157,7 +157,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
             </button>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-1">
               Status
             </label>
             <select
@@ -209,7 +209,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
                     <User className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-gray-900">{supplier?.name || 'Unknown'}</h3>
+                    <h3 className="font-medium text-neutral-900">{supplier?.name || 'Unknown'}</h3>
                     <p className="text-sm text-gray-600">{supplier?.companyName}</p>
                   </div>
                 </div>
@@ -229,7 +229,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
               {/* Amount */}
               <div className="mb-4">
                 <div className="flex items-baseline space-x-2">
-                  <span className="text-3xl font-bold text-gray-900">
+                  <span className="text-3xl font-bold text-neutral-900">
                     {formatCurrency(quote.amount, quote.currency)}
                   </span>
                   <span className="text-sm text-gray-600">total</span>
@@ -238,13 +238,13 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
 
               {/* Description */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-1">Description</h4>
+                <h4 className="text-sm font-medium text-neutral-700 mb-1">Description</h4>
                 <p className="text-sm text-gray-600 line-clamp-3">{quote.description}</p>
               </div>
 
               {/* Terms */}
               <div className="mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-1">Terms</h4>
+                <h4 className="text-sm font-medium text-neutral-700 mb-1">Terms</h4>
                 <p className="text-sm text-gray-600 line-clamp-2">{quote.terms}</p>
               </div>
 
@@ -252,11 +252,11 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
               <div className="space-y-2 mb-4">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Submitted:</span>
-                  <span className="text-gray-900">{formatDate(quote.submittedAt)}</span>
+                  <span className="text-neutral-900">{formatDate(quote.submittedAt)}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">Valid Until:</span>
-                  <span className={`${expired ? 'text-red-600' : 'text-gray-900'}`}>
+                  <span className={`${expired ? 'text-red-600' : 'text-neutral-900'}`}>
                     {formatDate(quote.validUntil)}
                   </span>
                 </div>
@@ -326,7 +326,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
                 )}
                 {expired && (
                   <div className="w-full text-center">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-neutral-100 text-gray-800">
                       <AlertTriangle className="h-4 w-4 mr-1" />
                       Expired
                     </span>
@@ -341,7 +341,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
       {filteredQuotes.length === 0 && (
         <div className="text-center py-12">
           <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No quotes found</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-2">No quotes found</h3>
           <p className="text-gray-600">Try adjusting your filters or request quotes from suppliers</p>
         </div>
       )}

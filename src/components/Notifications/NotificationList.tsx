@@ -31,11 +31,11 @@ const NotificationList: React.FC = () => {
           data-testid="notification-item"
         >
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-gray-900 truncate">{n.title}</div>
-            <div className="text-sm text-gray-700 mt-1 break-words">{n.message}</div>
+            <div className="font-semibold text-neutral-900 truncate">{n.title}</div>
+            <div className="text-sm text-neutral-700 mt-1 break-words">{n.message}</div>
           </div>
           <button
-            className="ml-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors duration-200 flex-shrink-0"
+            className="ml-2 p-1 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 rounded-full transition-colors duration-200 flex-shrink-0"
             onClick={(e) => handleDismiss(n.id, e)}
             aria-label="Dismiss notification"
             type="button"

@@ -174,7 +174,7 @@ const Suppliers = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quote Management</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">Quote Management</h1>
             <p className="text-gray-600 mt-1">
               Submit quotes for tickets and manage your responses
             </p>
@@ -191,15 +191,15 @@ const Suppliers = () => {
         {/* Quote Submission Form */}
         {showQuoteForm && (
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Submit Quote</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Submit Quote</h3>
             <form onSubmit={handleQuoteSubmit} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
                     Amount
                   </label>
                   <div className="relative">
-                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
                     <input
                       type="number"
                       value={quoteForm.amount}
@@ -211,7 +211,7 @@ const Suppliers = () => {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">
                     Currency
                   </label>
                   <select
@@ -227,7 +227,7 @@ const Suppliers = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Description
                 </label>
                 <textarea
@@ -241,7 +241,7 @@ const Suppliers = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Terms & Conditions
                 </label>
                 <textarea
@@ -255,7 +255,7 @@ const Suppliers = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Valid Until
                 </label>
                 <input
@@ -285,8 +285,8 @@ const Suppliers = () => {
 
         {/* Recent Quotes */}
         <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Quotes</h3>
-          <div className="text-center py-8 text-gray-500">
+          <h3 className="text-lg font-medium text-neutral-900 mb-4">Recent Quotes</h3>
+          <div className="text-center py-8 text-neutral-500">
             <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
             <p>No quotes submitted yet</p>
             <p className="text-sm">Submit your first quote to get started</p>
@@ -301,7 +301,7 @@ const Suppliers = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Suppliers</h1>
           <p className="text-gray-600 mt-1">
             Manage suppliers and request quotes for tickets
           </p>
@@ -329,7 +329,7 @@ const Suppliers = () => {
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
             <input
               type="text"
               placeholder="Search suppliers..."
@@ -378,7 +378,7 @@ const Suppliers = () => {
                   <User className="h-6 w-6 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">{supplier.name}</h3>
+                  <h3 className="font-medium text-neutral-900">{supplier.name}</h3>
                   <p className="text-sm text-gray-600">{supplier.companyName}</p>
                 </div>
               </div>
@@ -389,7 +389,7 @@ const Suppliers = () => {
 
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
-                <Building className="h-4 w-4 text-gray-400" />
+                <Building className="h-4 w-4 text-neutral-400" />
                 <span className="text-sm text-gray-600">{supplier.companyName}</span>
               </div>
 
@@ -404,7 +404,7 @@ const Suppliers = () => {
                 {supplier.specialties.map((specialty) => (
                   <span
                     key={specialty}
-                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                    className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-neutral-100 text-gray-800"
                   >
                     {specialty}
                   </span>
@@ -429,7 +429,7 @@ const Suppliers = () => {
       {filteredSuppliers.length === 0 && (
         <div className="text-center py-12">
           <User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No suppliers found</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-2">No suppliers found</h3>
           <p className="text-gray-600">Try adjusting your search or filter criteria</p>
         </div>
       )}

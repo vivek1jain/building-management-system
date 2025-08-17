@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useBuilding } from '../contexts/BuildingContext';
 import { 
-  Building, 
+  Building as BuildingType, 
   Budget, 
   ServiceChargeDemand, 
   Invoice, 
@@ -25,6 +25,7 @@ import {
 import { getInvoicesByBuilding } from '../services/invoiceService'
 import { getFlatsByBuilding } from '../services/flatService'
 import { 
+  Building,
   DollarSign, 
   TrendingUp, 
   TrendingDown, 
@@ -37,7 +38,8 @@ import {
   X,
   BarChart3,
   CreditCard,
-  Send
+  Send,
+  ChevronDown
 } from 'lucide-react'
 
 // UK-specific budget categories
@@ -461,7 +463,7 @@ const Finances: React.FC = () => {
   }
 
   const getBudgetUtilizationColor = (percentage: number) => {
-    return percentage > 90 ? 'text-red-600' : percentage > 70 ? 'text-yellow-600' : 'text-green-600'
+    return percentage > 90 ? 'text-red-600' : percentage > 70 ? 'text-yellow-600' : 'text-success-600'
   }
 
   // Service Charges handlers
@@ -628,43 +630,48 @@ const Finances: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-inter">Financial Management</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 font-inter">Financial Management</h1>
           <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
         </div>
         
         <div className="flex items-center space-x-4">
-          <select
-            value={selectedBuildingId}
-            onChange={(e) => setSelectedBuildingId(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
-            disabled={buildingsLoading}
-          >
-            <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
-            {buildings.map((building) => (
-              <option key={building.id} value={building.id}>
-                {building.name}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex items-center gap-2">
+            <Building className="h-4 w-4 text-neutral-400" />
+            <select
+              value={selectedBuildingId}
+              onChange={(e) => setSelectedBuildingId(e.target.value)}
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+              disabled={buildingsLoading}
+              title={`Current building: ${buildings.find(b => b.id === selectedBuildingId)?.name || 'Select building'}`}
+            >
+              <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
       {/* Financial Summary Cards */}
       {financialSummary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Total Income</p>
-                <p className="text-2xl font-bold text-green-600 font-inter">
+                <p className="text-2xl font-bold text-success-600 font-inter">
                   {formatCurrency(financialSummary.totalIncome)}
                 </p>
               </div>
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <TrendingUp className="h-8 w-8 text-success-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Total Expenditure</p>
@@ -676,21 +683,21 @@ const Finances: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Net Position</p>
                 <p className={`text-2xl font-bold font-inter ${
-                  financialSummary.netPosition >= 0 ? 'text-green-600' : 'text-red-600'
+                  financialSummary.netPosition >= 0 ? 'text-success-600' : 'text-red-600'
                 }`}>
                   {formatCurrency(financialSummary.netPosition)}
                 </p>
               </div>
-              <DollarSign className="h-8 w-8 text-blue-600" />
+              <DollarSign className="h-8 w-8 text-primary-600" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Outstanding</p>
@@ -705,8 +712,8 @@ const Finances: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow-sm border border-neutral-200">
+        <div className="border-b border-neutral-200">
           <nav className="flex space-x-8 px-6">
             {[
               { id: 'budget', name: 'Budget', icon: BarChart3 },
@@ -721,8 +728,8 @@ const Finances: React.FC = () => {
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm font-inter ${
                     activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      ? 'border-blue-500 text-primary-600'
+                      : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
                   }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -737,7 +744,7 @@ const Finances: React.FC = () => {
           {activeTab === 'budget' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 font-inter">Budget Management</h2>
+                <h2 className="text-lg font-semibold text-neutral-900 font-inter">Budget Management</h2>
                 <div className="flex items-center space-x-3">
                   {budget && (
                     <button
@@ -745,7 +752,7 @@ const Finances: React.FC = () => {
                       className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-inter ${
                         budgetLocked
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                          : 'bg-success-100 text-success-700 hover:bg-success-200'
                       }`}
                     >
                       {budgetLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
@@ -754,7 +761,7 @@ const Finances: React.FC = () => {
                   )}
                   <button
                     onClick={() => setShowBudgetSetup(true)}
-                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-inter"
+                    className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-inter"
                   >
                     <Plus className="h-4 w-4" />
                     <span>{budget ? 'Edit Budget' : 'Create Budget'}</span>
@@ -765,9 +772,9 @@ const Finances: React.FC = () => {
               {budget ? (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h3 className="font-medium text-green-900 font-inter">Total Income Budget</h3>
-                      <span className="text-2xl font-bold text-green-600">
+                    <div className="bg-success-50 border border-success-200 rounded-lg p-4">
+                      <h3 className="font-medium text-success-900 font-inter">Total Income Budget</h3>
+                      <span className="text-2xl font-bold text-success-600">
                         £{(budget.totalIncome || 0).toLocaleString()}
                       </span>
                     </div>
@@ -779,14 +786,14 @@ const Finances: React.FC = () => {
                     </div>
                     <div className={`border rounded-lg p-4 ${
                       (budget?.netBudget || 0) >= 0 
-                        ? 'bg-green-50 border-green-200' 
+                        ? 'bg-success-50 border-success-200' 
                         : 'bg-red-50 border-red-200'
                     }`}>
-                      <h3 className="font-medium text-gray-900 font-inter">
+                      <h3 className="font-medium text-neutral-900 font-inter">
                         Net Budget
                       </h3>
                       <span className={`text-sm font-medium ${
-                        (budget?.netBudget ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                        (budget?.netBudget ?? 0) >= 0 ? 'text-success-600' : 'text-red-600'
                       }`}>
                         £{(budget?.netBudget ?? 0).toLocaleString()}
                       </span>
@@ -795,8 +802,8 @@ const Finances: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 font-inter">No Budget Set</h3>
+                  <BarChart3 className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter">No Budget Set</h3>
                   <p className="text-gray-600 font-inter">Create a budget to start managing your building's finances</p>
                 </div>
               )}
@@ -806,12 +813,12 @@ const Finances: React.FC = () => {
           {activeTab === 'demands' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900 font-inter">Service Charge Management</h2>
+                <h2 className="text-lg font-semibold text-neutral-900 font-inter">Service Charge Management</h2>
                 <div className="flex items-center space-x-3">
                   <select
                     value={selectedQuarter}
                     onChange={(e) => setSelectedQuarter(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
+                    className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   >
                     <option value="Q1-2024">Q1 2024 (Apr-Jun)</option>
                     <option value="Q2-2024">Q2 2024 (Jul-Sep)</option>
@@ -840,7 +847,7 @@ const Finances: React.FC = () => {
                   <button
                     onClick={handleGenerateDemands}
                     disabled={loading || !selectedBuildingId}
-                    className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
+                    className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                   >
                     <Plus className="h-4 w-4" />
                     <span>Generate Demands</span>
@@ -852,11 +859,11 @@ const Finances: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h3 className="font-medium text-blue-900 font-inter">Total Demands</h3>
-                  <p className="text-2xl font-bold text-blue-600 font-inter">{serviceCharges.length}</p>
+                  <p className="text-2xl font-bold text-primary-600 font-inter">{serviceCharges.length}</p>
                 </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h3 className="font-medium text-green-900 font-inter">Total Amount</h3>
-                  <p className="text-2xl font-bold text-green-600 font-inter">
+                <div className="bg-success-50 border border-success-200 rounded-lg p-4">
+                  <h3 className="font-medium text-success-900 font-inter">Total Amount</h3>
+                  <p className="text-2xl font-bold text-success-600 font-inter">
                     {formatCurrency(serviceCharges.reduce((sum, d) => sum + (d.totalAmountDue || 0), 0))}
                   </p>
                 </div>
@@ -875,50 +882,50 @@ const Finances: React.FC = () => {
               </div>
 
               {/* Demands Table */}
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900 font-inter">Service Charge Demands - {selectedQuarter}</h3>
+              <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-neutral-200">
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands - {selectedQuarter}</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-neutral-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Flat</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Resident</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Amount Due</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Outstanding</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Due Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider font-inter">Actions</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Flat</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Resident</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Amount Due</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Outstanding</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Due Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {serviceCharges.map((demand) => (
-                        <tr key={demand.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 font-inter">
+                        <tr key={demand.id} className="hover:bg-neutral-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 font-inter">
                             {demand.flatNumber}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-inter">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
                             {demand.residentName}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-inter">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
                             {formatCurrency(demand.totalAmountDue || 0)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-inter">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
                             {formatCurrency(demand.outstandingAmount || 0)}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-inter">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
                             {new Date(demand.dueDate).toLocaleDateString('en-GB')}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
                               demand.status === ServiceChargeDemandStatus.PAID
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-success-100 text-success-800'
                                 : demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
                                 ? 'bg-yellow-100 text-yellow-800'
                                 : demand.status === ServiceChargeDemandStatus.OVERDUE
                                 ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
+                                : 'bg-neutral-100 text-gray-800'
                             }`}>
                               {(demand.status === ServiceChargeDemandStatus.ISSUED || demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID) && new Date(demand.dueDate) < new Date() ? 'Overdue' : demand.status}
                             </span>
@@ -927,7 +934,7 @@ const Finances: React.FC = () => {
                             <div className="flex items-center space-x-2">
                               <button
                                 onClick={() => handleViewDemandDetails(demand)}
-                                className="text-blue-600 hover:text-blue-800 font-inter"
+                                className="text-primary-600 hover:text-blue-800 font-inter"
                                 title="View Details"
                               >
                                 <Eye className="h-4 w-4" />
@@ -935,7 +942,7 @@ const Finances: React.FC = () => {
                               {demand.status !== 'Paid' && (
                                 <button
                                   onClick={() => handleRecordPayment(demand)}
-                                  className="text-green-600 hover:text-green-800 font-inter"
+                                  className="text-success-600 hover:text-success-800 font-inter"
                                   title="Record Payment"
                                 >
                                   <CreditCard className="h-4 w-4" />
@@ -958,8 +965,8 @@ const Finances: React.FC = () => {
                   </table>
                   {serviceCharges.length === 0 && (
                     <div className="text-center py-12">
-                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 font-inter">No Service Charge Demands</h3>
+                      <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
                       <p className="text-gray-600 font-inter">Generate demands for {selectedQuarter} to get started</p>
                     </div>
                   )}
@@ -970,16 +977,16 @@ const Finances: React.FC = () => {
 
           {activeTab === 'invoices' && (
             <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 font-inter">Invoices</h3>
+              <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-neutral-900 font-inter">Invoices</h3>
               <p className="text-gray-600 font-inter">Invoice management features will be available soon</p>
             </div>
           )}
 
           {activeTab === 'reports' && (
             <div className="text-center py-12">
-              <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 font-inter">Financial Reports</h3>
+              <BarChart3 className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-neutral-900 font-inter">Financial Reports</h3>
               <p className="text-gray-600 font-inter">Financial reporting features will be available soon</p>
             </div>
           )}
@@ -993,7 +1000,7 @@ const Finances: React.FC = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900 font-inter">
+                  <h2 className="text-xl font-semibold text-neutral-900 font-inter">
                     {budget ? 'Edit Budget' : 'Create New Budget'}
                   </h2>
                   <p className="text-sm text-gray-600 font-inter mt-1">
@@ -1002,7 +1009,7 @@ const Finances: React.FC = () => {
                 </div>
                 <button
                   onClick={() => setShowBudgetSetup(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-neutral-400 hover:text-gray-600"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1031,26 +1038,26 @@ const Finances: React.FC = () => {
                 {/* Budget Year and Financial Year Start */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
+                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Budget Year
                     </label>
                     <input
                       type="number"
                       value={budgetForm.year}
                       onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
+                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Financial Year Start
                     </label>
                     <input
                       type="date"
                       value={budgetForm.financialYearStart.toISOString().split('T')[0]}
                       onChange={(e) => setBudgetForm({ ...budgetForm, financialYearStart: new Date(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
@@ -1059,7 +1066,7 @@ const Finances: React.FC = () => {
                 {/* Service Charge and Ground Rent Rates */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
+                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Service Charge Rate (£ per sq ft)
                     </label>
                     <input
@@ -1067,12 +1074,12 @@ const Finances: React.FC = () => {
                       step="0.01"
                       value={budgetForm.serviceChargeRate || 0}
                       onChange={(e) => setBudgetForm({ ...budgetForm, serviceChargeRate: parseFloat(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
+                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Ground Rent Rate (£ per sq ft)
                     </label>
                     <input
@@ -1080,7 +1087,7 @@ const Finances: React.FC = () => {
                       step="0.01"
                       value={budgetForm.groundRentRate}
                       onChange={(e) => setBudgetForm({ ...budgetForm, groundRentRate: parseFloat(e.target.value) })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
@@ -1088,12 +1095,12 @@ const Finances: React.FC = () => {
 
                 {/* Income Categories */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 font-inter">Income Categories</h3>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Income Categories</h3>
                   <div className="space-y-4">
                     {budgetForm.incomeCategories.map((category, index) => (
                       <div key={category.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50 rounded-lg">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Category Name
                           </label>
                           <input
@@ -1104,12 +1111,12 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], name: e.target.value }
                               setBudgetForm({ ...budgetForm, incomeCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Budget Amount (£)
                           </label>
                           <input
@@ -1121,12 +1128,12 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], budgetAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, incomeCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Actual Amount (£)
                           </label>
                           <input
@@ -1138,7 +1145,7 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], actualAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, incomeCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                           />
                         </div>
                       </div>
@@ -1148,12 +1155,12 @@ const Finances: React.FC = () => {
 
                 {/* Expenditure Categories */}
                 <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 font-inter">Expenditure Categories</h3>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Expenditure Categories</h3>
                   <div className="space-y-4">
                     {budgetForm.expenditureCategories.map((category, index) => (
                       <div key={category.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-red-50 rounded-lg">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Category Name
                           </label>
                           <input
@@ -1164,12 +1171,12 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], name: e.target.value }
                               setBudgetForm({ ...budgetForm, expenditureCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Budget Amount (£)
                           </label>
                           <input
@@ -1181,12 +1188,12 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], budgetAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, expenditureCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Actual Amount (£)
                           </label>
                           <input
@@ -1198,7 +1205,7 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], actualAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, expenditureCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                           />
                         </div>
                       </div>
@@ -1207,12 +1214,12 @@ const Finances: React.FC = () => {
                 </div>
 
                 {/* Budget Summary */}
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4 font-inter">Budget Summary</h3>
+                <div className="bg-neutral-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Budget Summary</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="text-center">
                       <p className="text-sm text-gray-600 font-inter">Total Income</p>
-                      <p className="text-xl font-semibold text-green-600 font-inter">
+                      <p className="text-xl font-semibold text-success-600 font-inter">
                         £{budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0).toLocaleString()}
                       </p>
                     </div>
@@ -1227,7 +1234,7 @@ const Finances: React.FC = () => {
                       <p className={`text-xl font-semibold font-inter ${
                         (budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0) - 
                          budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0)) >= 0
-                          ? 'text-green-600' : 'text-red-600'
+                          ? 'text-success-600' : 'text-red-600'
                       }`}>
                         £{(budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0) - 
                            budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0)).toLocaleString()}
@@ -1237,18 +1244,18 @@ const Finances: React.FC = () => {
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
                   <button
                     type="button"
                     onClick={() => setShowBudgetSetup(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-inter"
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 font-inter"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading || !selectedBuildingId}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                   >
                     {loading ? 'Saving...' : (budget ? 'Update Budget' : 'Create Budget')}
                   </button>
@@ -1265,7 +1272,7 @@ const Finances: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 font-inter">
+                <h2 className="text-xl font-semibold text-neutral-900 font-inter">
                   Record Payment
                 </h2>
                 <button
@@ -1274,7 +1281,7 @@ const Finances: React.FC = () => {
                     setSelectedDemand(null)
                     setPaymentAmount('')
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-neutral-400 hover:text-gray-600"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1290,7 +1297,7 @@ const Finances: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
+                  <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                     Payment Amount (£)
                   </label>
                   <input
@@ -1298,21 +1305,21 @@ const Finances: React.FC = () => {
                     step="0.01"
                     value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                     placeholder="Enter payment amount"
                     max={selectedDemand.outstandingAmount || 0}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2 font-inter">
+                  <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                     Payment Date
                   </label>
                   <input
                     type="date"
                     value={paymentDate.toISOString().split('T')[0]}
                     onChange={(e) => setPaymentDate(new Date(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-inter"
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                   />
                 </div>
 
@@ -1324,14 +1331,14 @@ const Finances: React.FC = () => {
                       setSelectedDemand(null)
                       setPaymentAmount('')
                     }}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-inter"
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 font-inter"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmitPayment}
                     disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                   >
                     {loading ? 'Recording...' : 'Record Payment'}
                   </button>
@@ -1348,7 +1355,7 @@ const Finances: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-gray-900 font-inter">
+                <h2 className="text-xl font-semibold text-neutral-900 font-inter">
                   Service Charge Details
                 </h2>
                 <button
@@ -1356,7 +1363,7 @@ const Finances: React.FC = () => {
                     setShowDemandDetails(false)
                     setSelectedDemand(null)
                   }}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-neutral-400 hover:text-gray-600"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -1366,27 +1373,27 @@ const Finances: React.FC = () => {
                 {/* Basic Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 font-inter">Flat Number</h3>
-                    <p className="text-lg font-semibold text-gray-900 font-inter">{selectedDemand.flatNumber}</p>
+                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Flat Number</h3>
+                    <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.flatNumber}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 font-inter">Resident</h3>
-                    <p className="text-lg font-semibold text-gray-900 font-inter">{selectedDemand.residentName}</p>
+                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Resident</h3>
+                    <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.residentName}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 font-inter">Quarter</h3>
-                    <p className="text-lg font-semibold text-gray-900 font-inter">{selectedDemand.financialQuarterDisplayString}</p>
+                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Quarter</h3>
+                    <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.financialQuarterDisplayString}</p>
                   </div>
                   <div>
-                    <h3 className="text-sm font-medium text-gray-500 font-inter">Status</h3>
+                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Status</h3>
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
                       selectedDemand.status === ServiceChargeDemandStatus.PAID
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-success-100 text-success-800'
                         : selectedDemand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
                         ? 'bg-yellow-100 text-yellow-800'
                         : selectedDemand.status === ServiceChargeDemandStatus.OVERDUE
                         ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-800'
+                        : 'bg-neutral-100 text-gray-800'
                     }`}>
                       {selectedDemand.status}
                     </span>
@@ -1395,17 +1402,17 @@ const Finances: React.FC = () => {
 
                 {/* Financial Information */}
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3 font-inter">Financial Details</h3>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Financial Details</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div className="bg-blue-50 p-3 rounded-lg">
                       <h4 className="text-sm font-medium text-blue-900 font-inter">Total Amount Due</h4>
-                      <p className="text-xl font-bold text-blue-600 font-inter">
+                      <p className="text-xl font-bold text-primary-600 font-inter">
                         {formatCurrency(selectedDemand.totalAmountDue || 0)}
                       </p>
                     </div>
-                    <div className="bg-green-50 p-3 rounded-lg">
-                      <h4 className="text-sm font-medium text-green-900 font-inter">Amount Paid</h4>
-                      <p className="text-xl font-bold text-green-600 font-inter">
+                    <div className="bg-success-50 p-3 rounded-lg">
+                      <h4 className="text-sm font-medium text-success-900 font-inter">Amount Paid</h4>
+                      <p className="text-xl font-bold text-success-600 font-inter">
                         {formatCurrency(selectedDemand.amountPaid || 0)}
                       </p>
                     </div>
@@ -1421,22 +1428,22 @@ const Finances: React.FC = () => {
                 {/* Payment History */}
                 {selectedDemand.paymentHistory && selectedDemand.paymentHistory.length > 0 && (
                   <div className="border-t pt-4">
-                    <h3 className="text-lg font-medium text-gray-900 mb-3 font-inter">Payment History</h3>
+                    <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Payment History</h3>
                     <div className="space-y-2">
                       {selectedDemand.paymentHistory.map((payment, index) => (
-                        <div key={index} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div key={index} className="flex justify-between items-center p-3 bg-neutral-50 rounded-lg">
                           <div>
-                            <p className="font-medium text-gray-900 font-inter">
+                            <p className="font-medium text-neutral-900 font-inter">
                               {formatCurrency(payment.amount)}
                             </p>
-                            <div className="text-xs text-gray-500">Issued: {selectedDemand.issuedDate ? new Date(selectedDemand.issuedDate).toLocaleDateString() : 'N/A'}</div>
+                            <div className="text-xs text-neutral-500">Issued: {selectedDemand.issuedDate ? new Date(selectedDemand.issuedDate).toLocaleDateString() : 'N/A'}</div>
                             <p className="text-sm text-gray-600 font-inter">
                               {new Date(payment.paymentDate).toLocaleDateString('en-GB')}
                             </p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm text-gray-600 font-inter">{payment.method}</p>
-                            <div className="text-xs text-gray-500">{selectedDemand.financialQuarterDisplayString}</div>
+                            <div className="text-xs text-neutral-500">{selectedDemand.financialQuarterDisplayString}</div>
                           </div>
                         </div>
                       ))}
@@ -1446,20 +1453,20 @@ const Finances: React.FC = () => {
 
                 {/* Important Dates */}
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3 font-inter">Important Dates</h3>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Important Dates</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500 font-inter">Issue Date</h4>
-                      <p className="text-gray-900 font-inter">
+                      <h4 className="text-sm font-medium text-neutral-500 font-inter">Issue Date</h4>
+                      <p className="text-neutral-900 font-inter">
                         {new Date(selectedDemand.issuedDate).toLocaleDateString('en-GB')}
                       </p>
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500 font-inter">Due Date</h4>
+                      <h4 className="text-sm font-medium text-neutral-500 font-inter">Due Date</h4>
                       <p className={`font-inter ${
                         new Date(selectedDemand.dueDate) < new Date() && selectedDemand.status !== ServiceChargeDemandStatus.PAID
                           ? 'text-red-600 font-semibold'
-                          : 'text-gray-900'
+                          : 'text-neutral-900'
                       }`}>
                         {new Date(selectedDemand.dueDate).toLocaleDateString('en-GB')}
                         {new Date(selectedDemand.dueDate) < new Date() && selectedDemand.status !== ServiceChargeDemandStatus.PAID && (
@@ -1479,7 +1486,7 @@ const Finances: React.FC = () => {
                     setShowDemandDetails(false)
                     setSelectedDemand(null)
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 font-inter"
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 font-inter"
                 >
                   Close
                 </button>
@@ -1489,7 +1496,7 @@ const Finances: React.FC = () => {
                       setShowDemandDetails(false)
                       handleRecordPayment(selectedDemand)
                     }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 font-inter"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 font-inter"
                   >
                     Record Payment
                   </button>

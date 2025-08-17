@@ -171,7 +171,7 @@ const Invoices: React.FC = () => {
       case 'pending': return 'bg-yellow-100 text-yellow-800'
       case 'rejected': return 'bg-red-100 text-red-800'
       case 'queried': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -180,7 +180,7 @@ const Invoices: React.FC = () => {
       case 'paid': return 'bg-green-100 text-green-800'
       case 'pending': return 'bg-yellow-100 text-yellow-800'
       case 'overdue': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -205,7 +205,7 @@ const Invoices: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice Management</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 mb-2">Invoice Management</h1>
         <p className="text-gray-600">Manage invoices, payments, and approvals</p>
       </div>
 
@@ -213,11 +213,11 @@ const Invoices: React.FC = () => {
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Building</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Building</label>
             <select
               value={selectedBuilding}
               onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               {buildings.map((building) => (
                 <option key={building.id} value={building.id}>
@@ -227,11 +227,11 @@ const Invoices: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Status</label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Statuses</option>
               <option value="pending">Pending</option>
@@ -241,11 +241,11 @@ const Invoices: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Payment Status</label>
+            <label className="block text-sm font-medium text-neutral-700 mb-2">Payment Status</label>
             <select
               value={filterPaymentStatus}
               onChange={(e) => setFilterPaymentStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Payment Statuses</option>
               <option value="pending">Pending</option>
@@ -256,7 +256,7 @@ const Invoices: React.FC = () => {
           <div className="flex items-end">
             <button
               onClick={() => setShowCreateInvoice(true)}
-              className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+              className="w-full bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
             >
               Create Invoice
             </button>
@@ -267,23 +267,23 @@ const Invoices: React.FC = () => {
       {/* Invoice Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Invoices</h3>
-          <p className="text-3xl font-bold text-blue-600">{invoices.length}</p>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Total Invoices</h3>
+          <p className="text-3xl font-bold text-primary-600">{invoices.length}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Amount</h3>
-          <p className="text-3xl font-bold text-green-600">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Total Amount</h3>
+          <p className="text-3xl font-bold text-success-600">
             £{invoices.reduce((sum, invoice) => sum + invoice.amount, 0).toLocaleString()}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Pending Approval</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Pending Approval</h3>
           <p className="text-3xl font-bold text-yellow-600">
             {invoices.filter(invoice => invoice.status === 'pending').length}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Overdue</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Overdue</h3>
           <p className="text-3xl font-bold text-red-600">
             {invoices.filter(invoice => invoice.paymentStatus === 'overdue').length}
           </p>
@@ -292,49 +292,49 @@ const Invoices: React.FC = () => {
 
       {/* Invoices Table */}
       <div className="bg-white rounded-lg shadow-md">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Invoices</h2>
+        <div className="p-6 border-b border-neutral-200">
+          <h2 className="text-xl font-semibold text-neutral-900">Invoices</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-neutral-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Invoice #
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Vendor
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Due Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Payment
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {invoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <tr key={invoice.id} className="hover:bg-neutral-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
                     {invoice.invoiceNumber}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     {getSupplierName(invoice.vendorId)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     £{invoice.amount.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     {new Date(invoice.dueDate).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -347,13 +347,13 @@ const Invoices: React.FC = () => {
                       {invoice.paymentStatus}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     <div className="flex gap-2">
                       {invoice.status === 'pending' && currentUser?.role === 'finance' && (
                         <>
                           <button
                             onClick={() => handleApproveInvoice(invoice.id)}
-                            className="text-green-600 hover:text-green-900"
+                            className="text-success-600 hover:text-green-900"
                           >
                             Approve
                           </button>
@@ -368,7 +368,7 @@ const Invoices: React.FC = () => {
                       {invoice.status === 'approved' && invoice.paymentStatus === 'pending' && (
                         <button
                           onClick={() => handleMarkAsPaid(invoice.id)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-primary-600 hover:text-blue-900"
                         >
                           Mark Paid
                         </button>
@@ -389,20 +389,20 @@ const Invoices: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">Create New Invoice</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Invoice Number</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Invoice Number</label>
                 <input
                   type="text"
                   value={invoiceForm.invoiceNumber}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, invoiceNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Vendor</label>
                 <select
                   value={invoiceForm.vendorId}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, vendorId: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select Vendor</option>
                   {suppliers.map((supplier) => (
@@ -413,21 +413,21 @@ const Invoices: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Amount</label>
                 <input
                   type="number"
                   step="0.01"
                   value={invoiceForm.amount}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, amount: parseFloat(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Category</label>
                 <select
                   value={invoiceForm.category}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, category: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="repairs">Repairs</option>
                   <option value="maintenance">Maintenance</option>
@@ -443,20 +443,20 @@ const Invoices: React.FC = () => {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Due Date</label>
                 <input
                   type="date"
                   value={invoiceForm.dueDate}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Description</label>
                 <textarea
                   value={invoiceForm.description}
                   onChange={(e) => setInvoiceForm({ ...invoiceForm, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   rows={3}
                 />
               </div>
@@ -464,13 +464,13 @@ const Invoices: React.FC = () => {
             <div className="flex gap-4 mt-6">
               <button
                 onClick={handleCreateInvoice}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
               >
                 Create Invoice
               </button>
               <button
                 onClick={() => setShowCreateInvoice(false)}
-                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                className="flex-1 bg-gray-300 text-neutral-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
               >
                 Cancel
               </button>

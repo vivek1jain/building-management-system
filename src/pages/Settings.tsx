@@ -4,7 +4,9 @@ import {
   Building as BuildingIcon, 
   Users, 
   Calendar, 
-  Shield
+  Shield,
+  Palette,
+  TestTube
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -12,6 +14,9 @@ import { BuildingManagement } from '../components/Settings/BuildingManagement';
 import { UserManagement } from '../components/Settings/UserManagement';
 import { FinancialSetup } from '../components/Settings/FinancialSetup';
 import { SecuritySettings } from '../components/Settings/SecuritySettings';
+import { AppearanceSettings } from '../components/Settings/AppearanceSettings';
+import { TestingSettings } from '../components/Settings/TestingSettings';
+import { Button, Card, CardContent } from '../components/UI';
 
 // Settings-specific interfaces
 interface SettingsBuilding {
@@ -47,7 +52,7 @@ const Settings: React.FC = () => {
   const { addNotification } = useNotifications();
   
   // State for active tab
-  const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial' | 'security'>('buildings');
+  const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial' | 'security' | 'appearance' | 'testing'>('buildings');
   
   // Building Management State
   const [buildings, setBuildings] = useState<SettingsBuilding[]>([
@@ -82,71 +87,100 @@ const Settings: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-neutral-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <SettingsIcon className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl font-bold text-gray-900">System Settings</h1>
+            <SettingsIcon className="w-8 h-8 text-primary-600" />
+            <h1 className="text-3xl font-bold text-neutral-900">System Settings</h1>
           </div>
-          <p className="text-gray-600">
+          <p className="text-neutral-600">
             Configure buildings, manage users, set up financial parameters, and control security settings.
           </p>
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-          <div className="flex border-b border-gray-200">
-            <button
+        <Card className="mb-6">
+          <div className="flex border-b border-neutral-200">
+            <Button
+              variant="ghost"
               onClick={() => setActiveTab('buildings')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
                 activeTab === 'buildings'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-primary-600 border-primary-600 bg-primary-50'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
               }`}
             >
               <BuildingIcon className="w-5 h-5" />
               Building Management
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
                 activeTab === 'users'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-primary-600 border-primary-600 bg-primary-50'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
               }`}
             >
               <Users className="w-5 h-5" />
               User Management
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => setActiveTab('financial')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
                 activeTab === 'financial'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-primary-600 border-primary-600 bg-primary-50'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
               }`}
             >
               <Calendar className="w-5 h-5" />
               Financial Setup
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="ghost"
               onClick={() => setActiveTab('security')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors ${
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
                 activeTab === 'security'
-                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                  ? 'text-primary-600 border-primary-600 bg-primary-50'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
               }`}
             >
               <Shield className="w-5 h-5" />
               Security & Access
-            </button>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setActiveTab('appearance')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+                activeTab === 'appearance'
+                  ? 'text-primary-600 border-primary-600 bg-primary-50'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+              }`}
+            >
+              <Palette className="w-5 h-5" />
+              Appearance
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setActiveTab('testing')}
+              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+                activeTab === 'testing'
+                  ? 'text-primary-600 border-primary-600 bg-primary-50'
+                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+              }`}
+            >
+              <TestTube className="w-5 h-5" />
+              Testing
+            </Button>
           </div>
-        </div>
+        </Card>
 
         {/* Tab Content */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <Card>
+          <CardContent>
           {/* Building Management Tab */}
           {activeTab === 'buildings' && (
             <BuildingManagement 
@@ -187,7 +221,24 @@ const Settings: React.FC = () => {
               currentUser={currentUser}
             />
           )}
-        </div>
+
+          {/* Appearance Tab */}
+          {activeTab === 'appearance' && (
+            <AppearanceSettings 
+              addNotification={addNotification}
+              currentUser={currentUser}
+            />
+          )}
+
+          {/* Testing Tab */}
+          {activeTab === 'testing' && (
+            <TestingSettings 
+              addNotification={addNotification}
+              currentUser={currentUser}
+            />
+          )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

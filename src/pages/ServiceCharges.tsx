@@ -468,19 +468,19 @@ const ServiceCharges: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Paid': return 'text-green-600 bg-green-100'
+      case 'Paid': return 'text-success-600 bg-green-100'
       case 'Partially Paid': return 'text-yellow-600 bg-yellow-100'
       case 'Overdue': return 'text-red-600 bg-red-100'
-      case 'Issued': return 'text-blue-600 bg-blue-100'
-      default: return 'text-gray-600 bg-gray-100'
+      case 'Issued': return 'text-primary-600 bg-blue-100'
+      default: return 'text-gray-600 bg-neutral-100'
     }
   }
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h2>
+          <h2 className="text-2xl font-bold text-neutral-900 mb-4">Access Denied</h2>
           <p className="text-gray-600">Please log in to access this page.</p>
         </div>
       </div>
@@ -488,22 +488,22 @@ const ServiceCharges: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Financial Management</h1>
+          <h1 className="text-3xl font-bold text-neutral-900 mb-2">Financial Management</h1>
           <p className="text-gray-600">Comprehensive financial management including service charges, income tracking, and expenditure management</p>
         </div>
 
         {/* Building Selection */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Select Building
           </label>
           <select
             value={selectedBuilding}
             onChange={(e) => setSelectedBuilding(e.target.value)}
-            className="w-full max-w-xs px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            className="w-full max-w-xs px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
           >
             <option value="">Select a building</option>
             {buildings.map((building) => (
@@ -521,11 +521,11 @@ const ServiceCharges: React.FC = () => {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="p-2 bg-green-100 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-green-600" />
+                    <TrendingUp className="h-6 w-6 text-success-600" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Income</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-neutral-900">
                       ${financialSummary?.totalIncome?.toLocaleString() || '0'}
                     </p>
                   </div>
@@ -539,7 +539,7 @@ const ServiceCharges: React.FC = () => {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Total Expenditure</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-neutral-900">
                       ${financialSummary?.totalExpenditure?.toLocaleString() || '0'}
                     </p>
                   </div>
@@ -549,11 +549,11 @@ const ServiceCharges: React.FC = () => {
               <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="p-2 bg-blue-100 rounded-lg">
-                    <DollarSign className="h-6 w-6 text-blue-600" />
+                    <DollarSign className="h-6 w-6 text-primary-600" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Net Cash Flow</p>
-                    <p className={`text-2xl font-bold ${financialSummary?.netCashFlow && financialSummary.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    <p className={`text-2xl font-bold ${financialSummary?.netCashFlow && financialSummary.netCashFlow >= 0 ? 'text-success-600' : 'text-red-600'}`}>
                       ${financialSummary?.netCashFlow?.toLocaleString() || '0'}
                     </p>
                   </div>
@@ -567,7 +567,7 @@ const ServiceCharges: React.FC = () => {
                   </div>
                   <div className="ml-4">
                     <p className="text-sm font-medium text-gray-600">Outstanding Charges</p>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-neutral-900">
                       ${serviceCharges.reduce((sum, charge) => sum + charge.outstandingAmount, 0).toLocaleString()}
                     </p>
                   </div>
@@ -579,7 +579,7 @@ const ServiceCharges: React.FC = () => {
             <div className="flex flex-wrap gap-4 mb-8">
               <button
                 onClick={() => setShowDemandForm(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <Plus className="h-5 w-5 mr-2" />
                 Create New Demand
@@ -587,7 +587,7 @@ const ServiceCharges: React.FC = () => {
 
               <button
                 onClick={() => setShowIncomeForm(true)}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                className="flex items-center px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-600 transition-colors"
               >
                 <TrendingUp className="h-5 w-5 mr-2" />
                 Record Income
@@ -620,35 +620,35 @@ const ServiceCharges: React.FC = () => {
 
             {/* Service Charges Table */}
             <div className="bg-white rounded-lg shadow mb-8">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Service Charge Demands</h3>
+              <div className="px-6 py-4 border-b border-neutral-200">
+                <h3 className="text-lg font-medium text-neutral-900">Service Charge Demands</h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-neutral-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Flat
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Period
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Amount Due
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Paid
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Outstanding
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Due Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -656,19 +656,19 @@ const ServiceCharges: React.FC = () => {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {serviceCharges.map((charge) => (
                       <tr key={charge.id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
                           {charge.flatNumber}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                           {charge.financialQuarterDisplayString}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                           ${charge.totalAmountDue.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                           ${charge.amountPaid.toLocaleString()}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                           ${charge.outstandingAmount.toLocaleString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -676,13 +676,13 @@ const ServiceCharges: React.FC = () => {
                             {charge.status}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-500">
                           {charge.dueDate.toLocaleDateString()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
                             onClick={() => handleSendReminder(charge.id)}
-                            className="text-blue-600 hover:text-blue-900 mr-3"
+                            className="text-primary-600 hover:text-blue-900 mr-3"
                           >
                             Send Reminder
                           </button>
@@ -698,8 +698,8 @@ const ServiceCharges: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
               {/* Income Summary */}
               <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">Recent Income</h3>
+                <div className="px-6 py-4 border-b border-neutral-200">
+                  <h3 className="text-lg font-medium text-neutral-900">Recent Income</h3>
                 </div>
                 <div className="p-6">
                   {incomeEntries.length > 0 ? (
@@ -707,26 +707,26 @@ const ServiceCharges: React.FC = () => {
                       {incomeEntries.slice(0, 5).map((income) => (
                         <div key={income.id} className="flex justify-between items-center">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{income.description}</p>
-                            <p className="text-xs text-gray-500">{income.source}</p>
+                            <p className="text-sm font-medium text-neutral-900">{income.description}</p>
+                            <p className="text-xs text-neutral-500">{income.source}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-medium text-green-600">${income.amount.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{new Date(income.date).toLocaleDateString()}</p>
+                            <p className="text-sm font-medium text-success-600">${income.amount.toLocaleString()}</p>
+                            <p className="text-xs text-neutral-500">{new Date(income.date).toLocaleDateString()}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-center py-4">No income entries found</p>
+                    <p className="text-neutral-500 text-center py-4">No income entries found</p>
                   )}
                 </div>
               </div>
 
               {/* Expenditure Summary */}
               <div className="bg-white rounded-lg shadow">
-                <div className="px-6 py-4 border-b border-gray-200">
-                  <h3 className="text-lg font-medium text-gray-900">Recent Expenditures</h3>
+                <div className="px-6 py-4 border-b border-neutral-200">
+                  <h3 className="text-lg font-medium text-neutral-900">Recent Expenditures</h3>
                 </div>
                 <div className="p-6">
                   {expenditureEntries.length > 0 ? (
@@ -734,18 +734,18 @@ const ServiceCharges: React.FC = () => {
                       {expenditureEntries.slice(0, 5).map((expenditure) => (
                         <div key={expenditure.id} className="flex justify-between items-center">
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{expenditure.description}</p>
-                            <p className="text-xs text-gray-500">{expenditure.category}</p>
+                            <p className="text-sm font-medium text-neutral-900">{expenditure.description}</p>
+                            <p className="text-xs text-neutral-500">{expenditure.category}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-red-600">${expenditure.amount.toLocaleString()}</p>
-                            <p className="text-xs text-gray-500">{new Date(expenditure.date).toLocaleDateString()}</p>
+                            <p className="text-xs text-neutral-500">{new Date(expenditure.date).toLocaleDateString()}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-center py-4">No expenditure entries found</p>
+                    <p className="text-neutral-500 text-center py-4">No expenditure entries found</p>
                   )}
                 </div>
               </div>
@@ -759,44 +759,44 @@ const ServiceCharges: React.FC = () => {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Create Service Charge Demand</h3>
+                <h3 className="text-lg font-medium text-neutral-900 mb-4">Create Service Charge Demand</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Quarter</label>
+                    <label className="block text-sm font-medium text-neutral-700">Quarter</label>
                     <input
                       type="text"
                       value={demandForm.quarter}
                       onChange={(e) => setDemandForm({...demandForm, quarter: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                       placeholder="e.g., Q1"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Year</label>
+                    <label className="block text-sm font-medium text-neutral-700">Year</label>
                     <input
                       type="number"
                       value={demandForm.year}
                       onChange={(e) => setDemandForm({...demandForm, year: parseInt(e.target.value)})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Rate per sq ft</label>
+                    <label className="block text-sm font-medium text-neutral-700">Rate per sq ft</label>
                     <input
                       type="number"
                       step="0.01"
                       value={demandForm.ratePerSqFt}
                       onChange={(e) => setDemandForm({...demandForm, ratePerSqFt: parseFloat(e.target.value)})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Due Date</label>
+                    <label className="block text-sm font-medium text-neutral-700">Due Date</label>
                     <input
                       type="date"
                       value={demandForm.dueDate}
                       onChange={(e) => setDemandForm({...demandForm, dueDate: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div className="flex items-center">
@@ -804,16 +804,16 @@ const ServiceCharges: React.FC = () => {
                       type="checkbox"
                       checked={demandForm.includeGroundRent}
                       onChange={(e) => setDemandForm({...demandForm, includeGroundRent: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
                     />
-                    <label className="ml-2 block text-sm text-gray-900">Include Ground Rent</label>
+                    <label className="ml-2 block text-sm text-neutral-900">Include Ground Rent</label>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Invoice Grouping</label>
+                    <label className="block text-sm font-medium text-neutral-700">Invoice Grouping</label>
                     <select
                       value={demandForm.invoiceGrouping}
                       onChange={(e) => setDemandForm({...demandForm, invoiceGrouping: e.target.value as 'per_unit' | 'per_resident'})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     >
                       <option value="per_unit">Per Unit</option>
                       <option value="per_resident">Per Resident</option>
@@ -823,14 +823,14 @@ const ServiceCharges: React.FC = () => {
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setShowDemandForm(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleCreateDemand}
                     disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                   >
                     {loading ? 'Creating...' : 'Create Demand'}
                   </button>
@@ -845,33 +845,33 @@ const ServiceCharges: React.FC = () => {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Record Income</h3>
+                <h3 className="text-lg font-medium text-neutral-900 mb-4">Record Income</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Date</label>
+                    <label className="block text-sm font-medium text-neutral-700">Date</label>
                     <input
                       type="date"
                       value={incomeForm.date}
                       onChange={(e) => setIncomeForm({...incomeForm, date: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Amount</label>
+                    <label className="block text-sm font-medium text-neutral-700">Amount</label>
                     <input
                       type="number"
                       step="0.01"
                       value={incomeForm.amount}
                       onChange={(e) => setIncomeForm({...incomeForm, amount: parseFloat(e.target.value)})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Source</label>
+                    <label className="block text-sm font-medium text-neutral-700">Source</label>
                     <select
                       value={incomeForm.source}
                       onChange={(e) => setIncomeForm({...incomeForm, source: e.target.value as any})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     >
                       <option value="building_charges">Building Charges</option>
                       <option value="penalty">Penalty</option>
@@ -881,11 +881,11 @@ const ServiceCharges: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                    <label className="block text-sm font-medium text-neutral-700">Description</label>
                     <textarea
                       value={incomeForm.description}
                       onChange={(e) => setIncomeForm({...incomeForm, description: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                       rows={3}
                     />
                   </div>
@@ -893,14 +893,14 @@ const ServiceCharges: React.FC = () => {
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setShowIncomeForm(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleRecordIncome}
                     disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-white bg-success-600 rounded-md hover:bg-success-600 disabled:opacity-50"
                   >
                     {loading ? 'Recording...' : 'Record Income'}
                   </button>
@@ -915,33 +915,33 @@ const ServiceCharges: React.FC = () => {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Record Expenditure</h3>
+                <h3 className="text-lg font-medium text-neutral-900 mb-4">Record Expenditure</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Date</label>
+                    <label className="block text-sm font-medium text-neutral-700">Date</label>
                     <input
                       type="date"
                       value={expenditureForm.date}
                       onChange={(e) => setExpenditureForm({...expenditureForm, date: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Amount</label>
+                    <label className="block text-sm font-medium text-neutral-700">Amount</label>
                     <input
                       type="number"
                       step="0.01"
                       value={expenditureForm.amount}
                       onChange={(e) => setExpenditureForm({...expenditureForm, amount: parseFloat(e.target.value)})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <label className="block text-sm font-medium text-neutral-700">Category</label>
                     <select
                       value={expenditureForm.category}
                       onChange={(e) => setExpenditureForm({...expenditureForm, category: e.target.value as any})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     >
                       <option value="proactive_maintenance">Proactive Maintenance</option>
                       <option value="reactive_maintenance">Reactive Maintenance</option>
@@ -955,11 +955,11 @@ const ServiceCharges: React.FC = () => {
                   </div>
                   {expenditureForm.category.includes('maintenance') && (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700">Tag</label>
+                      <label className="block text-sm font-medium text-neutral-700">Tag</label>
                       <select
                         value={expenditureForm.tag}
                         onChange={(e) => setExpenditureForm({...expenditureForm, tag: e.target.value as 'proactive' | 'reactive'})}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                       >
                         <option value="proactive">Proactive</option>
                         <option value="reactive">Reactive</option>
@@ -967,28 +967,28 @@ const ServiceCharges: React.FC = () => {
                     </div>
                   )}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Description</label>
+                    <label className="block text-sm font-medium text-neutral-700">Description</label>
                     <textarea
                       value={expenditureForm.description}
                       onChange={(e) => setExpenditureForm({...expenditureForm, description: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                       rows={3}
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Vendor Name (Optional)</label>
+                    <label className="block text-sm font-medium text-neutral-700">Vendor Name (Optional)</label>
                     <input
                       type="text"
                       value={expenditureForm.vendorName}
                       onChange={(e) => setExpenditureForm({...expenditureForm, vendorName: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                 </div>
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setShowExpenditureForm(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200"
                   >
                     Cancel
                   </button>
@@ -1010,48 +1010,48 @@ const ServiceCharges: React.FC = () => {
           <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Financial Settings</h3>
+                <h3 className="text-lg font-medium text-neutral-900 mb-4">Financial Settings</h3>
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Service Charge Rate per sq ft</label>
+                    <label className="block text-sm font-medium text-neutral-700">Service Charge Rate per sq ft</label>
                     <input
                       type="number"
                       step="0.01"
                       value={settingsForm.serviceChargeRatePerSqFt}
                       onChange={(e) => setSettingsForm({...settingsForm, serviceChargeRatePerSqFt: parseFloat(e.target.value)})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Payment Due Lead Days</label>
+                    <label className="block text-sm font-medium text-neutral-700">Payment Due Lead Days</label>
                     <input
                       type="number"
                       value={settingsForm.paymentDueLeadDays}
                       onChange={(e) => setSettingsForm({...settingsForm, paymentDueLeadDays: parseInt(e.target.value)})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Financial Year Start Date</label>
+                    <label className="block text-sm font-medium text-neutral-700">Financial Year Start Date</label>
                     <input
                       type="date"
                       value={settingsForm.financialYearStartDate}
                       onChange={(e) => setSettingsForm({...settingsForm, financialYearStartDate: e.target.value})}
-                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                      className="mt-1 block w-full px-3 py-2 border border-neutral-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-blue-500"
                     />
                   </div>
                 </div>
                 <div className="flex justify-end space-x-3 mt-6">
                   <button
                     onClick={() => setShowSettings(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveSettings}
                     disabled={loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50"
                   >
                     {loading ? 'Saving...' : 'Save Settings'}
                   </button>

@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { 
-  X, 
   Calendar, 
   Clock, 
   MapPin, 
@@ -11,6 +10,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { BuildingEvent, Ticket } from '../../types'
+import Modal, { ModalFooter } from '../UI/Modal'
+import Button from '../UI/Button'
 
 interface ScheduleModalProps {
   isOpen: boolean
@@ -98,127 +99,121 @@ const ScheduleModal = ({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">Schedule Work</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Schedule Work"
+      description="Plan work for this ticket"
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Ticket Info */}
+        <div className="bg-neutral-50 p-4 rounded-lg">
+          <h3 className="font-medium text-neutral-900 mb-2">{ticket.title}</h3>
+          <div className="flex items-center text-sm text-gray-600 mb-1">
+            <MapPin className="h-4 w-4 mr-1" />
+            {ticket.location}
+          </div>
+          <div className="flex items-center text-sm text-gray-600">
+            <User className="h-4 w-4 mr-1" />
+            Requested by: {ticket.requestedBy}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Ticket Info */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="font-medium text-gray-900 mb-2">{ticket.title}</h3>
-            <div className="flex items-center text-sm text-gray-600 mb-1">
-              <MapPin className="h-4 w-4 mr-1" />
-              {ticket.location}
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <User className="h-4 w-4 mr-1" />
-              Requested by: {ticket.requestedBy}
-            </div>
-          </div>
+        {/* Date Selection */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            <Calendar className="h-4 w-4 inline mr-1" />
+            Date
+          </label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            min={getMinDate()}
+            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            required
+          />
+        </div>
 
-          {/* Date Selection */}
+        {/* Time Selection */}
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              <Calendar className="h-4 w-4 inline mr-1" />
-              Date
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <Clock className="h-4 w-4 inline mr-1" />
+              Start Time
             </label>
             <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              min={getMinDate()}
-              className="input w-full"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
               required
             />
           </div>
-
-          {/* Time Selection */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Clock className="h-4 w-4 inline mr-1" />
-                Start Time
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="input w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Clock className="h-4 w-4 inline mr-1" />
-                End Time
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="input w-full"
-                required
-              />
-            </div>
-          </div>
-
-          {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Additional Notes
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
+              <Clock className="h-4 w-4 inline mr-1" />
+              End Time
             </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="input w-full"
-              placeholder="Any special instructions or notes..."
+            <input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              required
             />
           </div>
+        </div>
 
-          {/* Timezone Info */}
-          <div className="bg-blue-50 p-3 rounded-lg">
-            <div className="flex items-center text-sm text-blue-700">
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
-            </div>
-          </div>
+        {/* Notes */}
+        <div>
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
+            Additional Notes
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+            placeholder="Any special instructions or notes..."
+          />
+        </div>
 
-          {/* Actions */}
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !selectedDate || !startTime || !endTime}
-              className="btn-primary flex-1 flex items-center justify-center"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Schedule
-                </>
-              )}
-            </button>
+        {/* Timezone Info */}
+        <div className="bg-blue-50 p-3 rounded-lg">
+          <div className="flex items-center text-sm text-blue-700">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        {/* Actions */}
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            disabled={loading || !selectedDate || !startTime || !endTime}
+            className="flex items-center justify-center"
+          >
+            {loading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Schedule
+              </>
+            )}
+          </Button>
+        </ModalFooter>
+      </form>
+    </Modal>
   )
 }
 

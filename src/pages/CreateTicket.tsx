@@ -94,7 +94,7 @@ const CreateTicket = () => {
   return (
     <div className="max-w-2xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Raise New Ticket</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">Raise New Ticket</h1>
         <p className="text-gray-600 mt-1">
           Create a new maintenance ticket with all the details needed for quick resolution.
         </p>
@@ -103,7 +103,7 @@ const CreateTicket = () => {
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         {/* Title */}
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="title" className="block text-sm font-medium text-neutral-700 mb-2">
             Issue Title *
           </label>
           <input
@@ -122,7 +122,7 @@ const CreateTicket = () => {
 
         {/* Description */}
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="description" className="block text-sm font-medium text-neutral-700 mb-2">
             Detailed Description *
           </label>
           <textarea
@@ -144,7 +144,7 @@ const CreateTicket = () => {
 
         {/* Building Selection */}
         <div>
-          <label htmlFor="buildingId" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="buildingId" className="block text-sm font-medium text-neutral-700 mb-2">
             Building *
           </label>
           <select
@@ -168,12 +168,12 @@ const CreateTicket = () => {
 
         {/* Location */}
         <div>
-          <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="location" className="block text-sm font-medium text-neutral-700 mb-2">
             Location *
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <MapPin className="h-5 w-5 text-gray-400" />
+              <MapPin className="h-5 w-5 text-neutral-400" />
             </div>
             <input
               {...register('location', { required: 'Location is required' })}
@@ -192,7 +192,7 @@ const CreateTicket = () => {
 
         {/* Urgency */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Urgency Level *
           </label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -202,7 +202,7 @@ const CreateTicket = () => {
                 className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none ${
                   urgency === option.value
                     ? 'border-primary-500 bg-primary-50'
-                    : 'border-gray-300 hover:bg-gray-50'
+                    : 'border-neutral-300 hover:bg-neutral-50'
                 }`}
               >
                 <input
@@ -213,7 +213,7 @@ const CreateTicket = () => {
                 />
                 <div className="flex flex-col items-center">
                   <span className="text-2xl mb-1">{option.icon}</span>
-                  <span className="text-sm font-medium text-gray-900">{option.label}</span>
+                  <span className="text-sm font-medium text-neutral-900">{option.label}</span>
                 </div>
                 {urgency === option.value && (
                   <div className="absolute top-2 right-2">
@@ -235,7 +235,7 @@ const CreateTicket = () => {
 
         {/* Attachments */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Attachments
           </label>
           <div
@@ -243,17 +243,17 @@ const CreateTicket = () => {
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
               isDragActive
                 ? 'border-primary-500 bg-primary-50'
-                : 'border-gray-300 hover:border-gray-400'
+                : 'border-neutral-300 hover:border-gray-400'
             }`}
           >
             <input {...getInputProps()} />
-            <Upload className="mx-auto h-12 w-12 text-gray-400" />
+            <Upload className="mx-auto h-12 w-12 text-neutral-400" />
             <p className="mt-2 text-sm text-gray-600">
               {isDragActive
                 ? 'Drop the files here...'
                 : 'Drag & drop files here, or click to select files'}
             </p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-neutral-500 mt-1">
               PNG, JPG, PDF up to 5MB each
             </p>
           </div>
@@ -264,19 +264,19 @@ const CreateTicket = () => {
               {attachments.map((file, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg"
                 >
                   <div className="flex items-center">
-                    <FileText className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-sm text-gray-700">{file.name}</span>
-                    <span className="text-xs text-gray-500 ml-2">
+                    <FileText className="h-4 w-4 text-neutral-400 mr-2" />
+                    <span className="text-sm text-neutral-700">{file.name}</span>
+                    <span className="text-xs text-neutral-500 ml-2">
                       ({(file.size / 1024 / 1024).toFixed(2)} MB)
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => removeAttachment(index)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-neutral-400 hover:text-gray-600"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -287,7 +287,7 @@ const CreateTicket = () => {
         </div>
 
         {/* Submit Button */}
-        <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+        <div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
           <button
             type="button"
             onClick={() => navigate('/tickets')}

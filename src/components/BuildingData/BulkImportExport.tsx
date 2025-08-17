@@ -169,7 +169,7 @@ const BulkImportExport: React.FC<BulkImportExportProps> = ({
         
         <button
           onClick={downloadTemplate}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-inter"
+          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
           title="Download CSV Template"
         >
           <FileText className="h-4 w-4" />
@@ -190,12 +190,12 @@ const BulkImportExport: React.FC<BulkImportExportProps> = ({
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 font-inter">
+              <h3 className="text-lg font-semibold text-neutral-900 font-inter">
                 Import Preview - {dataTypeLabels[dataType]}
               </h3>
               <button
                 onClick={() => setShowImportModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-neutral-400 hover:text-gray-600 transition-colors"
               >
                 <X className="h-6 w-6" />
               </button>
@@ -206,10 +206,10 @@ const BulkImportExport: React.FC<BulkImportExportProps> = ({
               <div className="grid grid-cols-3 gap-4">
                 <div className="bg-green-50 p-4 rounded-lg">
                   <div className="flex items-center gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <CheckCircle className="h-5 w-5 text-success-600" />
                     <span className="font-medium text-green-900 font-inter">Valid Records</span>
                   </div>
-                  <p className="text-2xl font-bold text-green-600 font-inter">{importResult.valid.length}</p>
+                  <p className="text-2xl font-bold text-success-600 font-inter">{importResult.valid.length}</p>
                 </div>
                 
                 <div className="bg-red-50 p-4 rounded-lg">
@@ -298,14 +298,14 @@ const BulkImportExport: React.FC<BulkImportExportProps> = ({
             <div className="flex justify-end space-x-3 mt-6">
               <button
                 onClick={() => setShowImportModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-inter"
+                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
               >
                 Cancel
               </button>
               <button
                 onClick={handleImportConfirm}
                 disabled={importResult.errors.length > 0 || importResult.valid.length === 0}
-                className="px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-800 transition-colors font-inter disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Import {importResult.valid.length} Records
               </button>

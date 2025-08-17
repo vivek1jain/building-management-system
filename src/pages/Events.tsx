@@ -13,7 +13,8 @@ import {
   X,
   Filter,
   Search,
-  Building
+  Building,
+  ChevronDown
 } from 'lucide-react'
 import { BuildingEvent } from '../types'
 import { mockEvents } from '../services/mockData'
@@ -68,7 +69,7 @@ const Events = () => {
       case 'in-progress': return 'bg-yellow-100 text-yellow-800'
       case 'completed': return 'bg-green-100 text-green-800'
       case 'cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -235,19 +236,19 @@ const Events = () => {
       {/* Header with Building Selector */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Events</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">Events</h1>
           <p className="text-gray-600 mt-1">
             Manage scheduled work and building events
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Building className="h-4 w-4 text-gray-500" />
+          <div className="relative">
             <select
               value={selectedBuildingId}
               onChange={(e) => setSelectedBuildingId(e.target.value)}
-              className="select min-w-[200px]"
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-10 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[180px]"
               disabled={buildingsLoading}
+              title={`Current building: ${selectedBuilding?.name || 'Select building'}`}
             >
               <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
               {buildings.map((building) => (
@@ -256,6 +257,16 @@ const Events = () => {
                 </option>
               ))}
             </select>
+            
+            {/* Custom dropdown arrow */}
+            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+              <ChevronDown className="h-4 w-4 text-neutral-400" />
+            </div>
+            
+            {/* Building icon */}
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Building className="h-4 w-4 text-neutral-400" />
+            </div>
           </div>
           <button
             onClick={() => setShowCreateForm(true)}
@@ -271,7 +282,7 @@ const Events = () => {
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
             <input
               type="text"
               placeholder="Search events..."
@@ -307,10 +318,10 @@ const Events = () => {
       {/* Create Event Form */}
       {showCreateForm && (
         <div className="card mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Schedule New Event</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-4">Schedule New Event</h3>
           <form onSubmit={handleCreateEvent} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Event Title
               </label>
               <input
@@ -324,7 +335,7 @@ const Events = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Description
               </label>
               <textarea
@@ -338,7 +349,7 @@ const Events = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Location
               </label>
               <input
@@ -353,7 +364,7 @@ const Events = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Start Date & Time
                 </label>
                 <input
@@ -365,7 +376,7 @@ const Events = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   End Date & Time
                 </label>
                 <input
@@ -397,10 +408,10 @@ const Events = () => {
       {/* Edit Event Form */}
       {showEditForm && editingEvent && (
         <div className="card mb-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Event</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-4">Edit Event</h3>
           <form onSubmit={handleUpdateEvent} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Event Title
               </label>
               <input
@@ -414,7 +425,7 @@ const Events = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Description
               </label>
               <textarea
@@ -428,7 +439,7 @@ const Events = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
                 Location
               </label>
               <input
@@ -443,7 +454,7 @@ const Events = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   Start Date & Time
                 </label>
                 <input
@@ -455,7 +466,7 @@ const Events = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">
                   End Date & Time
                 </label>
                 <input
@@ -494,7 +505,7 @@ const Events = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
+                  <h3 className="text-lg font-medium text-neutral-900">{event.title}</h3>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
                     {getStatusIcon(event.status)}
                     <span className="ml-1 capitalize">{event.status}</span>
@@ -505,15 +516,15 @@ const Events = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="flex items-center space-x-2">
-                    <MapPin className="h-4 w-4 text-gray-400" />
+                    <MapPin className="h-4 w-4 text-neutral-400" />
                     <span className="text-gray-600">{event.location}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-gray-400" />
+                    <Calendar className="h-4 w-4 text-neutral-400" />
                     <span className="text-gray-600">{formatTimeRange(event.startDate, event.endDate)}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-gray-400" />
+                    <Users className="h-4 w-4 text-neutral-400" />
                     <span className="text-gray-600">{event.assignedTo.length} assigned</span>
                   </div>
                 </div>
@@ -555,7 +566,7 @@ const Events = () => {
       {filteredEvents.length === 0 && (
         <div className="text-center py-12">
           <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No events found</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-2">No events found</h3>
           <p className="text-gray-600">Try adjusting your search or schedule a new event</p>
         </div>
       )}

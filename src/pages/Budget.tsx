@@ -227,7 +227,7 @@ const BudgetPage: React.FC = () => {
       case 'approved': return 'bg-green-100 text-green-800'
       case 'awaiting_approval': return 'bg-yellow-100 text-yellow-800'
       case 'rejected': return 'bg-red-100 text-red-800'
-      case 'locked': return 'bg-gray-100 text-gray-800'
+      case 'locked': return 'bg-neutral-100 text-gray-800'
       default: return 'bg-blue-100 text-blue-800'
     }
   }
@@ -248,7 +248,7 @@ const BudgetPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Budget Management</h1>
+        <h1 className="text-3xl font-bold text-neutral-900 mb-2">Budget Management</h1>
         <p className="text-gray-600">Manage budgets, categories, and track expenses</p>
       </div>
 
@@ -264,14 +264,14 @@ const BudgetPage: React.FC = () => {
 
       {/* Building Selection */}
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+        <label className="block text-sm font-medium text-neutral-700 mb-2">
           Select Building
         </label>
         {buildings.length > 0 ? (
         <select
           value={selectedBuilding}
           onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="w-full max-w-md px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full max-w-md px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
           {buildings.map((building) => (
             <option key={building.id} value={building.id}>
@@ -290,25 +290,25 @@ const BudgetPage: React.FC = () => {
       {selectedBuilding && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Total Budget</h3>
-          <p className="text-3xl font-bold text-blue-600">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Total Budget</h3>
+          <p className="text-3xl font-bold text-primary-600">
             £{selectedBudget?.totalAmount.toLocaleString() || '0'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Spent</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Spent</h3>
           <p className="text-3xl font-bold text-red-600">
             £{selectedBudget?.spentAmount.toLocaleString() || '0'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Remaining</h3>
-          <p className="text-3xl font-bold text-green-600">
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Remaining</h3>
+          <p className="text-3xl font-bold text-success-600">
             £{selectedBudget?.remainingAmount.toLocaleString() || '0'}
           </p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow-md">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Utilization</h3>
+          <h3 className="text-lg font-semibold text-neutral-900 mb-2">Utilization</h3>
           <p className="text-3xl font-bold text-purple-600">
             {selectedBudget ? getBudgetUtilization(selectedBudget) : 0}%
           </p>
@@ -321,14 +321,14 @@ const BudgetPage: React.FC = () => {
       <div className="flex gap-4 mb-6">
         <button
           onClick={() => setShowCreateBudget(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+          className="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
         >
           Create New Budget
         </button>
         {selectedBudget && (
           <button
             onClick={() => setShowCreateCategory(true)}
-            className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+            className="bg-success-600 text-white px-4 py-2 rounded-md hover:bg-success-600 transition-colors"
           >
             Add Category
           </button>
@@ -339,29 +339,29 @@ const BudgetPage: React.FC = () => {
       {/* Budgets List */}
       {selectedBuilding && (
       <div className="bg-white rounded-lg shadow-md mb-8">
-        <div className="p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">Budgets</h2>
+        <div className="p-6 border-b border-neutral-200">
+          <h2 className="text-xl font-semibold text-neutral-900">Budgets</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-gray-50">
+            <thead className="bg-neutral-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Year
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Total Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Spent
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Remaining
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -371,19 +371,19 @@ const BudgetPage: React.FC = () => {
                   budgets.map((budget) => (
                 <tr 
                   key={budget.id}
-                  className={`cursor-pointer hover:bg-gray-50 ${selectedBudget?.id === budget.id ? 'bg-blue-50' : ''}`}
+                  className={`cursor-pointer hover:bg-neutral-50 ${selectedBudget?.id === budget.id ? 'bg-blue-50' : ''}`}
                   onClick={() => setSelectedBudget(budget)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
                     {budget.year}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     £{budget.totalAmount.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     £{budget.spentAmount.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     £{budget.remainingAmount.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -391,14 +391,14 @@ const BudgetPage: React.FC = () => {
                       {budget.status.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                     {budget.status === 'draft' && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           handleBudgetStatusUpdate(budget.id, 'awaiting_approval')
                         }}
-                        className="text-blue-600 hover:text-blue-900 mr-2"
+                        className="text-primary-600 hover:text-blue-900 mr-2"
                       >
                         Submit for Approval
                       </button>
@@ -410,7 +410,7 @@ const BudgetPage: React.FC = () => {
                             e.stopPropagation()
                             handleBudgetStatusUpdate(budget.id, 'approved')
                           }}
-                          className="text-green-600 hover:text-green-900"
+                          className="text-success-600 hover:text-green-900"
                         >
                           Approve
                         </button>
@@ -430,7 +430,7 @@ const BudgetPage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={6} className="px-6 py-4 text-center text-neutral-500">
                       No budgets found. Create your first budget to get started.
                     </td>
                   </tr>
@@ -444,26 +444,26 @@ const BudgetPage: React.FC = () => {
       {/* Categories */}
       {selectedBudget && (
         <div className="bg-white rounded-lg shadow-md">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Budget Categories - {selectedBudget.year}</h2>
+          <div className="p-6 border-b border-neutral-200">
+            <h2 className="text-xl font-semibold text-neutral-900">Budget Categories - {selectedBudget.year}</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-neutral-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Category
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Allocated
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Spent
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Remaining
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
                     Threshold
                   </th>
                 </tr>
@@ -471,19 +471,19 @@ const BudgetPage: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {categories.map((category) => (
                   <tr key={category.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900">
                       {category.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                       £{category.allocatedAmount.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                       £{category.spentAmount.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                       £{category.remainingAmount.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
                       £{category.approvalThreshold.toLocaleString()}
                     </td>
                   </tr>
@@ -501,29 +501,29 @@ const BudgetPage: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">Create New Budget</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Year</label>
                 <input
                   type="number"
                   value={budgetForm.year}
                   onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Total Amount</label>
                 <input
                   type="number"
                   value={budgetForm.totalAmount}
                   onChange={(e) => setBudgetForm({ ...budgetForm, totalAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Notes</label>
                 <textarea
                   value={budgetForm.notes}
                   onChange={(e) => setBudgetForm({ ...budgetForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   rows={3}
                 />
               </div>
@@ -531,13 +531,13 @@ const BudgetPage: React.FC = () => {
             <div className="flex gap-4 mt-6">
               <button
                 onClick={handleCreateBudget}
-                className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
+                className="flex-1 bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
               >
                 Create Budget
               </button>
               <button
                 onClick={() => setShowCreateBudget(false)}
-                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                className="flex-1 bg-gray-300 text-neutral-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
               >
                 Cancel
               </button>
@@ -553,38 +553,38 @@ const BudgetPage: React.FC = () => {
             <h3 className="text-lg font-semibold mb-4">Add Budget Category</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Category Name</label>
                 <input
                   type="text"
                   value={categoryForm.name}
                   onChange={(e) => setCategoryForm({ ...categoryForm, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Allocated Amount</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Allocated Amount</label>
                 <input
                   type="number"
                   value={categoryForm.allocatedAmount}
                   onChange={(e) => setCategoryForm({ ...categoryForm, allocatedAmount: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Approval Threshold</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Approval Threshold</label>
                 <input
                   type="number"
                   value={categoryForm.approvalThreshold}
                   onChange={(e) => setCategoryForm({ ...categoryForm, approvalThreshold: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Notes</label>
                 <textarea
                   value={categoryForm.notes}
                   onChange={(e) => setCategoryForm({ ...categoryForm, notes: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                   rows={3}
                 />
               </div>
@@ -592,13 +592,13 @@ const BudgetPage: React.FC = () => {
             <div className="flex gap-4 mt-6">
               <button
                 onClick={handleCreateCategory}
-                className="flex-1 bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors"
+                className="flex-1 bg-success-600 text-white px-4 py-2 rounded-md hover:bg-success-600 transition-colors"
               >
                 Add Category
               </button>
               <button
                 onClick={() => setShowCreateCategory(false)}
-                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
+                className="flex-1 bg-gray-300 text-neutral-700 px-4 py-2 rounded-md hover:bg-gray-400 transition-colors"
               >
                 Cancel
               </button>

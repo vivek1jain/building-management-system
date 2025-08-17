@@ -1,27 +1,197 @@
+/* Import accessibility enhancements */
+@import './styles/accessibility.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* Initialize all color custom properties with defaults */
+    /* Primary Colors */
+    --color-primary-50: #f0f9ff;
+    --color-primary-100: #e0f2fe;
+    --color-primary-200: #bae6fd;
+    --color-primary-300: #7dd3fc;
+    --color-primary-400: #38bdf8;
+    --color-primary-500: #0ea5e9;
+    --color-primary-600: #0284c7;
+    --color-primary-700: #0369a1;
+    --color-primary-800: #075985;
+    --color-primary-900: #0c4a6e;
+    
+    /* Success Colors */
+    --color-success-50: #f0fdf4;
+    --color-success-100: #dcfce7;
+    --color-success-200: #bbf7d0;
+    --color-success-300: #86efac;
+    --color-success-400: #4ade80;
+    --color-success-500: #22c55e;
+    --color-success-600: #16a34a;
+    --color-success-700: #15803d;
+    --color-success-800: #166534;
+    --color-success-900: #14532d;
+    
+    /* Warning Colors */
+    --color-warning-50: #fffbeb;
+    --color-warning-100: #fef3c7;
+    --color-warning-200: #fde68a;
+    --color-warning-300: #fcd34d;
+    --color-warning-400: #fbbf24;
+    --color-warning-500: #f59e0b;
+    --color-warning-600: #d97706;
+    --color-warning-700: #b45309;
+    --color-warning-800: #92400e;
+    --color-warning-900: #78350f;
+    
+    /* Danger Colors */
+    --color-danger-50: #fef2f2;
+    --color-danger-100: #fee2e2;
+    --color-danger-200: #fecaca;
+    --color-danger-300: #fca5a5;
+    --color-danger-400: #f87171;
+    --color-danger-500: #ef4444;
+    --color-danger-600: #dc2626;
+    --color-danger-700: #b91c1c;
+    --color-danger-800: #991b1b;
+    --color-danger-900: #7f1d1d;
+    
+    /* Info Colors */
+    --color-info-50: #eff6ff;
+    --color-info-100: #dbeafe;
+    --color-info-200: #bfdbfe;
+    --color-info-300: #93c5fd;
+    --color-info-400: #60a5fa;
+    --color-info-500: #3b82f6;
+    --color-info-600: #2563eb;
+    --color-info-700: #1d4ed8;
+    --color-info-800: #1e40af;
+    --color-info-900: #1e3a8a;
+    --color-info-950: #172554;
+    
+    /* Neutral Colors */
+    --color-neutral-0: #ffffff;
+    --color-neutral-50: #f9fafb;
+    --color-neutral-100: #f3f4f6;
+    --color-neutral-200: #e5e7eb;
+    --color-neutral-300: #d1d5db;
+    --color-neutral-400: #9ca3af;
+    --color-neutral-500: #6b7280;
+    --color-neutral-600: #4b5563;
+    --color-neutral-700: #374151;
+    --color-neutral-800: #1f2937;
+    --color-neutral-900: #111827;
+    --color-neutral-950: #030712;
+    
+    /* Typography & Layout Variables */
+    --app-font-size: 16px;
+    --app-font-weight: 400;
+    --app-density: 1;
+    
+    /* Density-responsive spacing variables */
+    --spacing-xs: calc(0.125rem * var(--app-density, 1));  /* 2px base */
+    --spacing-sm: calc(0.25rem * var(--app-density, 1));   /* 4px base */
+    --spacing-md: calc(0.5rem * var(--app-density, 1));    /* 8px base */
+    --spacing-lg: calc(0.75rem * var(--app-density, 1));   /* 12px base */
+    --spacing-xl: calc(1rem * var(--app-density, 1));      /* 16px base */
+    --spacing-2xl: calc(1.25rem * var(--app-density, 1));  /* 20px base */
+    --spacing-3xl: calc(1.5rem * var(--app-density, 1));   /* 24px base */
+    --spacing-4xl: calc(2rem * var(--app-density, 1));     /* 32px base */
+    --spacing-5xl: calc(2.5rem * var(--app-density, 1));   /* 40px base */
+    --spacing-6xl: calc(3rem * var(--app-density, 1));     /* 48px base */
+    
+    /* Component-specific density variables */
+    --table-cell-padding-x: calc(1rem * var(--app-density, 1));
+    --table-cell-padding-y: calc(0.75rem * var(--app-density, 1));
+    --button-padding-x: calc(1rem * var(--app-density, 1));
+    --button-padding-y: calc(0.5rem * var(--app-density, 1));
+    --input-padding-x: calc(0.75rem * var(--app-density, 1));
+    --input-padding-y: calc(0.5rem * var(--app-density, 1));
+    --card-padding: calc(1.5rem * var(--app-density, 1));
+    --section-spacing: calc(1rem * var(--app-density, 1));
+  }
+  
+  /* Dark mode color overrides */
+  .dark {
+    /* Neutral colors (inverted for dark mode) */
+    --color-neutral-0: #030712;
+    --color-neutral-50: #111827;
+    --color-neutral-100: #1f2937;
+    --color-neutral-200: #374151;
+    --color-neutral-300: #4b5563;
+    --color-neutral-400: #6b7280;
+    --color-neutral-500: #9ca3af;
+    --color-neutral-600: #d1d5db;
+    --color-neutral-700: #e5e7eb;
+    --color-neutral-800: #f3f4f6;
+    --color-neutral-900: #f9fafb;
+    --color-neutral-950: #ffffff;
+  }
+  
+  /* Force dark mode overrides for hardcoded Tailwind classes */
+  .dark .bg-white { background-color: var(--color-neutral-0) !important; }
+  .dark .bg-gray-50 { background-color: var(--color-neutral-50) !important; }
+  .dark .bg-gray-100 { background-color: var(--color-neutral-100) !important; }
+  .dark .bg-gray-200 { background-color: var(--color-neutral-200) !important; }
+  .dark .bg-gray-300 { background-color: var(--color-neutral-300) !important; }
+  
+  .dark .text-gray-900 { color: var(--color-neutral-900) !important; }
+  .dark .text-gray-800 { color: var(--color-neutral-800) !important; }
+  .dark .text-gray-700 { color: var(--color-neutral-700) !important; }
+  .dark .text-gray-600 { color: var(--color-neutral-600) !important; }
+  .dark .text-gray-500 { color: var(--color-neutral-500) !important; }
+  .dark .text-gray-400 { color: var(--color-neutral-400) !important; }
+  
+  .dark .border-gray-200 { border-color: var(--color-neutral-200) !important; }
+  .dark .border-gray-300 { border-color: var(--color-neutral-300) !important; }
+  
+  /* System preference based dark mode */
+  @media (prefers-color-scheme: dark) {
+    html:not(.light):not(.dark) {
+      /* Neutral colors (inverted for dark mode) */
+      --color-neutral-0: #030712;
+      --color-neutral-50: #111827;
+      --color-neutral-100: #1f2937;
+      --color-neutral-200: #374151;
+      --color-neutral-300: #4b5563;
+      --color-neutral-400: #6b7280;
+      --color-neutral-500: #9ca3af;
+      --color-neutral-600: #d1d5db;
+      --color-neutral-700: #e5e7eb;
+      --color-neutral-800: #f3f4f6;
+      --color-neutral-900: #f9fafb;
+      --color-neutral-950: #ffffff;
+    }
+  }
+  
   html {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-size: var(--app-font-size);
   }
   
   body {
-    @apply bg-gray-50 text-gray-900;
+    background-color: var(--color-neutral-50) !important;
+    color: var(--color-neutral-900) !important;
     line-height: 1.6;
   }
   
   * {
-    @apply border-gray-200;
+    border-color: var(--color-neutral-200);
   }
+}
+
+/* Override body styles outside of layers to ensure dark mode works */
+body {
+  background-color: var(--color-neutral-50) !important;
+  color: var(--color-neutral-900) !important;
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center text-sm font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    padding: var(--button-padding-y) var(--button-padding-x);
   }
   
   .btn-primary {
@@ -29,7 +199,7 @@
   }
   
   .btn-secondary {
-    @apply btn bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-primary-500 shadow-apple;
+    @apply btn bg-neutral-0 text-neutral-700 border border-neutral-300 hover:bg-neutral-50 focus:ring-primary-500 shadow-apple;
   }
   
   .btn-danger {
@@ -41,11 +211,13 @@
   }
   
   .card {
-    @apply bg-white rounded-xl shadow-apple border border-gray-200 p-6;
+    @apply bg-neutral-0 rounded-xl shadow-apple border border-neutral-200;
+    padding: var(--card-padding);
   }
   
   .input {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
+    @apply block w-full border border-neutral-300 rounded-lg shadow-sm placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200;
+    padding: var(--input-padding-y) var(--input-padding-x);
   }
   
   .textarea {
@@ -53,11 +225,12 @@
   }
   
   .select {
-    @apply input appearance-none bg-white;
+    @apply input appearance-none bg-neutral-0;
   }
   
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full text-xs font-medium;
+    padding: var(--spacing-sm) var(--spacing-lg);
   }
   
   .badge-new {
@@ -90,4 +263,124 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-} 
+  
+  /* Density-responsive spacing utilities */
+  .space-density-sm {
+    gap: var(--spacing-sm);
+  }
+  
+  .space-density-md {
+    gap: var(--spacing-md);
+  }
+  
+  .space-density-lg {
+    gap: var(--spacing-lg);
+  }
+  
+  .space-density-xl {
+    gap: var(--spacing-xl);
+  }
+  
+  .space-density-2xl {
+    gap: var(--spacing-2xl);
+  }
+  
+  /* Padding utilities */
+  .p-density-sm {
+    padding: var(--spacing-sm);
+  }
+  
+  .p-density-md {
+    padding: var(--spacing-md);
+  }
+  
+  .p-density-lg {
+    padding: var(--spacing-lg);
+  }
+  
+  .p-density-xl {
+    padding: var(--spacing-xl);
+  }
+  
+  .p-density-2xl {
+    padding: var(--spacing-2xl);
+  }
+  
+  .px-density-sm {
+    padding-left: var(--spacing-sm);
+    padding-right: var(--spacing-sm);
+  }
+  
+  .px-density-md {
+    padding-left: var(--spacing-md);
+    padding-right: var(--spacing-md);
+  }
+  
+  .px-density-lg {
+    padding-left: var(--spacing-lg);
+    padding-right: var(--spacing-lg);
+  }
+  
+  .px-density-xl {
+    padding-left: var(--spacing-xl);
+    padding-right: var(--spacing-xl);
+  }
+  
+  .py-density-sm {
+    padding-top: var(--spacing-sm);
+    padding-bottom: var(--spacing-sm);
+  }
+  
+  .py-density-md {
+    padding-top: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+  }
+  
+  .py-density-lg {
+    padding-top: var(--spacing-lg);
+    padding-bottom: var(--spacing-lg);
+  }
+  
+  .py-density-xl {
+    padding-top: var(--spacing-xl);
+    padding-bottom: var(--spacing-xl);
+  }
+  
+  /* Margin utilities */
+  .m-density-sm {
+    margin: var(--spacing-sm);
+  }
+  
+  .m-density-md {
+    margin: var(--spacing-md);
+  }
+  
+  .m-density-lg {
+    margin: var(--spacing-lg);
+  }
+  
+  .m-density-xl {
+    margin: var(--spacing-xl);
+  }
+  
+  /* Component-specific utilities */
+  .table-cell-padding {
+    padding: var(--table-cell-padding-y) var(--table-cell-padding-x);
+  }
+  
+  .button-padding {
+    padding: var(--button-padding-y) var(--button-padding-x);
+  }
+  
+  .input-padding {
+    padding: var(--input-padding-y) var(--input-padding-x);
+  }
+  
+  .card-padding {
+    padding: var(--card-padding);
+  }
+  
+  .section-spacing {
+    gap: var(--section-spacing);
+  }
+}

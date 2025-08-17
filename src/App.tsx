@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { BuildingProvider } from './contexts/BuildingContext'
+import { ThemeProvider } from './contexts/ThemeContext'
 import Layout from './components/Layout/Layout'
 import Dashboard from './pages/Dashboard'
 import ComprehensiveDashboard from './pages/ComprehensiveDashboard'
@@ -18,13 +19,15 @@ import ServiceChargesPage from './pages/ServiceCharges'
 import TicketsWorkOrders from './pages/TicketsWorkOrders'
 import Finances from './pages/Finances' // Unified Financial Management
 import Settings from './pages/Settings'
+import DensityTest from './components/DensityTest'
 
 function App() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <BuildingProvider>
-          <div className="min-h-screen bg-gray-50">
+    <ThemeProvider>
+      <AuthProvider>
+        <NotificationProvider>
+          <BuildingProvider>
+          <div className="min-h-screen" style={{ backgroundColor: 'var(--color-neutral-50)' }}>
             <NotificationList />
             <Routes>
             <Route path="/login" element={<Login />} />
@@ -48,6 +51,7 @@ function App() {
               <Route path="suppliers" element={<Suppliers />} />
               <Route path="events" element={<Events />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="density-test" element={<DensityTest />} />
               {/* Legacy routes - redirect to unified finances */}
               <Route path="budget" element={<Finances />} />
               <Route path="invoices" element={<Finances />} />
@@ -55,9 +59,10 @@ function App() {
             </Route>
             </Routes>
           </div>
-        </BuildingProvider>
-      </NotificationProvider>
-    </AuthProvider>
+          </BuildingProvider>
+        </NotificationProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

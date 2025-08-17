@@ -7,7 +7,7 @@ import { ticketService } from '../services/ticketService'
 import * as workOrderService from '../services/workOrderService'
 import { TicketDetailModal } from '../components/TicketDetailModal'
 import { 
-  Building, 
+  Building as BuildingType, 
   Ticket, 
   WorkOrder, 
   TicketStatus, 
@@ -15,6 +15,7 @@ import {
   WorkOrderPriority 
 } from '../types'
 import { 
+  Building,
   Calendar, 
   Clock, 
   User, 
@@ -25,7 +26,8 @@ import {
   ArrowRight,
   X,
   MapPin,
-  DollarSign
+  DollarSign,
+  ChevronDown
 } from 'lucide-react'
 
 const TicketsWorkOrders: React.FC = () => {
@@ -146,24 +148,24 @@ const TicketsWorkOrders: React.FC = () => {
       case 'Scheduled': return 'bg-cyan-100 text-cyan-800'
       case 'In Progress': return 'bg-blue-100 text-blue-800'
       case 'Complete':
-        return 'bg-green-100 text-green-800'
-      case 'Closed': return 'bg-gray-100 text-gray-800'
+        return 'bg-success-100 text-success-800'
+      case 'Closed': return 'bg-neutral-100 text-gray-800'
       case 'Triage': return 'bg-yellow-100 text-yellow-800'
       case 'Cancelled': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'low':
-        return 'bg-green-100 text-green-800'
+        return 'bg-success-100 text-success-800'
       case 'medium':
         return 'bg-yellow-100 text-yellow-800'
       case 'high':
       case 'critical':
         return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -219,7 +221,7 @@ const TicketsWorkOrders: React.FC = () => {
       description: 'Work completed and feedback',
       status: 'Complete',
       count: tickets.filter(t => t.status === 'Complete').length + workOrders.filter(workOrder => workOrder.status !== 'Complete').length,
-      color: 'bg-green-50 border-green-200'
+      color: 'bg-success-50 border-success-200'
     }
   ]
 
@@ -236,26 +238,31 @@ const TicketsWorkOrders: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 font-inter">Tickets & Work Orders</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 font-inter">Tickets & Work Orders</h1>
           <p className="text-gray-600 mt-1 font-inter">
             Manage tickets and work orders following the complete workflow
           </p>
         </div>
         <div className="flex items-center space-x-3">
           {/* Building Selector */}
-          <select
-            value={selectedBuildingId}
-            onChange={(e) => setSelectedBuildingId(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
-            disabled={buildingsLoading}
-          >
-            <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
-            {buildings.map((building) => (
-              <option key={building.id} value={building.id}>
-                {building.name}
-              </option>
-            ))}
-          </select>
+          <div className="relative flex items-center gap-2">
+            <Building className="h-4 w-4 text-neutral-400" />
+            <select
+              value={selectedBuildingId}
+              onChange={(e) => setSelectedBuildingId(e.target.value)}
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+              disabled={buildingsLoading}
+              title={`Current building: ${buildings.find(b => b.id === selectedBuildingId)?.name || 'Select building'}`}
+            >
+              <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+          </div>
           <Link
             to="/tickets/new"
             className="btn-primary flex items-center font-inter"
@@ -267,14 +274,14 @@ const TicketsWorkOrders: React.FC = () => {
       </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-neutral-200">
         <nav className="-mb-px flex space-x-8">
           <button
             onClick={() => setActiveTab('workflow')}
             className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
               activeTab === 'workflow'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 text-primary-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
             }`}
           >
             Workflow View
@@ -283,8 +290,8 @@ const TicketsWorkOrders: React.FC = () => {
             onClick={() => setActiveTab('tickets')}
             className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
               activeTab === 'tickets'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 text-primary-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
             }`}
           >
             Tickets ({tickets.length})
@@ -293,8 +300,8 @@ const TicketsWorkOrders: React.FC = () => {
             onClick={() => setActiveTab('work-orders')}
             className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
               activeTab === 'work-orders'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                ? 'border-blue-500 text-primary-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
             }`}
           >
             Work Orders ({workOrders.length})
@@ -317,15 +324,15 @@ const TicketsWorkOrders: React.FC = () => {
                 } hover:scale-105`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-gray-900 font-inter">{stage.title}</h3>
-                  <span className="bg-white px-2 py-1 rounded-full text-sm font-semibold text-gray-700 font-inter">
+                  <h3 className="font-medium text-neutral-900 font-inter">{stage.title}</h3>
+                  <span className="bg-white px-2 py-1 rounded-full text-sm font-semibold text-neutral-700 font-inter">
                     {stage.count}
                   </span>
                 </div>
                 <p className="text-sm text-gray-600 font-inter">{stage.description}</p>
                 {index < workflowStages.length - 1 && (
                   <div className="flex justify-center mt-4">
-                    <ArrowRight className="h-5 w-5 text-gray-400" />
+                    <ArrowRight className="h-5 w-5 text-neutral-400" />
                   </div>
                 )}
               </button>
@@ -335,14 +342,14 @@ const TicketsWorkOrders: React.FC = () => {
           {/* Filtered Stage View */}
           {selectedWorkflowStage && (
             <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
+              <div className="px-6 py-4 border-b border-neutral-200">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-gray-900 font-inter">
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter">
                     {workflowStages.find(s => s.id === selectedWorkflowStage)?.title} Items
                   </h3>
                   <button
                     onClick={() => setSelectedWorkflowStage(null)}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-neutral-400 hover:text-gray-600"
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -361,19 +368,19 @@ const TicketsWorkOrders: React.FC = () => {
                       return stage && workOrder.status === stage.status;
                     })
                   ].map((item) => (
-                    <div key={item.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-gray-50">
+                    <div key={item.id} className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-neutral-50">
                       <div className="flex-shrink-0">
                         {'urgency' in item ? (
                           <FileText className="h-5 w-5 text-blue-500" />
                         ) : (
-                          <Wrench className="h-5 w-5 text-green-500" />
+                          <Wrench className="h-5 w-5 text-success-500" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 font-inter">
+                        <p className="text-sm font-medium text-neutral-900 font-inter">
                           {item.title}
                         </p>
-                        <p className="text-sm text-gray-500 font-inter">
+                        <p className="text-sm text-neutral-500 font-inter">
                           {'urgency' in item ? 'Ticket' : 'Work Order'} • {formatTimeAgo(item.updatedAt)}
                         </p>
                         <p className="text-sm text-gray-600">Work order scheduled</p>
@@ -405,7 +412,7 @@ const TicketsWorkOrders: React.FC = () => {
                     })
                   ].length === 0 && (
                     <div className="text-center py-8">
-                      <p className="text-gray-500 font-inter">
+                      <p className="text-neutral-500 font-inter">
                         No items in this workflow stage
                       </p>
                     </div>
@@ -418,8 +425,8 @@ const TicketsWorkOrders: React.FC = () => {
           {/* Recent Activity */}
           {!selectedWorkflowStage && (
             <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900 font-inter">Recent Activity</h3>
+              <div className="px-6 py-4 border-b border-neutral-200">
+                <h3 className="text-lg font-medium text-neutral-900 font-inter">Recent Activity</h3>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -432,14 +439,14 @@ const TicketsWorkOrders: React.FC = () => {
                           {'urgency' in item ? (
                             <FileText className="h-5 w-5 text-blue-500" />
                           ) : (
-                            <Wrench className="h-5 w-5 text-green-500" />
+                            <Wrench className="h-5 w-5 text-success-500" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 font-inter">
+                          <p className="text-sm font-medium text-neutral-900 font-inter">
                             {item.title}
                           </p>
-                          <p className="text-sm text-gray-500 font-inter">
+                          <p className="text-sm text-neutral-500 font-inter">
                             {'urgency' in item ? 'Ticket' : 'Work Order'} • {formatTimeAgo(item.updatedAt)}
                           </p>
                         </div>
@@ -461,19 +468,19 @@ const TicketsWorkOrders: React.FC = () => {
           {/* Search and Filters */}
           <div className="flex items-center space-x-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search tickets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
               />
             </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
+              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
             >
               <option value="all">All Status</option>
               <option value="New">New</option>
@@ -503,7 +510,7 @@ const TicketsWorkOrders: React.FC = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-medium text-gray-900 font-inter">{ticket.title}</h3>
+                        <h3 className="text-lg font-medium text-neutral-900 font-inter">{ticket.title}</h3>
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(ticket.status)}`}>
                           {ticket.status}
                         </span>
@@ -512,7 +519,7 @@ const TicketsWorkOrders: React.FC = () => {
                         </span>
                       </div>
                       <p className="text-gray-600 mb-3 font-inter">{ticket.description}</p>
-                      <div className="flex items-center space-x-4 text-sm text-gray-500 font-inter">
+                      <div className="flex items-center space-x-4 text-sm text-neutral-500 font-inter">
                         <div className="flex items-center">
                           <MapPin className="h-4 w-4 mr-1" />
                           {ticket.location}
@@ -547,7 +554,7 @@ const TicketsWorkOrders: React.FC = () => {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-medium text-gray-900 font-inter">{workOrder.title}</h3>
+                      <h3 className="text-lg font-medium text-neutral-900 font-inter">{workOrder.title}</h3>
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(workOrder.status)}`}>
                         {workOrder.status}
                       </span>
@@ -556,7 +563,7 @@ const TicketsWorkOrders: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-gray-600 mb-3 font-inter">{workOrder.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-gray-500 font-inter">
+                    <div className="flex items-center space-x-4 text-sm text-neutral-500 font-inter">
                       <div className="flex items-center">
                         <User className="h-4 w-4 mr-1" />
                         {workOrder.assignedToUid || 'Unassigned'}

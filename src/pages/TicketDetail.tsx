@@ -92,8 +92,8 @@ const TicketDetail = () => {
       case 'Scheduled': return 'bg-cyan-100 text-cyan-800'
       case 'In Progress': return 'bg-blue-100 text-blue-800'
       case 'Complete': return 'bg-green-100 text-green-800'
-      case 'Closed': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'Closed': return 'bg-neutral-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -103,7 +103,7 @@ const TicketDetail = () => {
       case 'Medium': return 'bg-yellow-100 text-yellow-800'
       case 'High': return 'bg-orange-100 text-orange-800'
       case 'Critical': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -332,7 +332,7 @@ const TicketDetail = () => {
   if (!ticket) {
     return (
       <div className="text-center py-12">
-        <h3 className="text-lg font-medium text-gray-900 mb-2">Ticket not found</h3>
+        <h3 className="text-lg font-medium text-neutral-900 mb-2">Ticket not found</h3>
         <p className="text-gray-600 mb-6">The ticket you're looking for doesn't exist.</p>
         <button onClick={() => navigate('/tickets')} className="btn-primary">
           Back to Tickets
@@ -348,12 +348,12 @@ const TicketDetail = () => {
         <div className="flex items-center space-x-4">
           <button
             onClick={() => navigate('/tickets')}
-            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+            className="p-2 text-neutral-400 hover:text-gray-600 rounded-lg hover:bg-neutral-100"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{ticket.title}</h1>
+            <h1 className="text-2xl font-bold text-neutral-900">{ticket.title}</h1>
             <p className="text-gray-600">Ticket #{ticket.id}</p>
           </div>
         </div>
@@ -372,19 +372,19 @@ const TicketDetail = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Description */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Description</h3>
-            <p className="text-gray-700 leading-relaxed">{ticket.description}</p>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Description</h3>
+            <p className="text-neutral-700 leading-relaxed">{ticket.description}</p>
           </div>
 
           {/* Attachments */}
           {ticket.attachments.length > 0 && (
             <div className="card">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Attachments</h3>
+              <h3 className="text-lg font-medium text-neutral-900 mb-4">Attachments</h3>
               <div className="space-y-2">
                 {ticket.attachments.map((attachment, index) => (
-                  <div key={index} className="flex items-center p-3 bg-gray-50 rounded-lg">
-                    <FileText className="h-5 w-5 text-gray-400 mr-3" />
-                    <span className="text-sm text-gray-700">{attachment}</span>
+                  <div key={index} className="flex items-center p-3 bg-neutral-50 rounded-lg">
+                    <FileText className="h-5 w-5 text-neutral-400 mr-3" />
+                    <span className="text-sm text-neutral-700">{attachment}</span>
                   </div>
                 ))}
               </div>
@@ -394,7 +394,7 @@ const TicketDetail = () => {
           {/* Quotes Section */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Quotes ({ticket.quotes.length})</h3>
+              <h3 className="text-lg font-medium text-neutral-900">Quotes ({ticket.quotes.length})</h3>
               <div className="flex items-center space-x-2">
                 {ticket.quotes.length > 0 && (
                   <button
@@ -427,11 +427,11 @@ const TicketDetail = () => {
             ) : ticket.quotes.length > 0 ? (
               <div className="space-y-4">
                 {ticket.quotes.map((quote) => (
-                  <div key={quote.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={quote.id} className="border border-neutral-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center">
-                        <DollarSign className="h-5 w-5 text-green-600 mr-2" />
-                        <span className="text-lg font-semibold text-gray-900">
+                        <DollarSign className="h-5 w-5 text-success-600 mr-2" />
+                        <span className="text-lg font-semibold text-neutral-900">
                           ${quote.amount.toLocaleString()}
                         </span>
                       </div>
@@ -439,14 +439,14 @@ const TicketDetail = () => {
                         quote.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                         quote.status === 'accepted' ? 'bg-green-100 text-green-800' :
                         quote.status === 'declined' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
+                        'bg-neutral-100 text-gray-800'
                       }`}>
                         {quote.status}
                       </span>
                     </div>
-                    <p className="text-gray-700 mb-2">{quote.description}</p>
+                    <p className="text-neutral-700 mb-2">{quote.description}</p>
                     <p className="text-sm text-gray-600 mb-3">{quote.terms}</p>
-                    <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center justify-between text-sm text-neutral-500">
                       <span>Valid until: {formatDate(quote.validUntil)}</span>
                       <span>Submitted: {formatTimeAgo(quote.submittedAt)}</span>
                     </div>
@@ -454,7 +454,7 @@ const TicketDetail = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-neutral-500">
                 <DollarSign className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                 <p>No quotes received yet</p>
                 <p className="text-sm">Request quotes from suppliers to get started</p>
@@ -464,7 +464,7 @@ const TicketDetail = () => {
 
           {/* Activity Log */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Activity Log</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Activity Log</h3>
             <div className="space-y-4">
               {ticket.activityLog.map((activity) => (
                 <div key={activity.id} className="flex items-start space-x-3">
@@ -472,9 +472,9 @@ const TicketDetail = () => {
                     <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900">{activity.action}</p>
+                    <p className="text-sm font-medium text-neutral-900">{activity.action}</p>
                     <p className="text-sm text-gray-600">{activity.description}</p>
-                    <p className="text-xs text-gray-400 mt-1">{formatTimeAgo(activity.timestamp)}</p>
+                    <p className="text-xs text-neutral-400 mt-1">{formatTimeAgo(activity.timestamp)}</p>
                   </div>
                 </div>
               ))}
@@ -489,37 +489,37 @@ const TicketDetail = () => {
         <div className="space-y-6">
           {/* Ticket Info */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Ticket Information</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Ticket Information</h3>
             <div className="space-y-4">
               <div className="flex items-center">
-                <MapPin className="h-5 w-5 text-gray-400 mr-3" />
+                <MapPin className="h-5 w-5 text-neutral-400 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Location</p>
+                  <p className="text-sm font-medium text-neutral-900">Location</p>
                   <p className="text-sm text-gray-600">{ticket.location}</p>
                 </div>
               </div>
               
               <div className="flex items-center">
-                <Clock className="h-5 w-5 text-gray-400 mr-3" />
+                <Clock className="h-5 w-5 text-neutral-400 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Created</p>
+                  <p className="text-sm font-medium text-neutral-900">Created</p>
                   <p className="text-sm text-gray-600">{formatDate(ticket.createdAt)}</p>
                 </div>
               </div>
               
               <div className="flex items-center">
-                <User className="h-5 w-5 text-gray-400 mr-3" />
+                <User className="h-5 w-5 text-neutral-400 mr-3" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Requested By</p>
+                  <p className="text-sm font-medium text-neutral-900">Requested By</p>
                   <p className="text-sm text-gray-600">User ID: {ticket.requestedBy}</p>
                 </div>
               </div>
 
               {ticket.assignedTo && (
                 <div className="flex items-center">
-                  <User className="h-5 w-5 text-gray-400 mr-3" />
+                  <User className="h-5 w-5 text-neutral-400 mr-3" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Assigned To</p>
+                    <p className="text-sm font-medium text-neutral-900">Assigned To</p>
                     <p className="text-sm text-gray-600">User ID: {ticket.assignedTo}</p>
                   </div>
                 </div>
@@ -527,9 +527,9 @@ const TicketDetail = () => {
 
               {ticket.scheduledDate && (
                 <div className="flex items-center">
-                  <Calendar className="h-5 w-5 text-gray-400 mr-3" />
+                  <Calendar className="h-5 w-5 text-neutral-400 mr-3" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">Scheduled</p>
+                    <p className="text-sm font-medium text-neutral-900">Scheduled</p>
                     <p className="text-sm text-gray-600">{formatDate(ticket.scheduledDate)}</p>
                   </div>
                 </div>
@@ -539,7 +539,7 @@ const TicketDetail = () => {
 
           {/* Quick Actions */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Quick Actions</h3>
             <div className="space-y-3">
               <button className="w-full btn-primary flex items-center justify-center">
                 <Edit className="h-4 w-4 mr-2" />
@@ -571,26 +571,26 @@ const TicketDetail = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+            <div className="flex items-center justify-between p-6 border-b border-neutral-200 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Request Quotes from Suppliers</h2>
+                <h2 className="text-xl font-semibold text-neutral-900">Request Quotes from Suppliers</h2>
                 <p className="text-sm text-gray-600 mt-1">
                   Select suppliers to request quotes for this ticket
                 </p>
               </div>
               <button
                 onClick={() => setShowSupplierModal(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                className="p-2 text-neutral-400 hover:text-gray-600 rounded-lg hover:bg-neutral-100"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Filters */}
-            <div className="p-6 border-b border-gray-200 flex-shrink-0">
+            <div className="p-6 border-b border-neutral-200 flex-shrink-0">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
                   <input
                     type="text"
                     placeholder="Search suppliers..."
@@ -645,7 +645,7 @@ const TicketDetail = () => {
                             <User className="h-6 w-6 text-primary-600" />
                           </div>
                           <div>
-                            <h3 className="font-medium text-gray-900">{supplier.name}</h3>
+                            <h3 className="font-medium text-neutral-900">{supplier.name}</h3>
                             <p className="text-sm text-gray-600">{supplier.companyName}</p>
                           </div>
                         </div>
@@ -656,7 +656,7 @@ const TicketDetail = () => {
 
                       <div className="space-y-3">
                         <div className="flex items-center space-x-2">
-                          <Building className="h-4 w-4 text-gray-400" />
+                          <Building className="h-4 w-4 text-neutral-400" />
                           <span className="text-sm text-gray-600">{supplier.companyName}</span>
                         </div>
 
@@ -671,7 +671,7 @@ const TicketDetail = () => {
                           {supplier.specialties.map((specialty) => (
                             <span
                               key={specialty}
-                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                              className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-neutral-100 text-gray-800"
                             >
                               {specialty}
                             </span>
@@ -697,14 +697,14 @@ const TicketDetail = () => {
               {!supplierLoading && filteredSuppliers.length === 0 && (
                 <div className="text-center py-12">
                   <User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No suppliers found</h3>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">No suppliers found</h3>
                   <p className="text-gray-600">Try adjusting your search or filter criteria</p>
                 </div>
               )}
             </div>
 
             {/* Footer - Always Visible */}
-            <div className="flex items-center justify-between p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+            <div className="flex items-center justify-between p-6 border-t border-neutral-200 flex-shrink-0 bg-white">
               <div className="text-sm text-gray-600">
                 {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
               </div>
@@ -749,14 +749,14 @@ const TicketDetail = () => {
       {/* Show scheduled events */}
       {scheduledEvents.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Scheduled Events</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-2">Scheduled Events</h3>
           <ul className="space-y-2">
             {scheduledEvents.map(event => (
-              <li key={event.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <li key={event.id} className="bg-neutral-50 p-3 rounded-lg border border-neutral-200">
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4 text-blue-500" />
                   <span className="font-medium">{event.title}</span>
-                  <span className="text-xs text-gray-500">{formatDate(event.startDate)} - {formatDate(event.endDate)}</span>
+                  <span className="text-xs text-neutral-500">{formatDate(event.startDate)} - {formatDate(event.endDate)}</span>
                 </div>
                 <div className="text-sm text-gray-600 mt-1">{event.description}</div>
               </li>

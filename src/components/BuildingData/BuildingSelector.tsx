@@ -20,13 +20,13 @@ const BuildingSelector: React.FC<BuildingSelectorProps> = ({
 }) => {
   return (
     <div className={className}>
-      <label className="block text-sm font-medium text-gray-700 mb-1 font-inter">
+      <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <select
         value={selectedBuildingId}
         onChange={(e) => onBuildingChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+        className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
         required={required}
       >
         <option value="">Select Building</option>

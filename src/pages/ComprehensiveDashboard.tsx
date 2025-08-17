@@ -251,7 +251,7 @@ const ComprehensiveDashboard = () => {
       case 'Paid':
       case 'Resolved':
       case 'Complete':
-        return 'text-green-600 bg-green-100'
+        return 'text-success-600 bg-success-100'
       case 'Pending':
       case 'In Progress':
         return 'text-yellow-600 bg-yellow-100'
@@ -259,7 +259,7 @@ const ComprehensiveDashboard = () => {
       case 'Urgent':
         return 'text-red-600 bg-red-100'
       default:
-        return 'text-gray-600 bg-gray-100'
+        return 'text-gray-600 bg-neutral-100'
     }
   }
 
@@ -276,7 +276,7 @@ const ComprehensiveDashboard = () => {
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-neutral-900">
             Comprehensive Dashboard
           </h1>
           <p className="text-gray-600 mt-1">
@@ -308,18 +308,18 @@ const ComprehensiveDashboard = () => {
           <div className="flex items-center">
             <div className="flex-shrink-0">
               <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Home className="h-5 w-5 text-blue-600" />
+                <Home className="h-5 w-5 text-primary-600" />
               </div>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total Flats</p>
-              <p className="text-2xl font-bold text-gray-900">{flatStats.totalFlats}</p>
+              <p className="text-2xl font-bold text-neutral-900">{flatStats.totalFlats}</p>
             </div>
           </div>
           <div className="mt-4">
             <div className="flex items-center text-sm">
               <Users className="h-4 w-4 text-blue-500 mr-1" />
-              <span className="text-blue-600">{flatStats.occupiedFlats} occupied</span>
+              <span className="text-primary-600">{flatStats.occupiedFlats} occupied</span>
             </div>
           </div>
         </div>
@@ -328,13 +328,13 @@ const ComprehensiveDashboard = () => {
         <div className="card">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <Users className="h-5 w-5 text-green-600" />
+              <div className="w-8 h-8 bg-success-100 rounded-lg flex items-center justify-center">
+                <Users className="h-5 w-5 text-success-600" />
               </div>
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Total People</p>
-              <p className="text-2xl font-bold text-gray-900">{peopleStats.totalPeople}</p>
+              <p className="text-2xl font-bold text-neutral-900">{peopleStats.totalPeople}</p>
             </div>
           </div>
           <div className="mt-4">
@@ -355,13 +355,13 @@ const ComprehensiveDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Service Charges</p>
-              <p className="text-2xl font-bold text-gray-900">{formatCurrency(serviceChargeStats.totalAmountDue)}</p>
+              <p className="text-2xl font-bold text-neutral-900">{formatCurrency(serviceChargeStats.totalAmountDue)}</p>
             </div>
           </div>
           <div className="mt-4">
             <div className="flex items-center text-sm">
-              <TrendingUp className="h-4 w-4 text-green-500 mr-1" />
-              <span className="text-green-600">{formatCurrency(serviceChargeStats.totalAmountPaid)} collected</span>
+              <TrendingUp className="h-4 w-4 text-success-500 mr-1" />
+              <span className="text-success-600">{formatCurrency(serviceChargeStats.totalAmountPaid)} collected</span>
             </div>
           </div>
         </div>
@@ -376,7 +376,7 @@ const ComprehensiveDashboard = () => {
             </div>
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Work Orders</p>
-              <p className="text-2xl font-bold text-gray-900">{workOrderStats.totalWorkOrders}</p>
+              <p className="text-2xl font-bold text-neutral-900">{workOrderStats.totalWorkOrders}</p>
             </div>
           </div>
           <div className="mt-4">
@@ -394,40 +394,40 @@ const ComprehensiveDashboard = () => {
         <div className="space-y-6">
           {/* Flats Statistics */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Flats Overview</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Flats Overview</h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-sm text-gray-600">Total Area</p>
-                <p className="text-lg font-semibold text-gray-900">{flatStats.totalArea.toLocaleString()} sq ft</p>
+                <p className="text-lg font-semibold text-neutral-900">{flatStats.totalArea.toLocaleString()} sq ft</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Average Area</p>
-                <p className="text-lg font-semibold text-gray-900">{Math.round(flatStats.averageArea)} sq ft</p>
+                <p className="text-lg font-semibold text-neutral-900">{Math.round(flatStats.averageArea)} sq ft</p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Occupancy Rate</p>
-                <p className="text-lg font-semibold text-gray-900">
+                <p className="text-lg font-semibold text-neutral-900">
                   {flatStats.totalFlats > 0 ? Math.round((flatStats.occupiedFlats / flatStats.totalFlats) * 100) : 0}%
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-600">Ground Rent</p>
-                <p className="text-lg font-semibold text-gray-900">{formatCurrency(flatStats.totalGroundRent)}</p>
+                <p className="text-lg font-semibold text-neutral-900">{formatCurrency(flatStats.totalGroundRent)}</p>
               </div>
             </div>
           </div>
 
           {/* People Statistics */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">People Overview</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">People Overview</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Primary Contacts</span>
-                <span className="font-semibold text-gray-900">{peopleStats.primaryContacts}</span>
+                <span className="font-semibold text-neutral-900">{peopleStats.primaryContacts}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">With Flats</span>
-                <span className="font-semibold text-gray-900">{peopleStats.withFlats}</span>
+                <span className="font-semibold text-neutral-900">{peopleStats.withFlats}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Pending Approval</span>
@@ -441,11 +441,11 @@ const ComprehensiveDashboard = () => {
         <div className="space-y-6">
           {/* Service Charge Statistics */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Service Charges</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Service Charges</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Total Demands</span>
-                <span className="font-semibold text-gray-900">{serviceChargeStats.totalDemands}</span>
+                <span className="font-semibold text-neutral-900">{serviceChargeStats.totalDemands}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Outstanding Amount</span>
@@ -457,7 +457,7 @@ const ComprehensiveDashboard = () => {
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Collection Rate</span>
-                <span className="font-semibold text-green-600">
+                <span className="font-semibold text-success-600">
                   {serviceChargeStats.totalAmountDue > 0 
                     ? Math.round((serviceChargeStats.totalAmountPaid / serviceChargeStats.totalAmountDue) * 100) 
                     : 0}%
@@ -468,11 +468,11 @@ const ComprehensiveDashboard = () => {
 
           {/* Work Order Statistics */}
           <div className="card">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Work Orders</h3>
+            <h3 className="text-lg font-medium text-neutral-900 mb-4">Work Orders</h3>
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Resolved This Month</span>
-                <span className="font-semibold text-green-600">{workOrderStats.resolvedThisMonth}</span>
+                <span className="font-semibold text-success-600">{workOrderStats.resolvedThisMonth}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Urgent Orders</span>
@@ -491,48 +491,48 @@ const ComprehensiveDashboard = () => {
 
       {/* Quick Actions */}
       <div className="card">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Quick Actions</h3>
+        <h3 className="text-lg font-medium text-neutral-900 mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link
             to="/flats"
-            className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="flex items-center p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors duration-200"
           >
-            <Home className="h-5 w-5 text-blue-600 mr-3" />
+            <Home className="h-5 w-5 text-primary-600 mr-3" />
             <div>
-              <p className="font-medium text-gray-900">Manage Flats</p>
+              <p className="font-medium text-neutral-900">Manage Flats</p>
               <p className="text-sm text-gray-600">View and edit flat details</p>
             </div>
           </Link>
           
           <Link
             to="/people"
-            className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="flex items-center p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors duration-200"
           >
-            <Users className="h-5 w-5 text-green-600 mr-3" />
+            <Users className="h-5 w-5 text-success-600 mr-3" />
             <div>
-              <p className="font-medium text-gray-900">People Management</p>
+              <p className="font-medium text-neutral-900">People Management</p>
               <p className="text-sm text-gray-600">Manage residents and contacts</p>
             </div>
           </Link>
           
           <Link
             to="/financial-management"
-            className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="flex items-center p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors duration-200"
           >
             <CreditCard className="h-5 w-5 text-purple-600 mr-3" />
             <div>
-              <p className="font-medium text-gray-900">Financial Management</p>
+              <p className="font-medium text-neutral-900">Financial Management</p>
               <p className="text-sm text-gray-600">Service charges, income & expenses</p>
             </div>
           </Link>
           
           <Link
             to="/work-orders"
-            className="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors duration-200"
+            className="flex items-center p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors duration-200"
           >
             <Wrench className="h-5 w-5 text-orange-600 mr-3" />
             <div>
-              <p className="font-medium text-gray-900">Work Orders</p>
+              <p className="font-medium text-neutral-900">Work Orders</p>
               <p className="text-sm text-gray-600">Track maintenance requests</p>
             </div>
           </Link>
@@ -542,7 +542,7 @@ const ComprehensiveDashboard = () => {
       {/* Alerts Section */}
       {(serviceChargeStats.overdueDemands > 0 || workOrderStats.urgentWorkOrders > 0 || peopleStats.pendingApproval > 0) && (
         <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Alerts</h3>
+          <h3 className="text-lg font-medium text-neutral-900 mb-4">Alerts</h3>
           <div className="space-y-3">
             {serviceChargeStats.overdueDemands > 0 && (
               <div className="flex items-center p-3 bg-red-50 border border-red-200 rounded-lg">
