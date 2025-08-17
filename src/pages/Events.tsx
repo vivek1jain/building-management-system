@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { useBuilding } from '../contexts/BuildingContext'
 import { 
   Calendar, 
   Clock, 
@@ -15,15 +16,14 @@ import {
   Building
 } from 'lucide-react'
 import { BuildingEvent } from '../types'
-import { mockBuildings, mockEvents } from '../services/mockData'
+import { mockEvents } from '../services/mockData'
 
 const Events = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
+  const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
   
-  // Multi-building state management
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('building-1')
-  const [buildings] = useState(mockBuildings)
+  // Events state management
   const [allEvents] = useState<BuildingEvent[]>(mockEvents)
   const [events, setEvents] = useState<BuildingEvent[]>([])
   
@@ -43,10 +43,14 @@ const Events = () => {
 
   // Load events when building selection changes
   useEffect(() => {
-    const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuilding)
-    setEvents(buildingEvents)
-    console.log(`Loaded ${buildingEvents.length} events for building:`, selectedBuilding)
-  }, [selectedBuilding, allEvents])
+    if (selectedBuildingId) {
+      const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuildingId)
+      setEvents(buildingEvents)
+      console.log(`Loaded ${buildingEvents.length} events for building:`, selectedBuildingId)
+    } else {
+      setEvents([])
+    }
+  }, [selectedBuildingId, allEvents])
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,7 +104,7 @@ const Events = () => {
     const newEventData: BuildingEvent = {
       id: Date.now().toString(),
       ...newEvent,
-      buildingId: selectedBuilding,
+      buildingId: selectedBuildingId || '',
       ticketId: undefined,
       status: 'scheduled',
       createdAt: new Date(),
@@ -240,10 +244,12 @@ const Events = () => {
           <div className="flex items-center space-x-2">
             <Building className="h-4 w-4 text-gray-500" />
             <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
+              value={selectedBuildingId}
+              onChange={(e) => setSelectedBuildingId(e.target.value)}
               className="select min-w-[200px]"
+              disabled={buildingsLoading}
             >
+              <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
               {buildings.map((building) => (
                 <option key={building.id} value={building.id}>
                   {building.name}

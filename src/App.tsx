@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
+import { BuildingProvider } from './contexts/BuildingContext'
 import Layout from './components/Layout/Layout'
 import Dashboard from './pages/Dashboard'
 import ComprehensiveDashboard from './pages/ComprehensiveDashboard'
@@ -22,9 +23,10 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <div className="min-h-screen bg-gray-50">
-          <NotificationList />
-          <Routes>
+        <BuildingProvider>
+          <div className="min-h-screen bg-gray-50">
+            <NotificationList />
+            <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/" element={
               <ProtectedRoute>
@@ -51,8 +53,9 @@ function App() {
               <Route path="invoices" element={<Finances />} />
               <Route path="service-charges" element={<Finances />} />
             </Route>
-          </Routes>
-        </div>
+            </Routes>
+          </div>
+        </BuildingProvider>
       </NotificationProvider>
     </AuthProvider>
   )

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Home, Edit, Trash2, Eye, Building as BuildingIcon, MapPin, DollarSign, Users } from 'lucide-react'
+import { Search, Plus, Home, Edit, Trash2, Eye, Building as BuildingIcon, MapPin, DollarSign, Users, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { Flat, Building } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportFlatsToCSV } from '../../utils/csvExport'
 import { ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockFlats } from '../../services/mockData'
+import { getAllBuildings } from '../../services/buildingService'
+import { getFlatsByBuilding, createFlat, updateFlat, deleteFlat } from '../../services/flatService'
 
 const FlatsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -57,15 +58,23 @@ const FlatsDataTable: React.FC = () => {
   const initializeData = async () => {
     try {
       setLoading(true)
-      // Use mock buildings for testing
-      setBuildings(mockBuildings)
-      if (mockBuildings.length > 0) {
-        setSelectedBuilding(mockBuildings[0].id)
+      console.log('🔥 Loading buildings from Firebase...')
+      const buildingsData = await getAllBuildings()
+      console.log('🔥 Buildings loaded:', buildingsData.length)
+      setBuildings(buildingsData)
+      if (buildingsData.length > 0) {
+        setSelectedBuilding(buildingsData[0].id)
       }
-      // Load all flats from mock data
-      setFlats(mockFlats)
     } catch (error) {
-      console.error('Error initializing data:', error)
+      console.error('🚨 Error initializing data:', error)
+      if (currentUser) {
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load buildings',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -76,11 +85,22 @@ const FlatsDataTable: React.FC = () => {
     
     try {
       setLoading(true)
-      // Filter mock flats data by selected building
-      const buildingFlats = mockFlats.filter(flat => flat.buildingId === selectedBuilding)
-      setFlats(buildingFlats)
+      console.log('🔥 Loading flats from Firebase for building:', selectedBuilding)
+      const buildingFlats = await getFlatsByBuilding(selectedBuilding)
+      console.log('🔥 Flats loaded:', buildingFlats.length)
+      // Add isActive property for compatibility
+      const flatsWithActiveFlag = buildingFlats.map(flat => ({ ...flat, isActive: true }))
+      setFlats(flatsWithActiveFlag)
     } catch (error) {
-      console.error('Error loading flats:', error)
+      console.error('🚨 Error loading flats:', error)
+      if (currentUser) {
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load flats from Firebase',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -100,24 +120,25 @@ const FlatsDataTable: React.FC = () => {
     }
     
     try {
-      const newFlat: Flat & { isActive: boolean } = {
-        id: `flat-${Date.now()}`,
+      console.log('🔥 Creating flat in Firebase...')
+      const flatData = {
         buildingId: selectedBuilding,
         flatNumber: flatForm.flatNumber,
         floor: parseInt(flatForm.floor),
         areaSqFt: parseInt(flatForm.areaSqFt),
         bedrooms: parseInt(flatForm.bedrooms) || 0,
         bathrooms: parseInt(flatForm.bathrooms) || 0,
-        currentRent: parseFloat(flatForm.currentRent) || 0,
         groundRent: parseFloat(flatForm.groundRent) || 0,
-        status: flatForm.status,
-        notes: flatForm.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        isActive: true
+        notes: flatForm.notes
       }
 
-      setFlats(prev => [...prev, newFlat])
+      // Create flat in Firebase
+      const createdFlat = await createFlat(flatData)
+      console.log('🔥 Flat created successfully:', createdFlat.id)
+      
+      // Add to local state with isActive flag
+      const flatWithActiveFlag = { ...createdFlat, isActive: true }
+      setFlats(prev => [...prev, flatWithActiveFlag])
       
       // Reset form
       setFlatForm({
@@ -143,15 +164,15 @@ const FlatsDataTable: React.FC = () => {
       
       addNotification({
         title: 'Success',
-        message: 'Flat added successfully',
+        message: 'Flat added successfully to Firebase!',
         type: 'success',
         userId: currentUser.id
       })
     } catch (error) {
-      console.error('Error creating flat:', error)
+      console.error('🚨 Error creating flat:', error)
       addNotification({
         title: 'Error',
-        message: 'Failed to add flat',
+        message: 'Failed to add flat to Firebase',
         type: 'error',
         userId: currentUser.id
       })
@@ -340,29 +361,37 @@ const FlatsDataTable: React.FC = () => {
             <p className="text-sm text-gray-600 font-inter">Manage building units and their details</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreateFlat(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
-        >
-          <Plus className="h-4 w-4" />
-          Add Flat
-        </button>
-      </div>
-
-      {/* Building Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700 font-inter">Building:</label>
-        <select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name} - {building.address}
-            </option>
-          ))}
-        </select>
+        
+        {/* Top Right Controls */}
+        <div className="flex items-center gap-4">
+          {/* Building Selector */}
+          <div className="relative flex items-center gap-2">
+            <BuildingIcon className="h-4 w-4 text-gray-400" />
+            <select
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 min-w-[200px]"
+              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
+            >
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            {/* Dropdown Arrow */}
+            <ChevronDown className="absolute right-2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Add Flat Button */}
+          <button
+            onClick={() => setShowCreateFlat(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
+          >
+            <Plus className="h-4 w-4" />
+            Add Flat
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

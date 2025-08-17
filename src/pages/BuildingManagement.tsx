@@ -4,12 +4,7 @@ import {
   Users, 
   Home, 
   Truck, 
-  Package,
-  Download,
-  Upload,
-  FileText,
-  FileSpreadsheet,
-  Braces
+  Package
 } from 'lucide-react'
 import PeoplePage from './People'
 import FlatsPage from './Flats'
@@ -53,15 +48,6 @@ const BuildingManagement: React.FC = () => {
     }
   ]
 
-  const handleExport = (format: 'csv' | 'xlsx' | 'json') => {
-    // This will be implemented with actual export functionality
-    console.log(`Exporting ${activeTab} data as ${format}`)
-  }
-
-  const handleImport = (format: 'csv' | 'xlsx' | 'json') => {
-    // This will be implemented with actual import functionality
-    console.log(`Importing ${activeTab} data from ${format}`)
-  }
 
   const ActiveComponent = tabs.find(tab => tab.id === activeTab)?.component || PeoplePage
 
@@ -76,61 +62,6 @@ const BuildingManagement: React.FC = () => {
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">Building Management</h1>
                 <p className="text-gray-600">Manage all building-related data and operations</p>
-              </div>
-            </div>
-
-            {/* Bulk Import/Export Actions */}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Import:</span>
-                <button
-                  onClick={() => handleImport('csv')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <FileText className="h-3 w-3" />
-                  CSV
-                </button>
-                <button
-                  onClick={() => handleImport('xlsx')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <FileSpreadsheet className="h-3 w-3" />
-                  Excel
-                </button>
-                <button
-                  onClick={() => handleImport('json')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <Braces className="h-3 w-3" />
-                  JSON
-                </button>
-              </div>
-
-              <div className="h-4 w-px bg-gray-300"></div>
-
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Export:</span>
-                <button
-                  onClick={() => handleExport('csv')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <Download className="h-3 w-3" />
-                  CSV
-                </button>
-                <button
-                  onClick={() => handleExport('xlsx')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  <Download className="h-3 w-3" />
-                  Excel
-                </button>
-                <button
-                  onClick={() => handleExport('json')}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                  <Download className="h-3 w-3" />
-                  JSON
-                </button>
               </div>
             </div>
           </div>

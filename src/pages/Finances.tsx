@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
+import { useBuilding } from '../contexts/BuildingContext';
 import { 
   Building, 
   Budget, 
@@ -13,7 +14,7 @@ import {
   PaymentRecord
 } from '../types';
 import { budgetService } from '../services/budgetService';
-import { mockBuildings, mockBudgets, mockInvoices, mockServiceCharges } from '../services/mockData'
+// Note: Financial summary now uses real Firebase data instead of mock data
 import { 
   getServiceChargeDemands,
   generateServiceChargeDemands,
@@ -56,18 +57,16 @@ const UK_EXPENDITURE_CATEGORIES = [
 const Finances: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
+  const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
   
   // Core state
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'budget' | 'demands' | 'invoices' | 'reports'>('budget')
   const [loading, setLoading] = useState(false)
   
   // Financial data
   const [budget, setBudget] = useState<Budget | null>(null)
   const [serviceCharges, setServiceCharges] = useState<ServiceChargeDemand[]>([])
-  const [, setInvoices] = useState<Invoice[]>([])
-  // Remove static financial summary - we'll use dynamic calculation instead
+  const [invoices, setInvoices] = useState<Invoice[]>([])
   const [flats, setFlats] = useState<Flat[]>([])
   
   // Service Charges state
@@ -102,9 +101,9 @@ const Finances: React.FC = () => {
     }))
   })
 
-  // Calculate dynamic financial summary based on selected building
+  // Calculate dynamic financial summary based on real Firebase data
   const getFinancialSummary = () => {
-    if (!selectedBuilding) {
+    if (!selectedBuildingId) {
       return {
         totalIncome: 0,
         totalExpenditure: 0,
@@ -113,32 +112,27 @@ const Finances: React.FC = () => {
       }
     }
 
-    // Get budget data for selected building
-    const buildingBudget = mockBudgets.find(budget => budget.buildingId === selectedBuilding)
-    
-    // Get service charges for selected building
-    const buildingServiceCharges = mockServiceCharges.filter(sc => sc.buildingId === selectedBuilding)
-    
-    // Get invoices for selected building
-    const buildingInvoices = mockInvoices.filter(invoice => invoice.buildingId === selectedBuilding)
-    
-    // Calculate totals from budget categories
+    // Calculate totals from real budget data loaded from Firebase
     let totalIncome = 0
     let totalExpenditure = 0
     
-    if (buildingBudget) {
-      buildingBudget.categories.forEach(category => {
+    if (budget && budget.categories) {
+      budget.categories.forEach(category => {
         if (category.type === 'income') {
-          totalIncome += category.actualAmount
+          totalIncome += category.actualAmount || 0
         } else if (category.type === 'expenditure') {
-          totalExpenditure += category.actualAmount
+          totalExpenditure += category.actualAmount || 0
         }
       })
     }
     
     const netPosition = totalIncome - totalExpenditure
-    const outstanding = buildingServiceCharges.reduce((sum, sc) => sum + sc.outstandingAmount, 0) + 
-                       buildingInvoices.filter(inv => inv.status === 'pending' || inv.status === 'overdue').reduce((sum, inv) => sum + inv.amount, 0)
+    
+    // Calculate outstanding amounts from real Firebase data
+    const outstandingServiceCharges = serviceCharges.reduce((sum, sc) => sum + (sc.outstandingAmount || 0), 0)
+    const outstandingInvoices = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE')
+                                      .reduce((sum, inv) => sum + (inv.amount || 0), 0)
+    const outstanding = outstandingServiceCharges + outstandingInvoices
     
     return {
       totalIncome,
@@ -151,39 +145,22 @@ const Finances: React.FC = () => {
   const financialSummary = getFinancialSummary()
 
   useEffect(() => {
-    loadBuildings()
-  }, [])
-
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadFinancialData()
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
-  const loadBuildings = async () => {
-    try {
-      // Use unified mock data for development
-      const buildingsData = mockBuildings
-      setBuildings(buildingsData)
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('Error loading buildings:', error)
-      addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Error loading buildings', type: 'error' })
-    }
-  }
 
   const loadFinancialData = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
       const [budgetData, demandsData, invoicesData, flatsData] = await Promise.all([
-        budgetService.getBudgetsByBuilding(selectedBuilding),
-        getServiceChargeDemands(selectedBuilding),
-        getInvoicesByBuilding(selectedBuilding),
-        getFlatsByBuilding(selectedBuilding)
+        budgetService.getBudgetsByBuilding(selectedBuildingId),
+        getServiceChargeDemands(selectedBuildingId),
+        getInvoicesByBuilding(selectedBuildingId),
+        getFlatsByBuilding(selectedBuildingId)
       ])
       
       setBudget(budgetData.length > 0 ? budgetData[0] : null)
@@ -201,7 +178,7 @@ const Finances: React.FC = () => {
 
   const handleBudgetSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedBuilding) {
+    if (!selectedBuildingId) {
       addNotification({ 
         userId: currentUser?.id || '', 
         title: 'Error', 
@@ -228,7 +205,7 @@ const Finances: React.FC = () => {
       }
       
       const newBudget: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'> = {
-        buildingId: selectedBuilding,
+        buildingId: selectedBuildingId,
         year: budgetForm.year,
         financialYearStart: budgetForm.financialYearStart,
         status: budgetForm.status as any,
@@ -322,7 +299,7 @@ const Finances: React.FC = () => {
   }
 
   const createSampleFlats = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
@@ -330,7 +307,7 @@ const Finances: React.FC = () => {
       const sampleFlatsData = [
         {
           flatNumber: '1A',
-          buildingId: selectedBuilding,
+          buildingId: selectedBuildingId,
           floor: 1,
           buildingBlock: 'A',
           bedrooms: 2,
@@ -347,7 +324,7 @@ const Finances: React.FC = () => {
         },
         {
           flatNumber: '1B',
-          buildingId: selectedBuilding,
+          buildingId: selectedBuildingId,
           floor: 1,
           buildingBlock: 'A',
           bedrooms: 1,
@@ -364,7 +341,7 @@ const Finances: React.FC = () => {
         },
         {
           flatNumber: '2A',
-          buildingId: selectedBuilding,
+          buildingId: selectedBuildingId,
           floor: 2,
           buildingBlock: 'A',
           bedrooms: 2,
@@ -381,7 +358,7 @@ const Finances: React.FC = () => {
         },
         {
           flatNumber: '2B',
-          buildingId: selectedBuilding,
+          buildingId: selectedBuildingId,
           floor: 2,
           buildingBlock: 'A',
           bedrooms: 1,
@@ -398,7 +375,7 @@ const Finances: React.FC = () => {
         },
         {
           flatNumber: '3A',
-          buildingId: selectedBuilding,
+          buildingId: selectedBuildingId,
           floor: 3,
           buildingBlock: 'A',
           bedrooms: 3,
@@ -489,7 +466,7 @@ const Finances: React.FC = () => {
 
   // Service Charges handlers
   const handleGenerateDemands = async () => {
-    if (!selectedBuilding) {
+    if (!selectedBuildingId) {
       addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Please select a building first', type: 'error' })
       return
     }
@@ -520,13 +497,13 @@ const Finances: React.FC = () => {
       const rate = 2.50 // £2.50 per sq ft per quarter
       
       console.log('Generating service charge demands for:', {
-        buildingId: selectedBuilding,
+        buildingId: selectedBuildingId,
         quarter: selectedQuarter,
         rate,
         flatsCount: flats.length
       })
       
-      const demands = await generateServiceChargeDemands(selectedBuilding, selectedQuarter, rate, flats)
+      const demands = await generateServiceChargeDemands(selectedBuildingId, selectedQuarter, rate, flats)
       
       console.log('Generated demands:', demands)
       
@@ -543,17 +520,17 @@ const Finances: React.FC = () => {
       
       // Additional direct refresh of service charges
       try {
-        const refreshedDemands = await getServiceChargeDemands(selectedBuilding)
+        const refreshedDemands = await getServiceChargeDemands(selectedBuildingId)
         console.log('Refreshed service charges:', refreshedDemands)
         setServiceCharges(refreshedDemands)
       } catch (refreshError) {
         console.warn('Failed to refresh service charges, using fallback:', refreshError)
         // If Firebase fails, try to get from localStorage as fallback
         const mockDemands = JSON.parse(localStorage.getItem('mockServiceCharges') || '[]')
-        const buildingMockDemands = mockDemands.filter((demand: any) => demand.buildingId === selectedBuilding)
+        const buildingMockDemands = mockDemands.filter((demand: any) => demand.buildingId === selectedBuildingId)
         
         console.log('All mock demands:', mockDemands)
-        console.log('Filtered mock demands for building', selectedBuilding, ':', buildingMockDemands)
+        console.log('Filtered mock demands for building', selectedBuildingId, ':', buildingMockDemands)
         
         if (buildingMockDemands.length > 0) {
           setServiceCharges(buildingMockDemands)
@@ -657,11 +634,12 @@ const Finances: React.FC = () => {
         
         <div className="flex items-center space-x-4">
           <select
-            value={selectedBuilding}
-            onChange={(e) => setSelectedBuilding(e.target.value)}
+            value={selectedBuildingId}
+            onChange={(e) => setSelectedBuildingId(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
+            disabled={buildingsLoading}
           >
-            <option value="">Select Building</option>
+            <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
             {buildings.map((building) => (
               <option key={building.id} value={building.id}>
                 {building.name}
@@ -861,7 +839,7 @@ const Finances: React.FC = () => {
                   </button>
                   <button
                     onClick={handleGenerateDemands}
-                    disabled={loading || !selectedBuilding}
+                    disabled={loading || !selectedBuildingId}
                     className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                   >
                     <Plus className="h-4 w-4" />
@@ -1019,7 +997,7 @@ const Finances: React.FC = () => {
                     {budget ? 'Edit Budget' : 'Create New Budget'}
                   </h2>
                   <p className="text-sm text-gray-600 font-inter mt-1">
-                    Building: {buildings.find(b => b.id === selectedBuilding)?.name || 'No building selected'}
+                    Building: {selectedBuilding?.name || 'No building selected'}
                   </p>
                 </div>
                 <button
@@ -1032,7 +1010,7 @@ const Finances: React.FC = () => {
 
               <form onSubmit={handleBudgetSubmit} className="space-y-6">
                 {/* Building Selection Warning */}
-                {!selectedBuilding && (
+                {!selectedBuildingId && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                     <div className="flex items-center">
                       <div className="text-yellow-600 mr-3">
@@ -1269,7 +1247,7 @@ const Finances: React.FC = () => {
                   </button>
                   <button
                     type="submit"
-                    disabled={loading || !selectedBuilding}
+                    disabled={loading || !selectedBuildingId}
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                   >
                     {loading ? 'Saving...' : (budget ? 'Update Budget' : 'Create Budget')}

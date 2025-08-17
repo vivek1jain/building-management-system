@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Wrench, Edit, Trash2, Eye, Building as BuildingIcon, Package, MapPin } from 'lucide-react'
+import { Search, Plus, Wrench, Edit, Trash2, Eye, Building as BuildingIcon, Package, MapPin, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { Asset, Building, AssetStatus } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportAssetsToCSV } from '../../utils/csvExport'
 import { ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockAssets } from '../../services/mockData'
+import { getAllBuildings, getAssetsByBuilding, createAsset, updateAsset, deleteAsset } from '../../services/buildingService'
 
 const AssetsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -50,15 +50,23 @@ const AssetsDataTable: React.FC = () => {
   const initializeData = async () => {
     try {
       setLoading(true)
-      // Use mock buildings for testing
-      setBuildings(mockBuildings)
-      if (mockBuildings.length > 0) {
-        setSelectedBuilding(mockBuildings[0].id)
+      console.log('🔥 Loading buildings from Firebase...')
+      const buildingsData = await getAllBuildings()
+      console.log('🔥 Buildings loaded:', buildingsData.length)
+      setBuildings(buildingsData)
+      if (buildingsData.length > 0) {
+        setSelectedBuilding(buildingsData[0].id)
       }
-      // Load all assets from mock data
-      setAssets(mockAssets)
     } catch (error) {
-      console.error('Error initializing data:', error)
+      console.error('🚨 Error initializing data:', error)
+      if (currentUser) {
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load buildings',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -69,15 +77,18 @@ const AssetsDataTable: React.FC = () => {
     
     try {
       setLoading(true)
-      // Filter mock assets data by selected building
-      const buildingAssets = mockAssets.filter(asset => asset.buildingId === selectedBuilding)
-      setAssets(buildingAssets)
+      console.log('🔥 Loading assets from Firebase for building:', selectedBuilding)
+      const buildingAssets = await getAssetsByBuilding(selectedBuilding)
+      console.log('🔥 Assets loaded:', buildingAssets.length)
+      // Add isActive property for compatibility
+      const assetsWithActiveFlag = buildingAssets.map(asset => ({ ...asset, isActive: true }))
+      setAssets(assetsWithActiveFlag)
     } catch (error) {
-      console.error('Error loading assets:', error)
+      console.error('🚨 Error loading assets:', error)
       if (currentUser) {
         addNotification({
           title: 'Error',
-          message: 'Failed to load assets',
+          message: 'Failed to load assets from Firebase',
           type: 'error',
           userId: currentUser.id
         })
@@ -101,8 +112,8 @@ const AssetsDataTable: React.FC = () => {
     }
     
     try {
-      const newAsset: Asset & { isActive: boolean } = {
-        id: `asset-${Date.now()}`,
+      console.log('🔥 Creating asset in Firebase...')
+      const assetData = {
         name: assetForm.name,
         buildingId: selectedBuilding,
         type: assetForm.type,
@@ -114,13 +125,16 @@ const AssetsDataTable: React.FC = () => {
         installationDate: assetForm.installationDate ? new Date(assetForm.installationDate) : null,
         warrantyExpiryDate: assetForm.warrantyExpiryDate ? new Date(assetForm.warrantyExpiryDate) : null,
         notes: assetForm.notes,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        createdByUid: currentUser.id,
-        isActive: true
+        createdByUid: currentUser.id
       }
 
-      setAssets(prev => [...prev, newAsset])
+      // Create asset in Firebase
+      const createdAsset = await createAsset(assetData)
+      console.log('🔥 Asset created successfully:', createdAsset.id)
+      
+      // Add to local state with isActive flag
+      const assetWithActiveFlag = { ...createdAsset, isActive: true }
+      setAssets(prev => [...prev, assetWithActiveFlag])
       
       // Reset form
       setAssetForm({
@@ -141,15 +155,15 @@ const AssetsDataTable: React.FC = () => {
       
       addNotification({
         title: 'Success',
-        message: 'Asset added successfully',
+        message: 'Asset added successfully to Firebase!',
         type: 'success',
         userId: currentUser.id
       })
     } catch (error) {
-      console.error('Error creating asset:', error)
+      console.error('🚨 Error creating asset:', error)
       addNotification({
         title: 'Error',
-        message: 'Failed to add asset',
+        message: 'Failed to add asset to Firebase',
         type: 'error',
         userId: currentUser.id
       })
@@ -325,29 +339,37 @@ const AssetsDataTable: React.FC = () => {
             <p className="text-sm text-gray-600 font-inter">Track and manage building assets and equipment</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreateAsset(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
-        >
-          <Plus className="h-4 w-4" />
-          Add Asset
-        </button>
-      </div>
-
-      {/* Building Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700 font-inter">Building:</label>
-        <select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name} - {building.address}
-            </option>
-          ))}
-        </select>
+        
+        {/* Top Right Controls */}
+        <div className="flex items-center gap-4">
+          {/* Building Selector */}
+          <div className="relative flex items-center gap-2">
+            <BuildingIcon className="h-4 w-4 text-gray-400" />
+            <select
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 min-w-[200px]"
+              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
+            >
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            {/* Dropdown Arrow */}
+            <ChevronDown className="absolute right-2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Add Asset Button */}
+          <button
+            onClick={() => setShowCreateAsset(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
+          >
+            <Plus className="h-4 w-4" />
+            Add Asset
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

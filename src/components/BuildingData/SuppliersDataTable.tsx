@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Star, MapPin, Edit, Trash2, Eye, Building as BuildingIcon } from 'lucide-react'
+import { Search, Plus, Star, MapPin, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Truck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { getAllBuildings } from '../../services/buildingService'
@@ -8,7 +8,6 @@ import BuildingSelector from './BuildingSelector'
 import BulkImportExport from './BulkImportExport'
 import { exportSuppliersToCSV } from '../../utils/csvExport'
 import { importSuppliersFromCSV, ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockSuppliers } from '../../services/mockData'
 
 const SuppliersDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -40,15 +39,26 @@ const SuppliersDataTable: React.FC = () => {
     const initializeData = async () => {
       try {
         setLoading(true)
-        // Use mock buildings for testing
-        setBuildings(mockBuildings)
-        if (mockBuildings.length > 0) {
-          setSelectedBuilding(mockBuildings[0].id)
+        console.log('🔥 Loading buildings from Firebase...')
+        const buildingsData = await getAllBuildings()
+        console.log('🔥 Buildings loaded:', buildingsData.length)
+        setBuildings(buildingsData)
+        if (buildingsData.length > 0) {
+          setSelectedBuilding(buildingsData[0].id)
         }
-        // Load all suppliers from mock data
-        setSuppliers(mockSuppliers)
+        // For now, we'll use empty array for suppliers since we need to implement proper supplier service
+        // TODO: Implement proper supplier loading from Firebase
+        setSuppliers([])
       } catch (error) {
-        console.error('Error initializing data:', error)
+        console.error('🚨 Error initializing data:', error)
+        if (currentUser) {
+          addNotification({
+            title: 'Error',
+            message: 'Failed to load buildings',
+            type: 'error',
+            userId: currentUser.id
+          })
+        }
       } finally {
         setLoading(false)
       }
@@ -339,35 +349,43 @@ const SuppliersDataTable: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <BuildingIcon className="h-5 w-5 text-green-600" />
+          <Truck className="h-6 w-6 text-green-700" />
           <div>
             <h2 className="text-xl font-semibold text-gray-900 font-inter">Suppliers Management</h2>
             <p className="text-sm text-gray-600 font-inter">Manage service providers and contractors</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreateSupplier(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
-        >
-          <Plus className="h-4 w-4" />
-          Add Supplier
-        </button>
-      </div>
-
-      {/* Building Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700 font-inter">Building:</label>
-        <select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name} - {building.address}
-            </option>
-          ))}
-        </select>
+        
+        {/* Top Right Controls */}
+        <div className="flex items-center gap-4">
+          {/* Building Selector */}
+          <div className="relative flex items-center gap-2">
+            <BuildingIcon className="h-4 w-4 text-gray-400" />
+            <select
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 min-w-[200px]"
+              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
+            >
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            {/* Dropdown Arrow */}
+            <ChevronDown className="absolute right-2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Add Supplier Button */}
+          <button
+            onClick={() => setShowCreateSupplier(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
+          >
+            <Plus className="h-4 w-4" />
+            Add Supplier
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

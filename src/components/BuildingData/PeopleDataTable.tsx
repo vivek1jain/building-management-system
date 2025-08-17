@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, Phone, Mail, Calendar } from 'lucide-react'
+import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, Phone, Mail, Calendar, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { Person, Building, PersonStatus } from '../../types'
@@ -276,6 +276,44 @@ const PeopleDataTable: React.FC = () => {
     }
   }
 
+  // Export/Import handlers
+  const handleExportPeople = (buildingId: string, buildingName?: string) => {
+    const buildingPeople = people.filter(person => person.buildingId === buildingId)
+    exportPeopleToCSV(buildingPeople, buildingName)
+  }
+
+  const handleImportPeople = (csvText: string, buildingId: string): ImportValidationResult<Person & { isActive: boolean }> => {
+    return importPeopleFromCSV(csvText, buildingId)
+  }
+
+  const handleImportConfirm = async (validPeople: (Person & { isActive: boolean })[]) => {
+    if (!currentUser) return
+    
+    try {
+      // Add imported people to the current list
+      setPeople(prev => {
+        const existingIds = new Set(prev.map(p => p.id))
+        const newPeople = validPeople.filter(p => !existingIds.has(p.id))
+        return [...prev, ...newPeople]
+      })
+      
+      addNotification({
+        title: 'Success',
+        message: `${validPeople.length} people imported successfully`,
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error importing people:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to import people',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
+  }
+
   const getStatusColor = (status: PersonStatus) => {
     switch (status) {
       case PersonStatus.OWNER: return 'text-green-600 bg-green-100'
@@ -327,29 +365,47 @@ const PeopleDataTable: React.FC = () => {
             <p className="text-sm text-gray-600 font-inter">Manage residents, owners, and tenants</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreatePerson(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
-        >
-          <Plus className="h-4 w-4" />
-          Add Person
-        </button>
-      </div>
-
-      {/* Building Selector */}
-      <div className="flex items-center gap-4">
-        <label className="text-sm font-medium text-gray-700 font-inter">Building:</label>
-        <select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name} - {building.address}
-            </option>
-          ))}
-        </select>
+        
+        {/* Top Right Controls */}
+        <div className="flex items-center gap-4">
+          {/* Building Selector */}
+          <div className="relative flex items-center gap-2">
+            <BuildingIcon className="h-4 w-4 text-gray-400" />
+            <select
+              value={selectedBuilding}
+              onChange={(e) => setSelectedBuilding(e.target.value)}
+              className="appearance-none bg-white border border-gray-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 min-w-[200px]"
+              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
+            >
+              {buildings.map((building) => (
+                <option key={building.id} value={building.id}>
+                  {building.name}
+                </option>
+              ))}
+            </select>
+            {/* Dropdown Arrow */}
+            <ChevronDown className="absolute right-2 h-4 w-4 text-gray-400 pointer-events-none" />
+          </div>
+          
+          {/* Import/Export Buttons */}
+          <BulkImportExport
+            dataType="people"
+            buildings={buildings}
+            selectedBuildingId={selectedBuilding}
+            onExport={handleExportPeople}
+            onImport={handleImportPeople}
+            onImportConfirm={handleImportConfirm}
+          />
+          
+          {/* Add Person Button */}
+          <button
+            onClick={() => setShowCreatePerson(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors font-inter"
+          >
+            <Plus className="h-4 w-4" />
+            Add Person
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

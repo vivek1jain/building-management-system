@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { useBuilding } from '../contexts/BuildingContext'
 import {
   Building,
   Users,
@@ -28,51 +29,20 @@ import { Building as BuildingType, Ticket } from '../types'
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [buildings, setBuildings] = useState<BuildingType[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData } = useBuilding()
   const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Initialize data on component mount
+  // Load tickets when selected building changes
   useEffect(() => {
-    initializeData()
-  }, [])
-
-  // Load tickets when building changes
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadTickets()
     }
-  }, [selectedBuilding])
-
-  const initializeData = async () => {
-    try {
-      setLoading(true)
-      console.log('🏢 Loading buildings from Firebase...')
-      const buildingsData = await getAllBuildings()
-      console.log('🏢 Buildings loaded:', buildingsData.length)
-      setBuildings(buildingsData)
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('❌ Error loading buildings:', error)
-      if (currentUser) {
-        addNotification({
-          title: 'Error',
-          message: 'Failed to load buildings data',
-          type: 'error',
-          userId: currentUser.id
-        })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [selectedBuildingId])
 
   const loadTickets = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setRefreshing(true)
@@ -81,7 +51,7 @@ const Dashboard: React.FC = () => {
       console.log('🎫 All tickets loaded:', allTickets.length)
       
       // Filter tickets for the selected building
-      const buildingTickets = allTickets.filter(ticket => ticket.buildingId === selectedBuilding)
+      const buildingTickets = allTickets.filter(ticket => ticket.buildingId === selectedBuildingId)
       console.log('🎫 Building tickets filtered:', buildingTickets.length)
       setTickets(buildingTickets)
     } catch (error) {
@@ -94,17 +64,12 @@ const Dashboard: React.FC = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await Promise.all([
-      initializeData(),
-      selectedBuilding ? loadTickets() : Promise.resolve()
-    ])
+    await loadTickets()
     setRefreshing(false)
   }
 
   // Calculate metrics from real Firebase data
   const calculateMetrics = () => {
-    const selectedBuildingData = buildings.find(b => b.id === selectedBuilding)
-    
     // Calculate ticket metrics
     const urgentTickets = tickets.filter(t => 
       t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high')
@@ -220,25 +185,11 @@ const Dashboard: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Building Manager Dashboard</h1>
             <p className="text-gray-600">Welcome back, {currentUser.name}</p>
+            {selectedBuildingData && (
+              <p className="text-sm text-gray-500 mt-1">Current building: {selectedBuildingData.name}</p>
+            )}
           </div>
           <div className="flex items-center space-x-2">
-            <Building className="h-4 w-4 text-gray-500" />
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-              disabled={loading}
-            >
-              {buildings.length === 0 ? (
-                <option value="">No buildings found</option>
-              ) : (
-                buildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.name}
-                  </option>
-                ))
-              )}
-            </select>
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -246,6 +197,7 @@ const Dashboard: React.FC = () => {
               title="Refresh data"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <span className="ml-2">Refresh</span>
             </button>
           </div>
         </div>

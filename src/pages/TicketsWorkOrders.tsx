@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { useBuilding } from '../contexts/BuildingContext'
 import { ticketService } from '../services/ticketService'
 import * as workOrderService from '../services/workOrderService'
-import { mockBuildings } from '../services/mockData'
 import { TicketDetailModal } from '../components/TicketDetailModal'
 import { 
   Building, 
@@ -31,10 +31,9 @@ import {
 const TicketsWorkOrders: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
+  const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
   
   // State management
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
   const [activeTab, setActiveTab] = useState<'tickets' | 'work-orders' | 'workflow'>('workflow')
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
@@ -51,33 +50,11 @@ const TicketsWorkOrders: React.FC = () => {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false)
 
   useEffect(() => {
-    loadBuildings()
-  }, [])
-
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadTicketsAndWorkOrders()
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
-  const loadBuildings = async () => {
-    try {
-      // Use unified mock data for development
-      const buildingsData = mockBuildings
-      setBuildings(buildingsData)
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('Error loading buildings:', error)
-      addNotification({
-        userId: currentUser?.id || '',
-        title: 'Error',
-        message: 'Failed to load buildings',
-        type: 'error'
-      })
-    }
-  }
 
   // Modal handler functions
   const handleTicketClick = (ticket: Ticket) => {
@@ -95,7 +72,7 @@ const TicketsWorkOrders: React.FC = () => {
   }
 
   const loadTicketsAndWorkOrders = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
@@ -106,20 +83,20 @@ const TicketsWorkOrders: React.FC = () => {
         // Filter tickets by selected building (with fallback for legacy tickets without buildingId)
         const buildingTickets = ticketsData.filter(ticket => {
           // If ticket has no buildingId (legacy tickets), show them in the first building
-          if (!ticket.buildingId && selectedBuilding === 'building-1') {
+          if (!ticket.buildingId && selectedBuildingId === 'building-1') {
             return true
           }
           // Otherwise, match by buildingId
-          return ticket.buildingId === selectedBuilding
+          return ticket.buildingId === selectedBuildingId
         })
-        console.log('Filtered tickets for building', selectedBuilding, ':', buildingTickets.length, 'tickets')
+        console.log('Filtered tickets for building', selectedBuildingId, ':', buildingTickets.length, 'tickets')
         console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id: t.id, buildingId: t.buildingId })))
         setTickets(buildingTickets)
       })
 
       // Load work orders filtered by building
       try {
-        const workOrdersData = await workOrderService.getWorkOrdersByBuilding(selectedBuilding)
+        const workOrdersData = await workOrderService.getWorkOrdersByBuilding(selectedBuildingId)
         setWorkOrders(workOrdersData)
       } catch (error) {
         console.error('Error loading work orders:', error)
@@ -127,7 +104,7 @@ const TicketsWorkOrders: React.FC = () => {
         const mockWorkOrders: WorkOrder[] = [
           {
             id: 'wo-1',
-            buildingId: selectedBuilding,
+            buildingId: selectedBuildingId,
             title: 'Plumbing Repair - Flat A101',
             description: 'Fix leaking kitchen faucet',
             priority: 'high' as WorkOrderPriority,
@@ -267,11 +244,12 @@ const TicketsWorkOrders: React.FC = () => {
         <div className="flex items-center space-x-3">
           {/* Building Selector */}
           <select
-            value={selectedBuilding}
-            onChange={(e) => setSelectedBuilding(e.target.value)}
+            value={selectedBuildingId}
+            onChange={(e) => setSelectedBuildingId(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-inter"
+            disabled={buildingsLoading}
           >
-            <option value="">Select Building</option>
+            <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
             {buildings.map((building) => (
               <option key={building.id} value={building.id}>
                 {building.name}

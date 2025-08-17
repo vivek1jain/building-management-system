@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
-import { getAllBuildings } from '../services/buildingService'
+import { useBuilding } from '../contexts/BuildingContext'
 import { getPeopleStats } from '../services/peopleService'
 import { Person, PersonStatus, Building } from '../types'
 import { 
@@ -24,10 +24,9 @@ import {
 const PeoplePage: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData } = useBuilding()
   const [people, setPeople] = useState<Person[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [showCreatePerson, setShowCreatePerson] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
@@ -51,105 +50,60 @@ const PeoplePage: React.FC = () => {
     notes: ''
   })
 
+  // Load people when selected building changes
   useEffect(() => {
-    loadBuildings()
-  }, [])
-
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadPeople()
     }
-  }, [selectedBuilding])
-
-  const loadBuildings = async () => {
-    try {
-      setLoading(true)
-      const buildingsData = await getAllBuildings()
-      setBuildings(buildingsData)
-      
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('Error loading buildings:', error)
-      addNotification({
-        title: 'Error',
-        message: 'Failed to load buildings',
-        type: 'error',
-        userId: 'current'
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+  }, [selectedBuildingId])
 
   const loadPeople = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
-      // Mock data for demonstration
+      
+      // Create different mock data based on selected building to show switching works
       const mockPeople: Person[] = [
         {
-          id: '1',
-          buildingId: selectedBuilding,
-          firstName: 'John',
-          lastName: 'Smith',
-          email: 'john.smith@email.com',
-          phone: '+1-555-0123',
+          id: `${selectedBuildingId}-1`,
+          buildingId: selectedBuildingId,
+          firstName: selectedBuildingData?.name.includes('Tower') ? 'Alice' : 'John',
+          lastName: selectedBuildingData?.name.includes('Tower') ? 'Chen' : 'Smith',
+          email: selectedBuildingData?.name.includes('Tower') ? 'alice.chen@email.com' : 'john.smith@email.com',
+          phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1001' : '+1-555-0123',
           role: 'resident',
           status: 'active',
-          flatId: 'A101',
+          flatId: selectedBuildingData?.name.includes('Tower') ? 'T301' : 'A101',
           moveInDate: new Date('2023-01-15'),
           moveOutDate: null,
           emergencyContact: {
-            name: 'Jane Smith',
-            phone: '+1-555-0124',
+            name: selectedBuildingData?.name.includes('Tower') ? 'David Chen' : 'Jane Smith',
+            phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1002' : '+1-555-0124',
             relationship: 'Spouse'
           },
-          notes: 'Primary contact for flat A101',
+          notes: `Primary contact for ${selectedBuildingData?.name || 'building'}`,
           createdAt: new Date(),
           updatedAt: new Date()
         },
         {
-          id: '2',
-          buildingId: selectedBuilding,
-          firstName: 'Sarah',
-          lastName: 'Johnson',
-          email: 'sarah.johnson@email.com',
-          phone: '+1-555-0125',
+          id: `${selectedBuildingId}-2`,
+          buildingId: selectedBuildingId,
+          firstName: selectedBuildingData?.name.includes('Tower') ? 'Michael' : 'Sarah',
+          lastName: selectedBuildingData?.name.includes('Tower') ? 'Rodriguez' : 'Johnson',
+          email: selectedBuildingData?.name.includes('Tower') ? 'michael.rodriguez@email.com' : 'sarah.johnson@email.com',
+          phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1003' : '+1-555-0125',
           role: 'owner',
           status: 'active',
-          flatId: 'B201',
+          flatId: selectedBuildingData?.name.includes('Tower') ? 'T401' : 'B201',
           moveInDate: new Date('2022-06-01'),
           moveOutDate: null,
           emergencyContact: {
-            name: 'Mike Johnson',
-            phone: '+1-555-0126',
-            relationship: 'Brother'
+            name: selectedBuildingData?.name.includes('Tower') ? 'Sofia Rodriguez' : 'Mike Johnson',
+            phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1004' : '+1-555-0126',
+            relationship: selectedBuildingData?.name.includes('Tower') ? 'Wife' : 'Brother'
           },
-          notes: 'Penthouse owner',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        },
-        {
-          id: '3',
-          buildingId: selectedBuilding,
-          firstName: 'David',
-          lastName: 'Wilson',
-          email: 'david.wilson@email.com',
-          phone: '+1-555-0127',
-          role: 'tenant',
-          status: 'pending',
-          flatId: 'A102',
-          moveInDate: new Date('2024-03-01'),
-          moveOutDate: null,
-          emergencyContact: {
-            name: 'Lisa Wilson',
-            phone: '+1-555-0128',
-            relationship: 'Sister'
-          },
-          notes: 'New tenant, pending approval',
+          notes: selectedBuildingData?.name.includes('Tower') ? 'High-floor unit owner' : 'Penthouse owner',
           createdAt: new Date(),
           updatedAt: new Date()
         }
@@ -170,14 +124,14 @@ const PeoplePage: React.FC = () => {
   }
 
   const handleCreatePerson = async () => {
-    if (!selectedBuilding || !currentUser) return
+    if (!selectedBuildingId || !currentUser) return
     
     try {
       setLoading(true)
       // Mock creation
       const newPerson: Person = {
         id: Date.now().toString(),
-        buildingId: selectedBuilding,
+        buildingId: selectedBuildingId,
         ...personForm,
         moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : new Date(),
         moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
@@ -288,23 +242,6 @@ const PeoplePage: React.FC = () => {
         </button>
       </div>
 
-      {/* Building Selection */}
-      <div className="card">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Building
-        </label>
-        <select
-          value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {/* Filters and Search */}
       <div className="card">
