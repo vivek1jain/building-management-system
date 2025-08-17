@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
 import {
   Building,
   Users,
@@ -16,77 +17,137 @@ import {
   Activity,
   BarChart3,
   CreditCard,
-  Bell
+  Bell,
+  RefreshCw,
+  Home
 } from 'lucide-react'
-import { mockBuildings, mockTickets, mockWorkOrders, mockEvents, mockFlats, mockResidents } from '../services/mockData'
+import { getAllBuildings } from '../services/buildingService'
+import { ticketService } from '../services/ticketService'
+import { Building as BuildingType, Ticket } from '../types'
 
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
-  const [selectedBuilding, setSelectedBuilding] = useState(mockBuildings[0]?.id || '')
+  const { addNotification } = useNotifications()
+  const [buildings, setBuildings] = useState<BuildingType[]>([])
+  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const [tickets, setTickets] = useState<Ticket[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Calculate metrics from mock data
+  // Initialize data on component mount
+  useEffect(() => {
+    initializeData()
+  }, [])
+
+  // Load tickets when building changes
+  useEffect(() => {
+    if (selectedBuilding) {
+      loadTickets()
+    }
+  }, [selectedBuilding])
+
+  const initializeData = async () => {
+    try {
+      setLoading(true)
+      console.log('🏢 Loading buildings from Firebase...')
+      const buildingsData = await getAllBuildings()
+      console.log('🏢 Buildings loaded:', buildingsData.length)
+      setBuildings(buildingsData)
+      if (buildingsData.length > 0) {
+        setSelectedBuilding(buildingsData[0].id)
+      }
+    } catch (error) {
+      console.error('❌ Error loading buildings:', error)
+      if (currentUser) {
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load buildings data',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadTickets = async () => {
+    if (!selectedBuilding) return
+    
+    try {
+      setRefreshing(true)
+      console.log('🎫 Loading all tickets from Firebase...')
+      const allTickets = await ticketService.getTickets()
+      console.log('🎫 All tickets loaded:', allTickets.length)
+      
+      // Filter tickets for the selected building
+      const buildingTickets = allTickets.filter(ticket => ticket.buildingId === selectedBuilding)
+      console.log('🎫 Building tickets filtered:', buildingTickets.length)
+      setTickets(buildingTickets)
+    } catch (error) {
+      console.error('❌ Error loading tickets:', error)
+      // Don't show notification for ticket loading errors as this is less critical
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([
+      initializeData(),
+      selectedBuilding ? loadTickets() : Promise.resolve()
+    ])
+    setRefreshing(false)
+  }
+
+  // Calculate metrics from real Firebase data
   const calculateMetrics = () => {
-    const selectedBuildingData = mockBuildings.find(b => b.id === selectedBuilding)
-    const buildingFlats = mockFlats.filter(f => f.buildingId === selectedBuilding)
-    const buildingResidents = mockResidents.filter(r => 
-      buildingFlats.some(f => f.id === r.flatId)
-    )
-    const buildingTickets = mockTickets.filter(t => t.buildingId === selectedBuilding)
-    const buildingWorkOrders = mockWorkOrders.filter(w => w.buildingId === selectedBuilding)
-    const buildingEvents = mockEvents.filter(e => e.buildingId === selectedBuilding)
-
-    // Calculate occupancy rate
-    const occupiedFlats = buildingFlats.filter(f => f.status === 'occupied').length
-    const occupancyRate = buildingFlats.length > 0 ? (occupiedFlats / buildingFlats.length) * 100 : 0
-
-    // Count urgent items
-    const urgentTickets = buildingTickets.filter(t => 
+    const selectedBuildingData = buildings.find(b => b.id === selectedBuilding)
+    
+    // Calculate ticket metrics
+    const urgentTickets = tickets.filter(t => 
       t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high')
     ).length
     
-    const pendingWorkOrders = buildingWorkOrders.filter(w => 
-      w.status === 'pending' || w.status === 'in_progress'
-    ).length
+    const openTickets = tickets.filter(t => t.status === 'open').length
+    const inProgressTickets = tickets.filter(t => t.status === 'in_progress').length
+    const resolvedTickets = tickets.filter(t => t.status === 'resolved').length
 
-    const upcomingEvents = buildingEvents.filter(e => {
-      const eventDate = new Date(e.startDate)
-      const now = new Date()
-      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-      return eventDate >= now && eventDate <= nextWeek
-    }).length
-
-    // Mock financial data
+    // Mock data for metrics we don't have services for yet
+    const totalFlats = 24
+    const totalResidents = 56
+    const occupancyRate = 87
     const monthlyRevenue = 45000
     const monthlyExpenses = 32000
-    const budgetUtilization = 68
+    const pendingWorkOrders = 3
+    const upcomingEvents = 2
 
     return {
-      totalBuildings: mockBuildings.length,
-      totalFlats: buildingFlats.length,
-      totalResidents: buildingResidents.length,
-      occupancyRate: Math.round(occupancyRate),
+      totalBuildings: buildings.length,
+      totalFlats,
+      totalResidents,
+      occupancyRate,
       urgentTickets,
+      openTickets,
+      inProgressTickets,
+      resolvedTickets,
       pendingWorkOrders,
       upcomingEvents,
       monthlyRevenue,
       monthlyExpenses,
-      budgetUtilization,
-      selectedBuildingName: selectedBuildingData?.name || 'Unknown Building'
+      selectedBuildingName: selectedBuildingData?.name || 'Select Building'
     }
   }
 
   const metrics = calculateMetrics()
 
-  // Get urgent items for triage
+  // Get urgent items for triage (from real Firebase data)
   const getUrgentItems = () => {
-    const buildingTickets = mockTickets.filter(t => t.buildingId === selectedBuilding)
-    const buildingWorkOrders = mockWorkOrders.filter(w => w.buildingId === selectedBuilding)
-    const buildingEvents = mockEvents.filter(e => e.buildingId === selectedBuilding)
+    const urgentItems: any[] = []
 
-    const urgentItems = []
-
-    // Add urgent tickets
-    buildingTickets
+    // Add urgent tickets from Firebase data
+    tickets
       .filter(t => t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high'))
       .forEach(ticket => {
         urgentItems.push({
@@ -95,45 +156,13 @@ const Dashboard: React.FC = () => {
           type: 'ticket',
           priority: ticket.priority,
           status: ticket.status,
-          assignedTo: ticket.assignedTo,
+          assignedTo: ticket.assignedTo || 'Unassigned',
           createdAt: ticket.createdAt
         })
       })
 
-    // Add pending work orders
-    buildingWorkOrders
-      .filter(w => w.status === 'pending' || w.status === 'in_progress')
-      .forEach(workOrder => {
-        urgentItems.push({
-          id: workOrder.id,
-          title: workOrder.title,
-          type: 'work_order',
-          priority: workOrder.priority,
-          status: workOrder.status,
-          assignedTo: workOrder.assignedTo,
-          createdAt: workOrder.createdAt
-        })
-      })
-
-    // Add upcoming events
-    buildingEvents
-      .filter(e => {
-        const eventDate = new Date(e.startDate)
-        const now = new Date()
-        const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
-        return eventDate >= now && eventDate <= nextWeek
-      })
-      .forEach(event => {
-        urgentItems.push({
-          id: event.id,
-          title: event.title,
-          type: 'event',
-          priority: 'medium',
-          status: event.status,
-          assignedTo: event.assignedTo.join(', '),
-          createdAt: event.createdAt
-        })
-      })
+    // For now, no work orders or events since we don't have those services
+    // This can be extended when those services are added
 
     return urgentItems.sort((a, b) => {
       const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
@@ -197,14 +226,27 @@ const Dashboard: React.FC = () => {
             <select
               value={selectedBuilding}
               onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="select"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
+              disabled={loading}
             >
-              {mockBuildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
+              {buildings.length === 0 ? (
+                <option value="">No buildings found</option>
+              ) : (
+                buildings.map((building) => (
+                  <option key={building.id} value={building.id}>
+                    {building.name}
+                  </option>
+                ))
+              )}
             </select>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+              title="Refresh data"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
 

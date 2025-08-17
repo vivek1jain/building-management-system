@@ -78,8 +78,21 @@ export const ticketService = {
         const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketDoc)
         console.log('Ticket created successfully in Firebase:', docRef.id)
         return docRef.id
-      } catch (firestoreError) {
-        console.warn('Firebase creation failed, falling back to mock data:', firestoreError)
+      } catch (firestoreError: any) {
+        console.error('🚨 FIREBASE WRITE FAILED:', {
+          error: firestoreError.message,
+          code: firestoreError.code,
+          details: firestoreError
+        })
+        
+        if (firestoreError.code === 'permission-denied') {
+          console.error('❌ PERMISSION DENIED - Check:')
+          console.error('   1. User is authenticated')
+          console.error('   2. User document exists in Firestore')
+          console.error('   3. Firestore rules allow writes to tickets collection')
+        }
+        
+        console.warn('Falling back to mock data storage (CLIENT-SIDE ONLY)')
         
         // Fallback: Add to mock data for development
         const mockTicketId = `ticket-${Date.now()}`

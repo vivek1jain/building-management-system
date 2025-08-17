@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Connection Test</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <h1>Firebase Connection Test</h1>
+    <div id="status">Testing...</div>
+    <div id="results"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
+
+        // Firebase config (from your project)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCU05i5ijemhu5_XOVK5V_QZTWbo8oe05E",
+            authDomain: "proper-213b7.firebaseapp.com",
+            projectId: "proper-213b7",
+            storageBucket: "proper-213b7.firebasestorage.app",
+            messagingSenderId: "140820685692",
+            appId: "1:140820685692:web:48b92fb67e144c8b27faf9"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const statusDiv = document.getElementById('status');
+        const resultsDiv = document.getElementById('results');
+
+        function log(message, type = 'info') {
+            console.log(message);
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+            div.style.color = type === 'error' ? 'red' : type === 'success' ? 'green' : 'blue';
+            div.style.margin = '5px 0';
+            resultsDiv.appendChild(div);
+        }
+
+        async function testFirebaseConnection() {
+            try {
+                statusDiv.textContent = 'Testing Firebase connection...';
+                log('Firebase app initialized successfully');
+
+                // Test 1: Try to write a test document
+                statusDiv.textContent = 'Testing Firestore write permissions...';
+                
+                const testData = {
+                    message: 'Hello Firebase!',
+                    timestamp: new Date(),
+                    test: true
+                };
+
+                // This should work since test collection allows authenticated writes
+                await addDoc(collection(db, 'test'), testData);
+                log('✅ Successfully wrote to Firestore test collection', 'success');
+
+                // Test 2: Try to read the document
+                statusDiv.textContent = 'Testing Firestore read permissions...';
+                // Note: We can't easily read without auth, but the write test proves connection works
+
+                statusDiv.textContent = 'Firebase tests completed!';
+                log('🎉 Firebase connection is working correctly!', 'success');
+
+            } catch (error) {
+                log(`❌ Firebase test failed: ${error.message}`, 'error');
+                statusDiv.textContent = 'Firebase tests failed - check console';
+                
+                if (error.code === 'permission-denied') {
+                    log('This is expected - you need to be authenticated to write data', 'info');
+                    log('The connection to Firebase is working, but you need to log in first', 'info');
+                }
+            }
+        }
+
+        // Run the test
+        testFirebaseConnection();
+
+        // Make functions available globally for manual testing
+        window.testAuth = async function(email, password) {
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                log(`✅ Successfully logged in as: ${userCredential.user.email}`, 'success');
+                
+                // After login, try the write test again
+                const testData = {
+                    message: 'Authenticated test write',
+                    timestamp: new Date(),
+                    user: userCredential.user.uid
+                };
+                
+                await addDoc(collection(db, 'test'), testData);
+                log('✅ Successfully wrote to Firestore while authenticated', 'success');
+                
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.createUser = async function(email, password, name) {
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                log(`✅ Successfully created user: ${userCredential.user.email}`, 'success');
+                
+                // Create user document in Firestore
+                const userData = {
+                    id: userCredential.user.uid,
+                    email: userCredential.user.email,
+                    name: name || 'Demo User',
+                    role: 'requester',
+                    createdAt: new Date(),
+                    updatedAt: new Date()
+                };
+                
+                await setDoc(doc(db, 'users', userCredential.user.uid), userData);
+                log(`✅ Successfully created user document in Firestore`, 'success');
+                
+            } catch (error) {
+                log(`❌ User creation failed: ${error.message}`, 'error');
+            }
+        };
+
+        log('Test functions available:', 'info');
+        log('- testAuth("email", "password") - Test login', 'info');
+        log('- createUser("email", "password", "name") - Create new user', 'info');
+    </script>
+</body>
+</html>

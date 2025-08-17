@@ -6,7 +6,8 @@ import { Person, Building, PersonStatus } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportPeopleToCSV } from '../../utils/csvExport'
 import { importPeopleFromCSV, ImportValidationResult } from '../../utils/csvImport'
-import { mockBuildings, mockResidents } from '../../services/mockData'
+import { getAllBuildings } from '../../services/buildingService'
+import { getPeopleByBuilding, createPerson } from '../../services/peopleService'
 
 const PeopleDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -49,15 +50,23 @@ const PeopleDataTable: React.FC = () => {
   const initializeData = async () => {
     try {
       setLoading(true)
-      // Use mock buildings for testing
-      setBuildings(mockBuildings)
-      if (mockBuildings.length > 0) {
-        setSelectedBuilding(mockBuildings[0].id)
+      console.log('🔥 Loading buildings from Firebase...')
+      const buildingsData = await getAllBuildings()
+      console.log('🔥 Buildings loaded:', buildingsData.length)
+      setBuildings(buildingsData)
+      if (buildingsData.length > 0) {
+        setSelectedBuilding(buildingsData[0].id)
       }
-      // Load all people from mock data
-      setPeople(mockResidents)
     } catch (error) {
-      console.error('Error initializing data:', error)
+      console.error('🚨 Error initializing data:', error)
+      if (currentUser) {
+        addNotification({
+          title: 'Error',
+          message: 'Failed to load buildings',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -68,15 +77,18 @@ const PeopleDataTable: React.FC = () => {
     
     try {
       setLoading(true)
-      // Filter mock residents data by selected building
-      const buildingPeople = mockResidents.filter(person => person.buildingId === selectedBuilding)
-      setPeople(buildingPeople)
+      console.log('🔥 Loading people from Firebase for building:', selectedBuilding)
+      const buildingPeople = await getPeopleByBuilding(selectedBuilding)
+      console.log('🔥 People loaded:', buildingPeople.length)
+      // Add isActive property for compatibility
+      const peopleWithActiveFlag = buildingPeople.map(person => ({ ...person, isActive: true }))
+      setPeople(peopleWithActiveFlag)
     } catch (error) {
-      console.error('Error loading people:', error)
+      console.error('🚨 Error loading people:', error)
       if (currentUser) {
         addNotification({
           title: 'Error',
-          message: 'Failed to load people',
+          message: 'Failed to load people from Firebase',
           type: 'error',
           userId: currentUser.id
         })
@@ -100,12 +112,13 @@ const PeopleDataTable: React.FC = () => {
     }
     
     try {
-      const newPerson: Person & { isActive: boolean } = {
-        id: `person-${Date.now()}`,
+      console.log('🔥 Creating person in Firebase...')
+      const personData = {
         name: personForm.name,
         buildingId: selectedBuilding,
-        flatId: personForm.flatId,
-        flatNumber: personForm.flatId, // Using flatId as flatNumber for now
+        accessibleBuildingIds: [selectedBuilding],
+        flatId: personForm.flatId || null,
+        flatNumber: personForm.flatId || null,
         status: personForm.status,
         email: personForm.email,
         phone: personForm.phone,
@@ -113,12 +126,17 @@ const PeopleDataTable: React.FC = () => {
         moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : null,
         moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
         notes: personForm.notes,
-        createdAt: new Date(),
         createdByUid: currentUser.id,
-        isActive: true
+        updatedByUid: currentUser.id
       }
 
-      setPeople(prev => [...prev, newPerson])
+      // Create person in Firebase
+      const createdPerson = await createPerson(personData)
+      console.log('🔥 Person created successfully:', createdPerson.id)
+      
+      // Add to local state with isActive flag
+      const personWithActiveFlag = { ...createdPerson, isActive: true }
+      setPeople(prev => [...prev, personWithActiveFlag])
       
       // Reset form
       setPersonForm({
@@ -138,15 +156,15 @@ const PeopleDataTable: React.FC = () => {
       
       addNotification({
         title: 'Success',
-        message: 'Person added successfully',
+        message: 'Person added successfully to Firebase!',
         type: 'success',
         userId: currentUser.id
       })
     } catch (error) {
-      console.error('Error creating person:', error)
+      console.error('🚨 Error creating person:', error)
       addNotification({
         title: 'Error',
-        message: 'Failed to add person',
+        message: 'Failed to add person to Firebase',
         type: 'error',
         userId: currentUser.id
       })

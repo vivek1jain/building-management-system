@@ -713,7 +713,7 @@ export function PeopleListClient({ setPeopleForBulkInvite, selectedPeopleIds, se
         <input type="file" ref={fileInputRef} accept=".csv,.xls,.xlsx" style={{ display: 'none' }} onChange={handleFileImport} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm">
+            <Button className="btn-outline btn-sm">
               <Download className="mr-2 h-4 w-4" />
               Export List
             </Button>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Diagnostic Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 3px; }
+        .form-group { margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Firebase Diagnostic Tool</h1>
+    <div id="results"></div>
+    
+    <div class="form-group">
+        <h3>Test Authentication</h3>
+        <input type="email" id="email" placeholder="Email" value="manager@building.com">
+        <input type="password" id="password" placeholder="Password" value="password123">
+        <button onclick="testLogin()">Test Login</button>
+        <button onclick="testLogout()">Logout</button>
+    </div>
+    
+    <div class="form-group">
+        <h3>Test Database Operations</h3>
+        <button onclick="testRead()">Test Read Permissions</button>
+        <button onclick="testWrite()">Test Write Permissions</button>
+        <button onclick="testCreateTicket()">Test Create Ticket</button>
+    </div>
+    
+    <div class="form-group">
+        <h3>Test Building Data Operations</h3>
+        <button onclick="testCreatePerson()">Test Create Person</button>
+        <button onclick="testCreateFlat()">Test Create Flat</button>
+        <button onclick="testCreateAsset()">Test Create Asset</button>
+        <button onclick="testCreateSupplier()">Test Create Supplier</button>
+        <button onclick="testReadAllData()">Test Read All Building Data</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged 
+        } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';
+        import { 
+            getFirestore, 
+            doc, 
+            setDoc, 
+            getDoc, 
+            collection, 
+            addDoc,
+            getDocs,
+            query,
+            orderBy,
+            serverTimestamp
+        } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCU05i5ijemhu5_XOVK5V_QZTWbo8oe05E",
+            authDomain: "proper-213b7.firebaseapp.com",
+            projectId: "proper-213b7",
+            storageBucket: "proper-213b7.firebasestorage.app",
+            messagingSenderId: "140820685692",
+            appId: "1:140820685692:web:48b92fb67e144c8b27faf9"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const resultsDiv = document.getElementById('results');
+
+        function log(message, type = 'info') {
+            console.log(message);
+            const div = document.createElement('div');
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            div.className = `result ${type}`;
+            resultsDiv.appendChild(div);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        // Monitor auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                log(`✅ User authenticated: ${user.email} (UID: ${user.uid})`, 'success');
+            } else {
+                log('❌ No user authenticated', 'warning');
+            }
+        });
+
+        // Global functions for buttons
+        window.testLogin = async function() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            try {
+                log(`Attempting to login with: ${email}`, 'info');
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                log(`✅ Login successful: ${userCredential.user.email}`, 'success');
+                
+                // Check if user document exists in Firestore
+                const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    log(`✅ User document found in Firestore. Role: ${userData.role}`, 'success');
+                } else {
+                    log(`⚠️ User document not found in Firestore. This might cause permission issues.`, 'warning');
+                }
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`, 'error');
+                if (error.code === 'auth/user-not-found') {
+                    log(`💡 User doesn't exist. Try creating them first.`, 'info');
+                }
+            }
+        };
+
+        window.testLogout = async function() {
+            try {
+                await signOut(auth);
+                log('✅ Logged out successfully', 'success');
+            } catch (error) {
+                log(`❌ Logout failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testRead = async function() {
+            try {
+                log('Testing read permissions on tickets collection...', 'info');
+                const q = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                log(`✅ Read successful. Found ${querySnapshot.size} tickets`, 'success');
+                
+                querySnapshot.docs.forEach((doc, index) => {
+                    const data = doc.data();
+                    log(`📄 Ticket ${index + 1}: ${data.title} (Status: ${data.status})`, 'info');
+                });
+            } catch (error) {
+                log(`❌ Read failed: ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied. Make sure you are logged in.', 'warning');
+                }
+            }
+        };
+
+        window.testWrite = async function() {
+            try {
+                log('Testing write permissions on test collection...', 'info');
+                const testData = {
+                    message: 'Test write operation',
+                    timestamp: serverTimestamp(),
+                    user: auth.currentUser?.uid || 'anonymous'
+                };
+                
+                const docRef = await addDoc(collection(db, 'test'), testData);
+                log(`✅ Write successful. Document ID: ${docRef.id}`, 'success');
+            } catch (error) {
+                log(`❌ Write failed: ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied. Check your Firestore rules and authentication.', 'warning');
+                }
+            }
+        };
+
+        window.testCreateTicket = async function() {
+            if (!auth.currentUser) {
+                log('❌ Cannot create ticket: No user authenticated', 'error');
+                return;
+            }
+
+            try {
+                log('Testing ticket creation...', 'info');
+                const ticketData = {
+                    title: 'Diagnostic Test Ticket',
+                    description: 'This is a test ticket created by the diagnostic tool',
+                    category: 'plumbing',
+                    urgency: 'medium',
+                    buildingId: 'building-1',
+                    flatId: 'flat-1',
+                    requestedBy: auth.currentUser.uid,
+                    status: 'New',
+                    activityLog: [{
+                        id: Date.now().toString(),
+                        action: 'Ticket Created',
+                        description: 'Diagnostic test ticket created',
+                        performedBy: auth.currentUser.uid,
+                        timestamp: new Date(),
+                        metadata: {}
+                    }],
+                    quotes: [],
+                    attachments: [],
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                const docRef = await addDoc(collection(db, 'tickets'), ticketData);
+                log(`✅ Ticket created successfully! ID: ${docRef.id}`, 'success');
+                
+                // Try to read it back
+                const createdDoc = await getDoc(doc(db, 'tickets', docRef.id));
+                if (createdDoc.exists()) {
+                    log(`✅ Ticket verified: Can read back the created ticket`, 'success');
+                } else {
+                    log(`⚠️ Ticket created but cannot read it back`, 'warning');
+                }
+            } catch (error) {
+                log(`❌ Ticket creation failed: ${error.message}`, 'error');
+                log(`Error code: ${error.code}`, 'error');
+                
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied. Check if:', 'warning');
+                    log('   1. You are authenticated', 'info');
+                    log('   2. Your user document exists in Firestore', 'info');
+                    log('   3. Firestore rules allow this operation', 'info');
+                }
+            }
+        };
+
+        // Building data test functions
+        window.testCreatePerson = async function() {
+            if (!auth.currentUser) {
+                log('❌ Cannot create person: No user authenticated', 'error');
+                return;
+            }
+
+            try {
+                log('Testing person creation...', 'info');
+                const personData = {
+                    name: 'Test Person Diagnostic',
+                    buildingId: 'test-building-1',
+                    accessibleBuildingIds: ['test-building-1'],
+                    flatId: 'test-flat-1',
+                    flatNumber: 'A101',
+                    role: 'resident',
+                    status: 'active',
+                    email: 'testperson@diagnostic.com',
+                    phone: '+1234567890',
+                    isPrimaryContact: false,
+                    moveInDate: new Date(),
+                    notes: 'Created by diagnostic tool',
+                    createdByUid: auth.currentUser.uid,
+                    updatedByUid: auth.currentUser.uid,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                const docRef = await addDoc(collection(db, 'people'), personData);
+                log(`✅ Person created successfully! ID: ${docRef.id}`, 'success');
+            } catch (error) {
+                log(`❌ Person creation failed: ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied for people collection', 'warning');
+                }
+            }
+        };
+
+        window.testCreateFlat = async function() {
+            if (!auth.currentUser) {
+                log('❌ Cannot create flat: No user authenticated', 'error');
+                return;
+            }
+
+            try {
+                log('Testing flat creation...', 'info');
+                const flatData = {
+                    flatNumber: 'DIAG-101',
+                    buildingId: 'test-building-1',
+                    floor: 1,
+                    buildingBlock: 'A',
+                    bedrooms: 2,
+                    bathrooms: 1,
+                    areaSqFt: 800,
+                    groundRent: 150,
+                    notes: 'Created by diagnostic tool',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                const docRef = await addDoc(collection(db, 'flats'), flatData);
+                log(`✅ Flat created successfully! ID: ${docRef.id}`, 'success');
+            } catch (error) {
+                log(`❌ Flat creation failed: ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied for flats collection', 'warning');
+                }
+            }
+        };
+
+        window.testCreateAsset = async function() {
+            if (!auth.currentUser) {
+                log('❌ Cannot create asset: No user authenticated', 'error');
+                return;
+            }
+
+            try {
+                log('Testing asset creation...', 'info');
+                const assetData = {
+                    buildingId: 'test-building-1',
+                    name: 'Diagnostic Test Boiler',
+                    type: 'heating',
+                    status: 'operational',
+                    locationDescription: 'Basement - Boiler Room',
+                    manufacturer: 'Test Manufacturer',
+                    modelNumber: 'DIAG-001',
+                    serialNumber: 'TEST123456',
+                    installationDate: new Date(),
+                    notes: 'Created by diagnostic tool',
+                    createdByUid: auth.currentUser.uid,
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                const docRef = await addDoc(collection(db, 'assets'), assetData);
+                log(`✅ Asset created successfully! ID: ${docRef.id}`, 'success');
+            } catch (error) {
+                log(`❌ Asset creation failed: ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied for assets collection', 'warning');
+                }
+            }
+        };
+
+        window.testCreateSupplier = async function() {
+            if (!auth.currentUser) {
+                log('❌ Cannot create supplier: No user authenticated', 'error');
+                return;
+            }
+
+            try {
+                log('Testing supplier creation...', 'info');
+                const supplierData = {
+                    name: 'Diagnostic Test Plumbing',
+                    email: 'contact@diagplumbing.com',
+                    phone: '+1234567890',
+                    address: '123 Test Street, Test City',
+                    specialties: ['plumbing', 'heating'],
+                    isActive: true,
+                    rating: 4.5,
+                    notes: 'Created by diagnostic tool',
+                    createdAt: serverTimestamp(),
+                    updatedAt: serverTimestamp()
+                };
+
+                const docRef = await addDoc(collection(db, 'suppliers'), supplierData);
+                log(`✅ Supplier created successfully! ID: ${docRef.id}`, 'success');
+            } catch (error) {
+                log(`❌ Supplier creation failed: ${error.message}`, 'error');
+                if (error.code === 'permission-denied') {
+                    log('🔒 Permission denied for suppliers collection', 'warning');
+                }
+            }
+        };
+
+        window.testReadAllData = async function() {
+            const collections = ['people', 'flats', 'assets', 'suppliers', 'buildings'];
+            
+            for (const collectionName of collections) {
+                try {
+                    log(`Testing read permissions for ${collectionName}...`, 'info');
+                    const querySnapshot = await getDocs(collection(db, collectionName));
+                    log(`✅ ${collectionName}: Read successful. Found ${querySnapshot.size} documents`, 'success');
+                } catch (error) {
+                    log(`❌ ${collectionName}: Read failed - ${error.message}`, 'error');
+                    if (error.code === 'permission-denied') {
+                        log(`🔒 Permission denied for ${collectionName} collection`, 'warning');
+                    }
+                }
+            }
+        };
+
+        // Initial status check
+        log('🚀 Firebase Diagnostic Tool loaded', 'info');
+        log('📝 Firebase config loaded successfully', 'success');
+        log('🏢 Building data tests available: People, Flats, Assets, Suppliers', 'info');
+        
+        if (auth.currentUser) {
+            log(`👤 Already logged in as: ${auth.currentUser.email}`, 'info');
+        } else {
+            log('🔑 No user currently logged in', 'info');
+        }
+    </script>
+</body>
+</html>

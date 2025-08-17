@@ -45,9 +45,7 @@ export const getFlatsByBuilding = async (buildingId: string): Promise<Flat[]> =>
     return flats.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber))
   } catch (error) {
     console.error('Error getting flats by building:', error)
-    // Fallback to mock data when Firebase permissions are denied
-    const { mockFlats } = await import('./mockData')
-    return mockFlats.filter(flat => flat.buildingId === buildingId).sort((a, b) => a.flatNumber.localeCompare(b.flatNumber)) as Flat[]
+    throw error
   }
 }
 

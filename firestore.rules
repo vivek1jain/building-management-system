@@ -277,21 +277,6 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Service Charge Demands collection - NEW
-    match /serviceChargeDemands/{demandId} {
-      // Anyone authenticated can read service charge demands
-      allow read: if isAuthenticated();
-      
-      // Managers and finance users can create and update service charge demands
-      allow create, update: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
-      
-      // Only admins can delete service charge demands
-      allow delete: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
     
     // Reminders collection - NEW
     match /reminders/{reminderId} {
@@ -309,52 +294,18 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Flats collection - NEW
-    match /flats/{flatId} {
-      // Anyone authenticated can read flats
-      allow read: if isAuthenticated();
-      
-      // Managers and admins can create and update flats
-      allow create, update: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      
-      // Only admins can delete flats
-      allow delete: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
     
-    // Work Orders collection - NEW
-    match /workOrders/{workOrderId} {
-      // Anyone authenticated can read work orders
-      allow read: if isAuthenticated();
-      
-      // Managers and admins can create and update work orders
-      allow create, update: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      
-      // Only admins can delete work orders
-      allow delete: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
     
-    // People collection - NEW
+    // People collection - TEMPORARILY RELAXED FOR DEVELOPMENT
     match /people/{personId} {
       // Anyone authenticated can read people
       allow read: if isAuthenticated();
       
-      // Managers and admins can create and update people
-      allow create, update: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // DEVELOPMENT: Allow any authenticated user to create and update people
+      allow create, update: if isAuthenticated();
       
-      // Only admins can delete people
-      allow delete: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Only managers can delete people
+      allow delete: if isManager();
     }
     
     // Test collection (for Firebase connection testing)

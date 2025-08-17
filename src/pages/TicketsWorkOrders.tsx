@@ -131,7 +131,7 @@ const TicketsWorkOrders: React.FC = () => {
             title: 'Plumbing Repair - Flat A101',
             description: 'Fix leaking kitchen faucet',
             priority: 'high' as WorkOrderPriority,
-            status: 'in_progress' as WorkOrderStatus,
+            status: WorkOrderStatus.TRIAGE,
             flatId: 'A101',
             scheduledDate: new Date('2024-03-20'),
             assignedToUid: 'contractor-1',

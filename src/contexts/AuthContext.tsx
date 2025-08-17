@@ -28,27 +28,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Development mode bypass
-  const isDevelopmentMode = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost'
-
-  // Mock user for development testing
-  const mockUser: User = {
-    id: 'dev-user-1',
-    email: 'admin@test.com',
-    name: 'Development Admin',
-    role: 'admin',
-    createdAt: new Date(),
-    updatedAt: new Date()
-  }
-
   useEffect(() => {
-    // In development mode, bypass Firebase auth and use mock user
-    if (isDevelopmentMode) {
-      console.log('Development mode: Using mock user for testing')
-      setCurrentUser(mockUser)
-      setLoading(false)
-      return
-    }
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user)

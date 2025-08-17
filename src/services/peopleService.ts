@@ -13,7 +13,7 @@ import {
   writeBatch,
   serverTimestamp 
 } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { auth, db } from '../firebase/config'
 import { Person, PersonStatus, UserRole } from '../types'
 
 // Get all people for a building
@@ -102,6 +102,18 @@ export const getPersonById = async (personId: string): Promise<Person | null> =>
 // Create a new person
 export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>): Promise<Person> => {
   try {
+    console.log('🔥 createPerson called with data:', personData)
+    
+    // Check authentication state
+    const currentUser = auth.currentUser
+    console.log('🔥 Current auth user:', currentUser ? currentUser.uid : 'No user')
+    console.log('🔥 Current user email:', currentUser ? currentUser.email : 'No email')
+    console.log('🔥 User authenticated:', !!currentUser)
+    
+    if (!currentUser) {
+      throw new Error('User not authenticated')
+    }
+    
     const peopleRef = collection(db, 'people')
     const newPerson = {
       ...personData,
@@ -109,7 +121,20 @@ export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' |
       updatedAt: serverTimestamp()
     }
     
-    const docRef = await addDoc(peopleRef, newPerson)
+    console.log('🔥 Attempting to add document to people collection...')
+    console.log('🔥 Document data being sent:', newPerson)
+    
+    // Add timeout to detect hanging requests
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Request timeout after 10 seconds')), 10000)
+    })
+    
+    const docRef = await Promise.race([
+      addDoc(peopleRef, newPerson),
+      timeoutPromise
+    ]) as any
+    
+    console.log('🔥 Document created successfully with ID:', docRef.id)
     
     return {
       id: docRef.id,
@@ -118,7 +143,13 @@ export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' |
       updatedAt: new Date()
     }
   } catch (error) {
-    console.error('Error creating person:', error)
+    console.error('🚨 Detailed error creating person:')
+    console.error('🚨 Error object:', error)
+    console.error('🚨 Error message:', error.message)
+    console.error('🚨 Error code:', error.code)
+    if (error.details) {
+      console.error('🚨 Error details:', error.details)
+    }
     throw error
   }
 }
