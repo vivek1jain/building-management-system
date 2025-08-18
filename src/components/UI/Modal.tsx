@@ -77,16 +77,19 @@ export const Modal: React.FC<ModalProps> = ({
   const modalContent = (
     <div
       className={cn(
-        // Base overlay styles
+        // Base overlay styles - ensure full screen coverage with high z-index
         'fixed inset-0 z-modal',
         'flex items-center justify-center',
         'p-4',
-        // Backdrop
-        'bg-black bg-opacity-60 backdrop-blur-sm',
+        // Backdrop - solid overlay without blur, covering full screen
+        'bg-black bg-opacity-50',
         // Animation
-        'animate-in fade-in duration-200',
-        overlayClassName
+        'animate-in fade-in duration-200'
       )}
+      style={{
+        backgroundColor: overlayClassName?.includes('bg-') ? undefined : 'rgba(0, 0, 0, 0.5)',
+        zIndex: 1400 // Explicit z-index to ensure it's on top
+      }}
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"

@@ -568,7 +568,7 @@ const TicketDetail = () => {
 
       {/* Supplier Selection Modal */}
       {showSupplierModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal p-4" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b border-neutral-200 flex-shrink-0">

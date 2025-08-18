@@ -19,7 +19,6 @@ import {
   getDownloadURL 
 } from 'firebase/storage'
 import { Ticket, TicketStatus, UrgencyLevel, ActivityLogEntry, CreateTicketForm } from '../types'
-import MockDataService from './mockDataService'
 
 const TICKETS_COLLECTION = 'tickets'
 
@@ -92,36 +91,8 @@ export const ticketService = {
           console.error('   3. Firestore rules allow writes to tickets collection')
         }
         
-        console.warn('Falling back to mock data storage (CLIENT-SIDE ONLY)')
-        
-        // Fallback: Add to mock data for development
-        const mockTicketId = `ticket-${Date.now()}`
-        const mockTicket = {
-          id: mockTicketId,
-          ...ticketData,
-          attachments: uploadedUrls,
-          requestedBy: userId,
-          status: 'New' as TicketStatus,
-          urgency: ticketData.urgency || 'medium',
-          activityLog: [{
-            id: Date.now().toString(),
-            action: 'Ticket Created',
-            description: 'Ticket created by user',
-            performedBy: userId,
-            timestamp: new Date(),
-            metadata: {}
-          }],
-          quotes: [],
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }
-        
-        // Import and add to mock data
-        const { mockTickets } = await import('../services/mockData')
-        mockTickets.push(mockTicket as any)
-        
-        console.log('Ticket added to mock data:', mockTicketId)
-        return mockTicketId
+        // Throw error instead of falling back to mock data
+        throw new Error(`Failed to create ticket in Firebase: ${firestoreError.message}`)
       }
     } catch (error) {
       console.error('Error creating ticket:', error)
@@ -156,29 +127,12 @@ export const ticketService = {
         })) || []
       })) as Ticket[]
       
-      // If we have Firebase tickets, return them
-      if (firebaseTickets.length > 0) {
-        console.log('Returning Firebase tickets:', firebaseTickets.length)
-        return firebaseTickets
-      }
-      
-      // Otherwise, fall back to mock data
-      console.log('No Firebase tickets found, falling back to mock data')
-      const { mockTickets } = await import('../services/mockData')
-      return mockTickets
+      console.log('Returning Firebase tickets:', firebaseTickets.length)
+      return firebaseTickets
       
     } catch (error) {
-      console.warn('Firebase query failed, falling back to mock data:', error)
-      
-      // Fallback to mock data when Firebase is unavailable
-      try {
-        const { mockTickets } = await import('../services/mockData')
-        console.log('Returning mock tickets:', mockTickets.length)
-        return mockTickets
-      } catch (mockError) {
-        console.error('Error loading mock tickets:', mockError)
-        return []
-      }
+      console.error('Firebase query failed:', error)
+      throw new Error('Failed to fetch tickets from Firebase')
     }
   },
 
@@ -259,12 +213,100 @@ export const ticketService = {
 
       await updateDoc(docRef, {
         quotes: [...ticket.quotes, newQuote],
-        status: 'Quote Received' as TicketStatus,
+        status: 'Quoting' as TicketStatus,
         updatedAt: serverTimestamp()
       })
     } catch (error) {
       console.error('Error adding quote:', error)
       throw new Error('Failed to add quote')
+    }
+  },
+
+  // Add activity log entry to ticket
+  async addActivityLogEntry(ticketId: string, action: string, description: string, userId: string, metadata: any = {}): Promise<void> {
+    try {
+      const docRef = doc(db, TICKETS_COLLECTION, ticketId)
+      const ticket = await this.getTicketById(ticketId)
+      
+      if (!ticket) throw new Error('Ticket not found')
+
+      const activityLogEntry = {
+        id: Date.now().toString(),
+        action,
+        description,
+        performedBy: userId,
+        timestamp: new Date(),
+        metadata
+      }
+
+      await updateDoc(docRef, {
+        activityLog: [...ticket.activityLog, activityLogEntry],
+        updatedAt: serverTimestamp()
+      })
+    } catch (error) {
+      console.error('Error adding activity log entry:', error)
+      throw new Error('Failed to add activity log entry')
+    }
+  },
+
+  // Schedule ticket with specific date/time
+  async scheduleTicket(ticketId: string, scheduledDate: Date, userId: string): Promise<void> {
+    try {
+      const docRef = doc(db, TICKETS_COLLECTION, ticketId)
+      const ticket = await this.getTicketById(ticketId)
+      
+      if (!ticket) throw new Error('Ticket not found')
+
+      const activityLogEntry = {
+        id: Date.now().toString(),
+        action: 'Scheduled',
+        description: `Work scheduled for ${scheduledDate.toLocaleString()}`,
+        performedBy: userId,
+        timestamp: new Date(),
+        metadata: { scheduledDate: scheduledDate.toISOString() }
+      }
+
+      await updateDoc(docRef, {
+        status: 'Scheduled',
+        scheduledDate,
+        activityLog: [...ticket.activityLog, activityLogEntry],
+        updatedAt: serverTimestamp()
+      })
+    } catch (error) {
+      console.error('Error scheduling ticket:', error)
+      throw new Error('Failed to schedule ticket')
+    }
+  },
+
+  // Reschedule ticket with new date/time
+  async rescheduleTicket(ticketId: string, newScheduledDate: Date, userId: string): Promise<void> {
+    try {
+      const docRef = doc(db, TICKETS_COLLECTION, ticketId)
+      const ticket = await this.getTicketById(ticketId)
+      
+      if (!ticket) throw new Error('Ticket not found')
+
+      const oldDate = ticket.scheduledDate ? ticket.scheduledDate.toLocaleString() : 'Unknown'
+      const activityLogEntry = {
+        id: Date.now().toString(),
+        action: 'Rescheduled',
+        description: `Work rescheduled from ${oldDate} to ${newScheduledDate.toLocaleString()}`,
+        performedBy: userId,
+        timestamp: new Date(),
+        metadata: { 
+          oldScheduledDate: ticket.scheduledDate?.toISOString(),
+          newScheduledDate: newScheduledDate.toISOString() 
+        }
+      }
+
+      await updateDoc(docRef, {
+        scheduledDate: newScheduledDate,
+        activityLog: [...ticket.activityLog, activityLogEntry],
+        updatedAt: serverTimestamp()
+      })
+    } catch (error) {
+      console.error('Error rescheduling ticket:', error)
+      throw new Error('Failed to reschedule ticket')
     }
   },
 
@@ -301,42 +343,15 @@ export const ticketService = {
         }) as Ticket[]
         
         console.log('All Firebase tickets:', tickets.map(t => ({ id: t.id, buildingId: t.buildingId, title: t.title })))
-        
-        // If no Firebase tickets found, fall back to mock data
-        if (tickets.length === 0) {
-          console.log('No Firebase tickets found, falling back to mock data')
-          try {
-            const { mockTickets } = await import('../services/mockData')
-            console.log('Using mock tickets:', mockTickets.length)
-            callback(mockTickets)
-          } catch (mockError) {
-            console.error('Error loading mock tickets:', mockError)
-            callback([])
-          }
-        } else {
-          callback(tickets)
-        }
+        callback(tickets)
       }, (error) => {
         // Handle Firebase errors (including permission-denied)
-        console.warn('Firebase snapshot listener error, falling back to mock data:', error)
-        import('../services/mockData').then(({ mockTickets }) => {
-          console.log('Using mock tickets due to Firebase error:', mockTickets.length)
-          callback(mockTickets)
-        }).catch((mockError) => {
-          console.error('Error loading mock tickets after Firebase error:', mockError)
-          callback([])
-        })
-      })
-    } catch (error) {
-      console.error('Firebase tickets subscription failed, using mock data:', error)
-      // Fallback to mock data
-      import('../services/mockData').then(({ mockTickets }) => {
-        console.log('Firebase subscription failed, using mock tickets:', mockTickets.length)
-        callback(mockTickets)
-      }).catch((mockError) => {
-        console.error('Error loading mock tickets after Firebase failure:', mockError)
+        console.error('Firebase snapshot listener error:', error)
         callback([])
       })
+    } catch (error) {
+      console.error('Firebase tickets subscription failed:', error)
+      callback([])
       // Return empty unsubscribe function
       return () => {}
     }

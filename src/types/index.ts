@@ -571,17 +571,14 @@ export interface BuildingFinancialSummary {
   updatedAt: Date;
 }
 
-// Ticket status types (keeping existing for compatibility)
+// Ticket status types (simplified 6-stage workflow)
 export type TicketStatus = 
-  | 'New'
-  | 'Quote Requested'
-  | 'Quote Received'
-  | 'PO Sent'
-  | 'Contracted'
-  | 'Scheduled'
-  | 'In Progress'
-  | 'Complete'
-  | 'Closed';
+  | 'New'         // Initial state - needs manager review
+  | 'Quoting'     // Getting quotes from suppliers (includes approval)
+  | 'Scheduled'   // Work approved and scheduled
+  | 'Complete'    // Work finished, awaiting closure
+  | 'Closed'     // Ticket resolved and closed
+  | 'Cancelled'   // Ticket cancelled at any stage
 
 // Urgency levels
 export type UrgencyLevel = 'Low' | 'Medium' | 'High' | 'Critical';
