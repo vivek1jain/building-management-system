@@ -7,17 +7,20 @@ import {
   Clock, 
   MapPin, 
   Users, 
-  Plus,
   CheckCircle,
   AlertTriangle,
   X,
   Filter,
   Search,
   Building,
-  ChevronDown
+  ChevronDown,
+  Edit,
+  Trash2
 } from 'lucide-react'
 import { BuildingEvent } from '../types'
-import { mockEvents } from '../services/mockData'
+import { eventService } from '../services/eventService'
+import Modal, { ModalFooter } from '../components/UI/Modal'
+import Button from '../components/UI/Button'
 
 const Events = () => {
   const { currentUser } = useAuth()
@@ -25,8 +28,9 @@ const Events = () => {
   const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
   
   // Events state management
-  const [allEvents] = useState<BuildingEvent[]>(mockEvents)
+  const [allEvents, setAllEvents] = useState<BuildingEvent[]>([])
   const [events, setEvents] = useState<BuildingEvent[]>([])
+  const [loading, setLoading] = useState(false)
   
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>('all')
@@ -37,12 +41,23 @@ const Events = () => {
     title: '',
     description: '',
     location: '',
-    startDate: new Date(),
-    endDate: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
     assignedTo: [] as string[]
   })
+  
+  // Separate date and time state for better UX
+  const [eventDate, setEventDate] = useState('')
+  const [startTime, setStartTime] = useState('')
+  const [endTime, setEndTime] = useState('')
+  
+  // Form error state
+  const [formError, setFormError] = useState('')
 
-  // Load events when building selection changes
+  // Load all events from Firebase on component mount
+  useEffect(() => {
+    loadEvents()
+  }, [])
+
+  // Filter events when building selection changes
   useEffect(() => {
     if (selectedBuildingId) {
       const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuildingId)
@@ -52,6 +67,26 @@ const Events = () => {
       setEvents([])
     }
   }, [selectedBuildingId, allEvents])
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true)
+      console.log('📅 Loading events from Firebase...')
+      const eventsData = await eventService.getEvents()
+      console.log('📅 Events loaded:', eventsData.length)
+      setAllEvents(eventsData)
+    } catch (error) {
+      console.error('❌ Error loading events:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to load events. Please try again.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -99,110 +134,368 @@ const Events = () => {
     return `${start} - ${end}`
   }
 
-  const handleCreateEvent = (e: React.FormEvent) => {
+  const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError('') // Clear any previous errors
     
-    const newEventData: BuildingEvent = {
-      id: Date.now().toString(),
-      ...newEvent,
-      buildingId: selectedBuildingId || '',
-      ticketId: undefined,
-      status: 'scheduled',
-      createdAt: new Date(),
-      updatedAt: new Date()
+    if (!selectedBuildingId) {
+      const errorMsg = 'Please select a building before creating an event.'
+      setFormError(errorMsg)
+      addNotification({
+        title: 'Error',
+        message: errorMsg,
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+      return
     }
 
-    setEvents(prev => [newEventData, ...prev])
-    setShowCreateForm(false)
+    // Validate date and time inputs
+    if (!eventDate || !startTime || !endTime) {
+      const errorMsg = 'Please fill in all date and time fields.'
+      setFormError(errorMsg)
+      addNotification({
+        title: 'Error', 
+        message: errorMsg,
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+      return
+    }
+
+    try {
+      setLoading(true)
+      console.log('📅 Creating event for building:', selectedBuildingId)
+      console.log('📅 Form data:', {
+        title: newEvent.title,
+        description: newEvent.description,
+        location: newEvent.location,
+        eventDate,
+        startTime,
+        endTime
+      })
+      
+      // Construct proper Date objects from separate date and time inputs
+      const startDateTime = new Date(`${eventDate}T${startTime}`)
+      const endDateTime = new Date(`${eventDate}T${endTime}`)
+      
+      console.log('📅 Constructed dates:', {
+        startDateTime: startDateTime.toISOString(),
+        endDateTime: endDateTime.toISOString(),
+        isStartValid: !isNaN(startDateTime.getTime()),
+        isEndValid: !isNaN(endDateTime.getTime())
+      })
+      
+      // Log current user info
+      console.log('📅 Current user:', {
+        id: currentUser?.id,
+        exists: !!currentUser
+      })
+      
+      // Validate Date objects
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+        const errorMsg = 'Invalid date or time format. Please check your inputs.'
+        setFormError(errorMsg)
+        addNotification({
+          title: 'Invalid Date/Time',
+          message: errorMsg,
+          type: 'error',
+          userId: currentUser?.id || ''
+        })
+        setLoading(false)
+        return
+      }
+      
+      // Validate that end time is after start time
+      if (endDateTime <= startDateTime) {
+        const errorMsg = 'End time must be after start time.'
+        setFormError(errorMsg)
+        addNotification({
+          title: 'Invalid Time Range',
+          message: errorMsg,
+          type: 'error',
+          userId: currentUser?.id || ''
+        })
+        setLoading(false)
+        return
+      }
+      
+      const eventData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        location: newEvent.location,
+        buildingId: selectedBuildingId,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        assignedTo: newEvent.assignedTo || [],
+        status: 'scheduled' as const
+      }
+      
+      console.log('📅 Final event data before sending to Firebase:', JSON.stringify(eventData, null, 2))
+      console.log('📅 Event data types:', {
+        title: typeof eventData.title,
+        description: typeof eventData.description,
+        location: typeof eventData.location,
+        buildingId: typeof eventData.buildingId,
+        startDate: eventData.startDate?.constructor?.name,
+        endDate: eventData.endDate?.constructor?.name,
+        assignedTo: Array.isArray(eventData.assignedTo),
+        status: typeof eventData.status
+      })
+      
+      const createdEvent = await eventService.createEvent(eventData)
+      console.log('📅 Event created successfully:', createdEvent)
+      
+      // Reload events to get the latest data
+      await loadEvents()
+      
+      // Reset form and close modal
+      setShowCreateForm(false)
+      resetForm()
+      setFormError('')
+
+      addNotification({
+        title: 'Event Created',
+        message: 'The event has been scheduled successfully.',
+        type: 'success',
+        userId: currentUser?.id || ''
+      })
+    } catch (error) {
+      console.error('❌ Full error object:', error)
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error))
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
+      console.error('❌ Error code:', (error as any)?.code)
+      console.error('❌ Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+      
+      let errorMessage = 'Failed to create event. Please try again.'
+      if (error instanceof Error) {
+        if (error.message.includes('permission')) {
+          errorMessage = 'Permission denied. Please check Firebase security rules for events.'
+        } else if (error.message.includes('network')) {
+          errorMessage = 'Network error. Please check your internet connection.'
+        } else {
+          errorMessage = `Event creation failed: ${error.message}`
+        }
+      }
+      
+      setFormError(errorMessage)
+      addNotification({
+        title: 'Error',
+        message: errorMessage,
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleStatusUpdate = async (eventId: string, newStatus: string) => {
+    try {
+      setLoading(true)
+      console.log('📅 Updating event status:', eventId, newStatus)
+      
+      await eventService.updateEvent(eventId, {
+        status: newStatus as BuildingEvent['status']
+      })
+      
+      // Reload events to get the latest data
+      await loadEvents()
+      
+      addNotification({
+        title: 'Event Updated',
+        message: `Event status changed to ${newStatus}.`,
+        type: 'success',
+        userId: currentUser?.id || ''
+      })
+    } catch (error) {
+      console.error('❌ Error updating event status:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update event status. Please try again.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const resetForm = () => {
     setNewEvent({
       title: '',
       description: '',
       location: '',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 60 * 1000),
       assignedTo: []
     })
-
-    addNotification({
-      title: 'Event Created',
-      message: 'The event has been scheduled successfully.',
-      type: 'success',
-      userId: currentUser?.id || ''
-    })
-  }
-
-  const handleStatusUpdate = (eventId: string, newStatus: string) => {
-    setEvents(prev => prev.map(event => 
-      event.id === eventId 
-        ? { ...event, status: newStatus as BuildingEvent['status'], updatedAt: new Date() }
-        : event
-    ))
-
-    addNotification({
-      title: 'Event Updated',
-      message: `Event status changed to ${newStatus}.`,
-      type: 'success',
-      userId: currentUser?.id || ''
-    })
+    
+    // Set default date to today and default times
+    const today = new Date()
+    setEventDate(today.toISOString().split('T')[0])
+    setStartTime('09:00')
+    setEndTime('10:00')
+    setFormError('')
   }
 
   const handleEditEvent = (event: BuildingEvent) => {
-    setEditingEvent(event)
-    setNewEvent({
-      title: event.title,
-      description: event.description,
-      location: event.location,
-      startDate: event.startDate,
-      endDate: event.endDate,
-      assignedTo: event.assignedTo
-    })
-    setShowEditForm(true)
+    try {
+      // First close any existing modal
+      setShowCreateForm(false)
+      
+      setEditingEvent(event)
+      setNewEvent({
+        title: event.title,
+        description: event.description,
+        location: event.location,
+        assignedTo: event.assignedTo
+      })
+      
+      // Convert Firebase Timestamp to Date
+      const convertToDate = (timestamp: any): Date => {
+        if (timestamp instanceof Date) {
+          return timestamp
+        } else if (typeof timestamp === 'string') {
+          return new Date(timestamp)
+        } else if (timestamp && typeof timestamp.toDate === 'function') {
+          // Firebase Timestamp object
+          return timestamp.toDate()
+        } else if (timestamp && timestamp.seconds) {
+          // Firebase Timestamp-like object
+          return new Date(timestamp.seconds * 1000 + (timestamp.nanoseconds || 0) / 1000000)
+        } else {
+          throw new Error('Invalid timestamp type')
+        }
+      }
+      
+      const startDate = convertToDate(event.startDate)
+      const endDate = convertToDate(event.endDate)
+      
+      const eventDateStr = startDate.toISOString().split('T')[0]
+      const startTimeStr = startDate.toTimeString().slice(0, 5)
+      const endTimeStr = endDate.toTimeString().slice(0, 5)
+      
+      setEventDate(eventDateStr)
+      setStartTime(startTimeStr)
+      setEndTime(endTimeStr)
+      
+      // Clear any form errors
+      setFormError('')
+      
+      setShowEditForm(true)
+    } catch (error) {
+      console.error('Error in handleEditEvent:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to open edit form. Please try again.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    }
   }
 
-  const handleUpdateEvent = (e: React.FormEvent) => {
+  const handleUpdateEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!editingEvent) return
 
-    const updatedEvent: BuildingEvent = {
-      ...editingEvent,
-      ...newEvent,
-      updatedAt: new Date()
+    // Validate date and time inputs
+    if (!eventDate || !startTime || !endTime) {
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all date and time fields.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+      return
     }
 
-    setEvents(prev => prev.map(event => 
-      event.id === editingEvent.id ? updatedEvent : event
-    ))
-    
-    setShowEditForm(false)
-    setEditingEvent(null)
-    setNewEvent({
-      title: '',
-      description: '',
-      location: '',
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 60 * 60 * 1000),
-      assignedTo: []
-    })
-
-    addNotification({
-      title: 'Event Updated',
-      message: 'The event has been updated successfully.',
-      type: 'success',
-      userId: currentUser?.id || ''
-    })
-  }
-
-  const handleDeleteEvent = (eventId: string) => {
-    if (window.confirm('Are you sure you want to delete this event?')) {
-      setEvents(prev => prev.filter(event => event.id !== eventId))
+    try {
+      setLoading(true)
+      console.log('📅 Updating event:', editingEvent.id)
       
+      // Construct proper Date objects from separate date and time inputs
+      const startDateTime = new Date(`${eventDate}T${startTime}`)
+      const endDateTime = new Date(`${eventDate}T${endTime}`)
+      
+      // Validate that end time is after start time
+      if (endDateTime <= startDateTime) {
+        addNotification({
+          title: 'Invalid Time Range',
+          message: 'End time must be after start time.',
+          type: 'error',
+          userId: currentUser?.id || ''
+        })
+        setLoading(false)
+        return
+      }
+      
+      const updateData = {
+        title: newEvent.title,
+        description: newEvent.description,
+        location: newEvent.location,
+        startDate: startDateTime,
+        endDate: endDateTime,
+        assignedTo: newEvent.assignedTo
+      }
+      
+      await eventService.updateEvent(editingEvent.id, updateData)
+      console.log('📅 Event updated successfully')
+      
+      // Reload events to get the latest data
+      await loadEvents()
+      
+      setShowEditForm(false)
+      setEditingEvent(null)
+      resetForm()
+
       addNotification({
-        title: 'Event Deleted',
-        message: 'The event has been deleted successfully.',
+        title: 'Event Updated',
+        message: 'The event has been updated successfully.',
         type: 'success',
         userId: currentUser?.id || ''
       })
+    } catch (error) {
+      console.error('❌ Error updating event:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update event. Please try again.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteEvent = async (eventId: string) => {
+    if (window.confirm('Are you sure you want to delete this event?')) {
+      try {
+        setLoading(true)
+        console.log('📅 Deleting event:', eventId)
+        
+        await eventService.deleteEvent(eventId)
+        console.log('📅 Event deleted successfully')
+        
+        // Reload events to get the latest data
+        await loadEvents()
+        
+        addNotification({
+          title: 'Event Deleted',
+          message: 'The event has been deleted successfully.',
+          type: 'success',
+          userId: currentUser?.id || ''
+        })
+      } catch (error) {
+        console.error('❌ Error deleting event:', error)
+        addNotification({
+          title: 'Error',
+          message: 'Failed to delete event. Please try again.',
+          type: 'error',
+          userId: currentUser?.id || ''
+        })
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
@@ -231,6 +524,8 @@ const Events = () => {
     }
   }
 
+
+
   return (
     <div className="space-y-6">
       {/* Header with Building Selector */}
@@ -241,60 +536,33 @@ const Events = () => {
             Manage scheduled work and building events
           </p>
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <select
-              value={selectedBuildingId}
-              onChange={(e) => setSelectedBuildingId(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-10 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[180px]"
-              disabled={buildingsLoading}
-              title={`Current building: ${selectedBuilding?.name || 'Select building'}`}
-            >
-              <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            
-            {/* Custom dropdown arrow */}
-            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-              <ChevronDown className="h-4 w-4 text-neutral-400" />
-            </div>
-            
-            {/* Building icon */}
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Building className="h-4 w-4 text-neutral-400" />
-            </div>
-          </div>
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="btn-primary flex items-center space-x-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Schedule Event</span>
-          </button>
-        </div>
+        <Button
+          onClick={() => {
+            resetForm()
+            setShowCreateForm(true)
+          }}
+        >
+          Schedule Event
+        </Button>
       </div>
 
       {/* Filters */}
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search events..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10"
+              className="w-full pl-10 pr-4 py-1.5 text-sm border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="select"
+            className="w-full px-3 py-1.5 text-sm border border-neutral-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Statuses</option>
             <option value="scheduled">Scheduled</option>
@@ -302,260 +570,354 @@ const Events = () => {
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <button
+          <Button
+            variant="outline"
             onClick={() => {
               setSearchTerm('')
               setFilterStatus('all')
             }}
-            className="btn-secondary flex items-center justify-center"
+            className="flex items-center justify-center space-x-2 text-sm"
           >
-            <Filter className="h-4 w-4 mr-2" />
-            Clear Filters
-          </button>
+            <Filter className="h-4 w-4" />
+            <span>Clear Filters</span>
+          </Button>
         </div>
       </div>
 
-      {/* Create Event Form */}
-      {showCreateForm && (
-        <div className="card mb-6">
-          <h3 className="text-lg font-medium text-neutral-900 mb-4">Schedule New Event</h3>
-          <form onSubmit={handleCreateEvent} className="space-y-4">
+      {/* Create Event Modal */}
+      <Modal
+        isOpen={showCreateForm}
+        onClose={() => setShowCreateForm(false)}
+        title="Schedule New Event"
+        description="Create a new event for the selected building"
+        size="lg"
+      >
+        <form onSubmit={handleCreateEvent} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Event Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newEvent.title}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter event title"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={newEvent.description}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={2}
+              placeholder="Enter event description"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <MapPin className="h-4 w-4 inline mr-1" />
+              Location <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newEvent.location}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter event location"
+              required
+            />
+          </div>
+
+          {/* Date Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="h-4 w-4 inline mr-1" />
+              Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          {/* Time Selection */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Event Title
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Clock className="h-4 w-4 inline mr-1" />
+                Start Time <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={newEvent.title}
-                onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-                className="input"
-                placeholder="Enter event title"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={newEvent.description}
-                onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                className="input"
-                rows={3}
-                placeholder="Enter event description"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Location
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Clock className="h-4 w-4 inline mr-1" />
+                End Time <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={newEvent.location}
-                onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
-                className="input"
-                placeholder="Enter event location"
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Start Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newEvent.startDate.toISOString().slice(0, 16)}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  End Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newEvent.endDate.toISOString().slice(0, 16)}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
-                  className="input"
-                  required
-                />
+          {/* Form Error Display */}
+          {formError && (
+            <div className="bg-red-50 border border-red-200 p-3 rounded-md">
+              <div className="flex items-center text-sm text-red-700">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                {formError}
               </div>
             </div>
+          )}
 
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowCreateForm(false)}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button type="submit" className="btn-primary">
-                Schedule Event
-              </button>
+          {/* Timezone Info */}
+          <div className="bg-blue-50 border border-blue-200 p-2 rounded-md">
+            <div className="flex items-center text-xs text-blue-700">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
             </div>
-          </form>
-        </div>
-      )}
+          </div>
 
-      {/* Edit Event Form */}
-      {showEditForm && editingEvent && (
-        <div className="card mb-6">
-          <h3 className="text-lg font-medium text-neutral-900 mb-4">Edit Event</h3>
-          <form onSubmit={handleUpdateEvent} className="space-y-4">
+          <ModalFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCreateForm(false)}
+              className="px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
+              className="px-6"
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                'Submit'
+              )}
+            </Button>
+          </ModalFooter>
+        </form>
+      </Modal>
+
+      {/* Edit Event Modal */}
+      <Modal
+        isOpen={showEditForm}
+        onClose={() => {
+          setShowEditForm(false)
+          setEditingEvent(null)
+        }}
+        title="Edit Event"
+        description="Update the event details"
+        size="lg"
+      >
+        <form onSubmit={handleUpdateEvent} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Event Title <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newEvent.title}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter event title"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={newEvent.description}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={2}
+              placeholder="Enter event description"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <MapPin className="h-4 w-4 inline mr-1" />
+              Location <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={newEvent.location}
+              onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Enter event location"
+              required
+            />
+          </div>
+
+          {/* Date Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              <Calendar className="h-4 w-4 inline mr-1" />
+              Date <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              min={new Date().toISOString().split('T')[0]}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          {/* Time Selection */}
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Event Title
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Clock className="h-4 w-4 inline mr-1" />
+                Start Time <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={newEvent.title}
-                onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-                className="input"
-                placeholder="Enter event title"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={newEvent.description}
-                onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-                className="input"
-                rows={3}
-                placeholder="Enter event description"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Location
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Clock className="h-4 w-4 inline mr-1" />
+                End Time <span className="text-red-500">*</span>
               </label>
               <input
-                type="text"
-                value={newEvent.location}
-                onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
-                className="input"
-                placeholder="Enter event location"
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               />
             </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  Start Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newEvent.startDate.toISOString().slice(0, 16)}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, startDate: new Date(e.target.value) }))}
-                  className="input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">
-                  End Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={newEvent.endDate.toISOString().slice(0, 16)}
-                  onChange={(e) => setNewEvent(prev => ({ ...prev, endDate: new Date(e.target.value) }))}
-                  className="input"
-                  required
-                />
-              </div>
+          {/* Timezone Info */}
+          <div className="bg-blue-50 border border-blue-200 p-2 rounded-md">
+            <div className="flex items-center text-xs text-blue-700">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
             </div>
+          </div>
 
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowEditForm(false)
-                  setEditingEvent(null)
-                }}
-                className="btn-secondary"
-              >
-                Cancel
-              </button>
-              <button type="submit" className="btn-primary">
-                Update Event
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+          <ModalFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowEditForm(false)
+                setEditingEvent(null)
+              }}
+              className="px-4"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
+              className="px-6"
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                'Update Event'
+              )}
+            </Button>
+          </ModalFooter>
+        </form>
+      </Modal>
 
       {/* Events List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {filteredEvents.map((event) => (
-          <div key={event.id} className="card">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
+          <div key={event.id} className="bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-lg font-medium text-neutral-900">{event.title}</h3>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
+                  <h3 className="text-lg font-semibold text-gray-900 truncate">{event.title}</h3>
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
                     {getStatusIcon(event.status)}
                     <span className="ml-1 capitalize">{event.status}</span>
                   </span>
                 </div>
                 
-                <p className="text-gray-600 mb-3">{event.description}</p>
+                <p className="text-gray-600 mb-3 text-sm">{event.description}</p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
                   <div className="flex items-center space-x-2">
-                    <MapPin className="h-4 w-4 text-neutral-400" />
-                    <span className="text-gray-600">{event.location}</span>
+                    <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-gray-600 truncate">{event.location}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-neutral-400" />
+                    <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     <span className="text-gray-600">{formatTimeRange(event.startDate, event.endDate)}</span>
                   </div>
                   <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-neutral-400" />
+                    <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
                     <span className="text-gray-600">{event.assignedTo.length} assigned</span>
                   </div>
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2 ml-4">
-                {/* Edit and Delete buttons */}
+              <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
+                {/* Edit button */}
                 <button
-                  onClick={() => handleEditEvent(event)}
-                  className="btn-secondary text-sm"
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleEditEvent(event)
+                  }}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   title="Edit Event"
                 >
                   Edit
                 </button>
-                <button
-                  onClick={() => handleDeleteEvent(event.id)}
-                  className="btn-secondary text-sm text-red-600 hover:text-red-700"
-                  title="Delete Event"
-                >
-                  Delete
-                </button>
                 
                 {/* Workflow action buttons */}
                 {getWorkflowActions(event.status).map((action) => (
-                  <button
+                  <Button
                     key={action.action}
+                    variant={action.color === 'btn-primary' ? 'default' : 'outline'}
+                    size="sm"
+                    className="px-3"
                     onClick={() => handleStatusUpdate(event.id, action.action)}
-                    className={`${action.color} text-sm`}
                   >
                     {action.label}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>

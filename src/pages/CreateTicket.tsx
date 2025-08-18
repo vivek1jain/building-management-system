@@ -14,13 +14,14 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { ticketService } from '../services/ticketService'
 import { CreateTicketForm, UrgencyLevel } from '../types'
-import { mockBuildings } from '../services/mockData'
+import { useBuilding } from '../contexts/BuildingContext'
 
 const CreateTicket = () => {
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
+  const { buildings, loading: buildingsLoading } = useBuilding()
   const navigate = useNavigate()
 
   const {
@@ -150,9 +151,12 @@ const CreateTicket = () => {
           <select
             {...register('buildingId', { required: 'Building selection is required' })}
             className="input"
+            disabled={buildingsLoading}
           >
-            <option value="">Select a building...</option>
-            {mockBuildings.map((building) => (
+            <option value="">
+              {buildingsLoading ? 'Loading buildings...' : 'Select a building...'}
+            </option>
+            {buildings.map((building) => (
               <option key={building.id} value={building.id}>
                 {building.name}
               </option>

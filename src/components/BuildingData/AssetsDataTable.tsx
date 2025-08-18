@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Plus, Wrench, Edit, Trash2, Eye, Building as BuildingIcon, Package, ChevronDown, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
+import { useBuilding } from '../../contexts/BuildingContext'
 import { Asset, Building, AssetStatus } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportAssetsToCSV } from '../../utils/csvExport'
@@ -13,8 +14,7 @@ import { Button } from '../UI'
 const AssetsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const { selectedBuildingId, selectedBuilding } = useBuilding()
   const [assets, setAssets] = useState<(Asset & { isActive: boolean })[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateAsset, setShowCreateAsset] = useState(false)
@@ -40,47 +40,19 @@ const AssetsDataTable: React.FC = () => {
   })
 
   useEffect(() => {
-    initializeData()
-  }, [])
-
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadAssets()
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
-  const initializeData = async () => {
-    try {
-      setLoading(true)
-      console.log('🔥 Loading buildings from Firebase...')
-      const buildingsData = await getAllBuildings()
-      console.log('🔥 Buildings loaded:', buildingsData.length)
-      setBuildings(buildingsData)
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('🚨 Error initializing data:', error)
-      if (currentUser) {
-        addNotification({
-          title: 'Error',
-          message: 'Failed to load buildings',
-          type: 'error',
-          userId: currentUser.id
-        })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const loadAssets = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
-      console.log('🔥 Loading assets from Firebase for building:', selectedBuilding)
-      const buildingAssets = await getAssetsByBuilding(selectedBuilding)
+      console.log('🔥 Loading assets from Firebase for building:', selectedBuildingId)
+      const buildingAssets = await getAssetsByBuilding(selectedBuildingId)
       console.log('🔥 Assets loaded:', buildingAssets.length)
       // Add isActive property for compatibility
       const assetsWithActiveFlag = buildingAssets.map(asset => ({ ...asset, isActive: true }))
@@ -101,7 +73,7 @@ const AssetsDataTable: React.FC = () => {
   }
 
   const handleCreateAsset = async () => {
-    if (!currentUser || !selectedBuilding) return
+    if (!currentUser || !selectedBuildingId) return
     
     if (!assetForm.name || !assetForm.type) {
       addNotification({
@@ -117,7 +89,7 @@ const AssetsDataTable: React.FC = () => {
       console.log('🔥 Creating asset in Firebase...')
       const assetData = {
         name: assetForm.name,
-        buildingId: selectedBuilding,
+        buildingId: selectedBuildingId,
         type: assetForm.type,
         status: assetForm.status,
         locationDescription: assetForm.locationDescription,
@@ -444,7 +416,7 @@ const AssetsDataTable: React.FC = () => {
       const isActive = asset.isActive
       
       // Building-scoped filtering: only show assets for the selected building
-      const matchesBuilding = !selectedBuilding || asset.buildingId === selectedBuilding
+      const matchesBuilding = !selectedBuildingId || asset.buildingId === selectedBuildingId
       
       const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (asset.manufacturer && asset.manufacturer.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -456,7 +428,7 @@ const AssetsDataTable: React.FC = () => {
       return isActive && matchesBuilding && matchesSearch && matchesStatus
     })
     return result
-  }, [assets, selectedBuilding, searchTerm, filterStatus])
+  }, [assets, selectedBuildingId, searchTerm, filterStatus])
 
   if (loading) {
     return (
@@ -477,24 +449,6 @@ const AssetsDataTable: React.FC = () => {
         
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
-          {/* Building Selector */}
-          <div className="relative flex items-center gap-2">
-            <BuildingIcon className="h-4 w-4 text-neutral-400" />
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
-            >
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-          </div>
-          
           {/* Add Asset Button */}
           <button
             onClick={() => setShowCreateAsset(true)}
@@ -535,10 +489,10 @@ const AssetsDataTable: React.FC = () => {
         {/* Bulk Import/Export */}
         <BulkImportExport
           entityType="assets"
-          buildingId={selectedBuilding || ''}
-          onExport={() => exportAssetsToCSV(filteredAssets, selectedBuilding ? buildings.find(b => b.id === selectedBuilding)?.name || 'Unknown' : 'All')}
+          buildingId={selectedBuildingId || ''}
+          onExport={() => exportAssetsToCSV(filteredAssets, selectedBuilding?.name || 'Unknown')}
           onImport={handleBulkImport}
-          disabled={!selectedBuilding}
+          disabled={!selectedBuildingId}
           className="ml-auto"
         />
       </div>

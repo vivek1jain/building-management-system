@@ -633,27 +633,6 @@ const Finances: React.FC = () => {
           <h1 className="text-2xl font-bold text-neutral-900 font-inter">Financial Management</h1>
           <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
         </div>
-        
-        <div className="flex items-center space-x-4">
-          <div className="relative flex items-center gap-2">
-            <Building className="h-4 w-4 text-neutral-400" />
-            <select
-              value={selectedBuildingId}
-              onChange={(e) => setSelectedBuildingId(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-              disabled={buildingsLoading}
-              title={`Current building: ${buildings.find(b => b.id === selectedBuildingId)?.name || 'Select building'}`}
-            >
-              <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-          </div>
-        </div>
       </div>
 
       {/* Financial Summary Cards */}

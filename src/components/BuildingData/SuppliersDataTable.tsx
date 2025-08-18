@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Plus, Star, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Truck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
+import { useBuilding } from '../../contexts/BuildingContext'
 import { getAllBuildings } from '../../services/buildingService'
 import { supplierService } from '../../services/supplierService'
 import { Supplier, Building } from '../../types'
@@ -16,8 +17,7 @@ import { tokens } from '../../styles/tokens'
 const SuppliersDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const { selectedBuildingId, selectedBuilding } = useBuilding()
   const [suppliers, setSuppliers] = useState<(Supplier & { buildingId: string })[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateSupplier, setShowCreateSupplier] = useState(false)
@@ -39,33 +39,26 @@ const SuppliersDataTable: React.FC = () => {
     buildingId: ''
   })
 
+  // Load suppliers on component mount
   useEffect(() => {
-    const initializeData = async () => {
+    const loadInitialSuppliers = async () => {
       try {
         setLoading(true)
-        console.log('🔥 Loading buildings from Firebase...')
-        const buildingsData = await getAllBuildings()
-        console.log('🔥 Buildings loaded:', buildingsData.length)
-        setBuildings(buildingsData)
-        if (buildingsData.length > 0) {
-          setSelectedBuilding(buildingsData[0].id)
-        }
-        // Load suppliers from Firebase
         console.log('🔥 Loading suppliers from Firebase...')
         const suppliersData = await supplierService.getSuppliers()
         console.log('🔥 Suppliers loaded:', suppliersData.length)
         // Add buildingId to suppliers for compatibility with existing code
         const suppliersWithBuilding = suppliersData.map(supplier => ({
           ...supplier,
-          buildingId: selectedBuilding || buildingsData[0]?.id || ''
+          buildingId: selectedBuildingId || ''
         }))
         setSuppliers(suppliersWithBuilding)
       } catch (error) {
-        console.error('🚨 Error initializing data:', error)
+        console.error('🚨 Error loading suppliers:', error)
         if (currentUser) {
           addNotification({
             title: 'Error',
-            message: 'Failed to load buildings and suppliers',
+            message: 'Failed to load suppliers',
             type: 'error',
             userId: currentUser.id
           })
@@ -75,12 +68,12 @@ const SuppliersDataTable: React.FC = () => {
       }
     }
 
-    initializeData()
+    loadInitialSuppliers()
   }, [])
 
   // Subscribe to real-time supplier updates
   useEffect(() => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
 
     console.log('🔥 Setting up real-time supplier subscription...')
     const unsubscribe = supplierService.subscribeToSuppliers((suppliersData) => {
@@ -88,7 +81,7 @@ const SuppliersDataTable: React.FC = () => {
       // Add buildingId to suppliers for compatibility with existing code
       const suppliersWithBuilding = suppliersData.map(supplier => ({
         ...supplier,
-        buildingId: selectedBuilding
+        buildingId: selectedBuildingId
       }))
       setSuppliers(suppliersWithBuilding)
     })
@@ -97,16 +90,16 @@ const SuppliersDataTable: React.FC = () => {
       console.log('🔥 Unsubscribing from supplier updates')
       unsubscribe()
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
   useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       // Initialize form with selected building if not already set
       if (!supplierForm.buildingId) {
-        setSupplierForm(prev => ({ ...prev, buildingId: selectedBuilding }))
+        setSupplierForm(prev => ({ ...prev, buildingId: selectedBuildingId }))
       }
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
 
 
@@ -154,7 +147,7 @@ const SuppliersDataTable: React.FC = () => {
         ...supplierData,
         createdAt: new Date(),
         updatedAt: new Date(),
-        buildingId: selectedBuilding,
+        buildingId: selectedBuildingId,
       }
 
       setSuppliers(prev => [...prev, newSupplier])
@@ -169,7 +162,7 @@ const SuppliersDataTable: React.FC = () => {
         specialty: '',
         rating: 0,
         notes: '',
-        buildingId: selectedBuilding || ''
+        buildingId: selectedBuildingId || ''
       })
 
       addNotification({
@@ -206,7 +199,7 @@ const SuppliersDataTable: React.FC = () => {
       specialty: supplier.specialties[0] || '',
       rating: supplier.rating || 0,
       notes: '',
-      buildingId: (supplier as any).buildingId || selectedBuilding || ''
+      buildingId: (supplier as any).buildingId || selectedBuildingId || ''
     })
     setShowEditSupplier(true)
   }
@@ -289,7 +282,7 @@ const SuppliersDataTable: React.FC = () => {
         specialty: '',
         rating: 0,
         notes: '',
-        buildingId: selectedBuilding || ''
+        buildingId: selectedBuildingId || ''
       })
 
       addNotification({
@@ -390,7 +383,7 @@ const SuppliersDataTable: React.FC = () => {
       const isActive = supplier.isActive
       
       // Building-scoped filtering: only show suppliers for the selected building
-      const matchesBuilding = !selectedBuilding || supplier.buildingId === selectedBuilding
+      const matchesBuilding = !selectedBuildingId || supplier.buildingId === selectedBuildingId
       
       const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -401,7 +394,7 @@ const SuppliersDataTable: React.FC = () => {
       
       return isActive && matchesBuilding && matchesSearch && matchesSpecialty
     })
-  }, [suppliers, selectedBuilding, searchTerm, selectedSpecialty])
+  }, [suppliers, selectedBuildingId, searchTerm, selectedSpecialty])
 
   // Define table columns
   const columns: Column<Supplier & { buildingId: string }>[] = useMemo(() => [
@@ -504,24 +497,6 @@ const SuppliersDataTable: React.FC = () => {
         
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
-          {/* Building Selector */}
-          <div className="relative flex items-center gap-2">
-            <BuildingIcon className="h-4 w-4 text-neutral-400" />
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
-            >
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-          </div>
-          
           {/* Add Supplier Button */}
           <button
             onClick={() => setShowCreateSupplier(true)}
@@ -564,8 +539,8 @@ const SuppliersDataTable: React.FC = () => {
         {/* Bulk Import/Export */}
         <BulkImportExport
           dataType="suppliers"
-          buildings={buildings}
-          selectedBuildingId={selectedBuilding}
+          buildings={[]}
+          selectedBuildingId={selectedBuildingId}
           onExport={handleExportSuppliers}
           onImport={handleImportSuppliers}
           onImportConfirm={handleImportConfirm}

@@ -1,8 +1,12 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Header from './Header'
+import CreateTicketModal from '../Tickets/CreateTicketModal'
+import { useCreateTicket } from '../../contexts/CreateTicketContext'
 
 const Layout = () => {
+  const { isCreateTicketModalOpen, closeCreateTicketModal } = useCreateTicket()
+
   return (
     <div className="flex h-screen bg-neutral-50">
       <Sidebar />
@@ -12,6 +16,12 @@ const Layout = () => {
           <Outlet />
         </main>
       </div>
+      
+      {/* Global Create Ticket Modal */}
+      <CreateTicketModal
+        isOpen={isCreateTicketModalOpen}
+        onClose={closeCreateTicketModal}
+      />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
+import { useBuilding } from '../../contexts/BuildingContext'
 import { Person, Building, PersonStatus } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportPeopleToCSV } from '../../utils/csvExport'
@@ -16,8 +17,7 @@ import { getBadgeColors, getStatusColors, getButtonColors } from '../../utils/co
 const PeopleDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const { selectedBuildingId, selectedBuilding } = useBuilding()
   const [people, setPeople] = useState<(Person & { isActive: boolean })[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreatePerson, setShowCreatePerson] = useState(false)
@@ -42,47 +42,19 @@ const PeopleDataTable: React.FC = () => {
   })
 
   useEffect(() => {
-    initializeData()
-  }, [])
-
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadPeople()
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
-  const initializeData = async () => {
-    try {
-      setLoading(true)
-      console.log('🔥 Loading buildings from Firebase...')
-      const buildingsData = await getAllBuildings()
-      console.log('🔥 Buildings loaded:', buildingsData.length)
-      setBuildings(buildingsData)
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('🚨 Error initializing data:', error)
-      if (currentUser) {
-        addNotification({
-          title: 'Error',
-          message: 'Failed to load buildings',
-          type: 'error',
-          userId: currentUser.id
-        })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const loadPeople = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
-      console.log('🔥 Loading people from Firebase for building:', selectedBuilding)
-      const buildingPeople = await getPeopleByBuilding(selectedBuilding)
+      console.log('🔥 Loading people from Firebase for building:', selectedBuildingId)
+      const buildingPeople = await getPeopleByBuilding(selectedBuildingId)
       console.log('🔥 People loaded:', buildingPeople.length)
       // Add isActive property for compatibility
       const peopleWithActiveFlag = buildingPeople.map(person => ({ ...person, isActive: true }))
@@ -103,7 +75,7 @@ const PeopleDataTable: React.FC = () => {
   }
 
   const handleCreatePerson = async () => {
-    if (!currentUser || !selectedBuilding) return
+    if (!currentUser || !selectedBuildingId) return
     
     if (!personForm.name || !personForm.email || !personForm.phone) {
       addNotification({
@@ -119,8 +91,8 @@ const PeopleDataTable: React.FC = () => {
       console.log('🔥 Creating person in Firebase...')
       const personData = {
         name: personForm.name,
-        buildingId: selectedBuilding,
-        accessibleBuildingIds: [selectedBuilding],
+        buildingId: selectedBuildingId,
+        accessibleBuildingIds: [selectedBuildingId],
         flatId: personForm.flatId || null,
         flatNumber: personForm.flatId || null,
         status: personForm.status,
@@ -350,14 +322,14 @@ const PeopleDataTable: React.FC = () => {
       const isActive = person.isActive
       
       // Building-scoped filtering: only show people for the selected building
-      const matchesBuilding = !selectedBuilding || person.buildingId === selectedBuilding
+      const matchesBuilding = !selectedBuildingId || person.buildingId === selectedBuildingId
       
       // Status filtering (handled by separate status filter)
       const matchesStatus = filterStatus === 'all' || person.status === filterStatus
       
       return isActive && matchesBuilding && matchesStatus
     })
-  }, [people, selectedBuilding, filterStatus])
+  }, [people, selectedBuildingId, filterStatus])
 
   // Column definitions for DataTable
   const columns: Column<Person & { isActive: boolean }>[] = useMemo(() => [
@@ -464,24 +436,6 @@ const PeopleDataTable: React.FC = () => {
         
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
-          {/* Building Selector */}
-          <div className="relative flex items-center gap-2">
-            <BuildingIcon className="h-4 w-4 text-neutral-400" />
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
-            >
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-          </div>
-          
           {/* Add Person Button */}
           <button
             onClick={() => setShowCreatePerson(true)}
@@ -523,8 +477,8 @@ const PeopleDataTable: React.FC = () => {
         {/* Bulk Import/Export */}
         <BulkImportExport
           dataType="people"
-          buildings={buildings}
-          selectedBuildingId={selectedBuilding}
+          buildings={[]}
+          selectedBuildingId={selectedBuildingId}
           onExport={handleExportPeople}
           onImport={handleImportPeople}
           onImportConfirm={handleImportConfirm}
@@ -549,19 +503,10 @@ const PeopleDataTable: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building *</label>
-                <select
-                  value={personForm.buildingId || selectedBuilding || ''}
-                  onChange={(e) => setPersonForm({...personForm, buildingId: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value="">Select Building</option>
-                  {buildings.map((building) => (
-                    <option key={building.id} value={building.id}>
-                      {building.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+                <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
+                  {selectedBuilding?.name || 'No building selected'}
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -689,7 +634,7 @@ const PeopleDataTable: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
                   <p className="text-sm text-neutral-900 font-inter">
-                    {buildings.find(b => b.id === selectedPerson.buildingId)?.name || 'Unknown Building'}
+                    {selectedBuilding?.name || 'Unknown Building'}
                   </p>
                 </div>
                 <div>
@@ -780,19 +725,10 @@ const PeopleDataTable: React.FC = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building *</label>
-                <select
-                  value={personForm.buildingId || selectedBuilding || ''}
-                  onChange={(e) => setPersonForm({...personForm, buildingId: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value="">Select Building</option>
-                  {buildings.map((building) => (
-                    <option key={building.id} value={building.id}>
-                      {building.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+                <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
+                  {selectedBuilding?.name || 'No building selected'}
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

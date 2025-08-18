@@ -9,15 +9,17 @@ import {
   Wrench
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { useCreateTicket } from '../../contexts/CreateTicketContext'
 
 const Sidebar = () => {
   const { currentUser } = useAuth()
+  const { openCreateTicketModal } = useCreateTicket()
 
   const navigation = [
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Building Data', href: '/building-data', icon: Building },
     { name: 'Finances', href: '/finances', icon: DollarSign },
-    { name: 'Tickets & Work Orders', href: '/tickets', icon: Wrench },
+    { name: 'Ticketing', href: '/tickets', icon: Wrench },
     { name: 'Events', href: '/events', icon: Calendar },
     { name: 'Settings', href: '/settings', icon: Settings },
   ]
@@ -55,12 +57,12 @@ const Sidebar = () => {
 
           {/* Quick Actions */}
           <div className="flex-shrink-0 flex border-t border-neutral-200 p-4">
-            <NavLink
-              to="/tickets/new"
+            <button
+              onClick={openCreateTicketModal}
               className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors duration-200"
             >
               New Ticket
-            </NavLink>
+            </button>
           </div>
 
           {/* User Profile */}

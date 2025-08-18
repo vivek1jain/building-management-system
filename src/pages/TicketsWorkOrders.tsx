@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+// import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useBuilding } from '../contexts/BuildingContext'
 import { ticketService } from '../services/ticketService'
 import * as workOrderService from '../services/workOrderService'
 import { TicketDetailModal } from '../components/TicketDetailModal'
+import { useCreateTicket } from '../contexts/CreateTicketContext'
 import { 
   Building as BuildingType, 
   Ticket, 
@@ -33,7 +34,8 @@ import {
 const TicketsWorkOrders: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
+  const { selectedBuildingId } = useBuilding()
+  const { openCreateTicketModal } = useCreateTicket()
   
   // State management
   const [activeTab, setActiveTab] = useState<'tickets' | 'work-orders' | 'workflow'>('workflow')
@@ -52,8 +54,20 @@ const TicketsWorkOrders: React.FC = () => {
   const [isTicketModalOpen, setIsTicketModalOpen] = useState(false)
 
   useEffect(() => {
+    let unsubscribe: (() => void) | undefined
+    
     if (selectedBuildingId) {
-      loadTicketsAndWorkOrders()
+      const initializeData = async () => {
+        unsubscribe = await loadTicketsAndWorkOrders()
+      }
+      initializeData()
+    }
+
+    // Cleanup subscription when component unmounts or building changes
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
     }
   }, [selectedBuildingId])
 
@@ -94,6 +108,7 @@ const TicketsWorkOrders: React.FC = () => {
         console.log('Filtered tickets for building', selectedBuildingId, ':', buildingTickets.length, 'tickets')
         console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id: t.id, buildingId: t.buildingId })))
         setTickets(buildingTickets)
+        setLoading(false) // Set loading to false when data arrives
       })
 
       // Load work orders filtered by building
@@ -133,7 +148,6 @@ const TicketsWorkOrders: React.FC = () => {
         message: 'Failed to load data',
         type: 'error'
       })
-    } finally {
       setLoading(false)
     }
   }
@@ -238,38 +252,18 @@ const TicketsWorkOrders: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900 font-inter">Tickets & Work Orders</h1>
+          <h1 className="text-2xl font-bold text-neutral-900 font-inter">Ticketing</h1>
           <p className="text-gray-600 mt-1 font-inter">
             Manage tickets and work orders following the complete workflow
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          {/* Building Selector */}
-          <div className="relative flex items-center gap-2">
-            <Building className="h-4 w-4 text-neutral-400" />
-            <select
-              value={selectedBuildingId}
-              onChange={(e) => setSelectedBuildingId(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-              disabled={buildingsLoading}
-              title={`Current building: ${buildings.find(b => b.id === selectedBuildingId)?.name || 'Select building'}`}
-            >
-              <option value="">{buildingsLoading ? 'Loading buildings...' : 'Select Building'}</option>
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-          </div>
-          <Link
-            to="/tickets/new"
+          <button
+            onClick={openCreateTicketModal}
             className="btn-primary flex items-center font-inter"
           >
-            <Plus className="h-4 w-4 mr-2" />
             New Ticket
-          </Link>
+          </button>
         </div>
       </div>
 

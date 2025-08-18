@@ -82,7 +82,7 @@ export const Modal: React.FC<ModalProps> = ({
         'flex items-center justify-center',
         'p-4',
         // Backdrop
-        'bg-black bg-opacity-50 backdrop-blur-sm',
+        'bg-black bg-opacity-60 backdrop-blur-sm',
         // Animation
         'animate-in fade-in duration-200',
         overlayClassName
@@ -96,7 +96,7 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className={cn(
           // Base modal styles
-          'relative bg-white rounded-lg shadow-xl',
+          'relative bg-white rounded-xl shadow-2xl border border-gray-200',
           'w-full',
           modalSizes[size],
           // Animation
@@ -109,7 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {/* Header */}
         {(title || showCloseButton) && (
-          <div className="flex items-center justify-between p-6 border-b border-neutral-200">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex-1 min-w-0">
               {title && (
                 <h2
@@ -144,7 +144,7 @@ export const Modal: React.FC<ModalProps> = ({
         )}
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
           {children}
         </div>
       </div>

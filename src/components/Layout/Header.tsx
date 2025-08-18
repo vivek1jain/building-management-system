@@ -2,6 +2,7 @@ import { Bell, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import NotificationDropdown from '../Notifications/NotificationDropdown'
+import HeaderBuildingSwitcher from './HeaderBuildingSwitcher'
 import { Button } from '../UI'
 
 const Header = () => {
@@ -22,6 +23,9 @@ const Header = () => {
         </div>
         
         <div className="flex items-center space-x-4">
+          
+          {/* Building Switcher */}
+          <HeaderBuildingSwitcher />
           
           {/* Notifications */}
           <div className="relative">
@@ -47,7 +51,7 @@ const Header = () => {
             <Button
               variant="ghost"
               size="sm"
-              className="flex items-center space-x-2"
+              className="flex items-center justify-center space-x-2"
               data-testid="user-avatar"
             >
               <div className="h-7 w-7 rounded-full bg-primary-600 flex items-center justify-center">
@@ -60,14 +64,18 @@ const Header = () => {
           </div>
           
           {/* Logout */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={logout}
-            title="Logout"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex flex-col items-center">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={logout}
+              title="Logout"
+              className="mb-1"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+            <span className="text-xs text-neutral-500">Logout</span>
+          </div>
         </div>
       </div>
     </header>

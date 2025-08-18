@@ -3,6 +3,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { BuildingProvider } from './contexts/BuildingContext'
 import { ThemeProvider } from './contexts/ThemeContext'
+import { CreateTicketProvider } from './contexts/CreateTicketContext'
 import Layout from './components/Layout/Layout'
 import Dashboard from './pages/Dashboard'
 import ComprehensiveDashboard from './pages/ComprehensiveDashboard'
@@ -27,6 +28,7 @@ function App() {
       <AuthProvider>
         <NotificationProvider>
           <BuildingProvider>
+            <CreateTicketProvider>
           <div className="min-h-screen" style={{ backgroundColor: 'var(--color-neutral-50)' }}>
             <NotificationList />
             <Routes>
@@ -59,6 +61,7 @@ function App() {
             </Route>
             </Routes>
           </div>
+            </CreateTicketProvider>
           </BuildingProvider>
         </NotificationProvider>
       </AuthProvider>

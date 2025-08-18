@@ -191,38 +191,6 @@ const Dashboard: React.FC = () => {
               <p className="text-sm text-neutral-500 mt-1">Current building: {selectedBuildingData.name}</p>
             )}
           </div>
-          <div className="flex items-center space-x-4">
-            {/* Building Selector */}
-            <div className="relative flex items-center gap-2">
-              <Building className="h-4 w-4 text-neutral-400" />
-              <select
-                value={selectedBuildingId || ''}
-                onChange={(e) => setSelectedBuildingId(e.target.value)}
-                className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-                title={`Current building: ${selectedBuildingData?.name || 'Select building'}`}
-              >
-                <option value="">Select Building</option>
-                {buildings.map((building) => (
-                  <option key={building.id} value={building.id}>
-                    {building.name}
-                  </option>
-                ))}
-              </select>
-              {/* Dropdown Arrow */}
-              <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-            </div>
-            
-            <Button
-              onClick={handleRefresh}
-              disabled={refreshing}
-              variant="outline"
-              size="sm"
-              title="Refresh data"
-              leftIcon={<RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />}
-            >
-              Refresh
-            </Button>
-          </div>
         </div>
 
         {/* Key Metrics */}

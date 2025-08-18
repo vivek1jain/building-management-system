@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { Building as BuildingIcon, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
+import { useBuilding } from '../../contexts/BuildingContext'
 import { Flat, Building } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportFlatsToCSV } from '../../utils/csvExport'
@@ -14,8 +15,7 @@ import Button from '../UI/Button'
 const FlatsDataTableFixed: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const [buildings, setBuildings] = useState<Building[]>([])
-  const [selectedBuilding, setSelectedBuilding] = useState<string>('')
+  const { selectedBuildingId, selectedBuilding } = useBuilding()
   const [flats, setFlats] = useState<(Flat & { isActive: boolean })[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateFlat, setShowCreateFlat] = useState(false)
@@ -46,47 +46,19 @@ const FlatsDataTableFixed: React.FC = () => {
   })
 
   useEffect(() => {
-    initializeData()
-  }, [])
-
-  useEffect(() => {
-    if (selectedBuilding) {
+    if (selectedBuildingId) {
       loadFlats()
     }
-  }, [selectedBuilding])
+  }, [selectedBuildingId])
 
-  const initializeData = async () => {
-    try {
-      setLoading(true)
-      console.log('🔥 Loading buildings from Firebase...')
-      const buildingsData = await getAllBuildings()
-      console.log('🔥 Buildings loaded:', buildingsData.length)
-      setBuildings(buildingsData)
-      if (buildingsData.length > 0) {
-        setSelectedBuilding(buildingsData[0].id)
-      }
-    } catch (error) {
-      console.error('🚨 Error initializing data:', error)
-      if (currentUser) {
-        addNotification({
-          title: 'Error',
-          message: 'Failed to load buildings',
-          type: 'error',
-          userId: currentUser.id
-        })
-      }
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const loadFlats = async () => {
-    if (!selectedBuilding) return
+    if (!selectedBuildingId) return
     
     try {
       setLoading(true)
-      console.log('🔥 Loading flats from Firebase for building:', selectedBuilding)
-      const buildingFlats = await getFlatsByBuilding(selectedBuilding)
+      console.log('🔥 Loading flats from Firebase for building:', selectedBuildingId)
+      const buildingFlats = await getFlatsByBuilding(selectedBuildingId)
       console.log('🔥 Flats loaded:', buildingFlats.length)
       const flatsWithActiveFlag = buildingFlats.map(flat => ({ ...flat, isActive: true }))
       setFlats(flatsWithActiveFlag)
@@ -106,7 +78,7 @@ const FlatsDataTableFixed: React.FC = () => {
   }
 
   const handleCreateFlat = async () => {
-    if (!currentUser || !selectedBuilding) return
+    if (!currentUser || !selectedBuildingId) return
     
     if (!flatForm.flatNumber || !flatForm.floor || !flatForm.areaSqFt) {
       addNotification({
@@ -121,7 +93,7 @@ const FlatsDataTableFixed: React.FC = () => {
     try {
       console.log('🔥 Creating flat in Firebase...')
       const flatData = {
-        buildingId: selectedBuilding,
+        buildingId: selectedBuildingId,
         flatNumber: flatForm.flatNumber,
         floor: parseInt(flatForm.floor),
         areaSqFt: parseInt(flatForm.areaSqFt),
@@ -274,14 +246,14 @@ const FlatsDataTableFixed: React.FC = () => {
   const filteredFlats = useMemo(() => {
     return flats.filter(flat => {
       const isActive = flat.isActive
-      const matchesBuilding = !selectedBuilding || flat.buildingId === selectedBuilding
+      const matchesBuilding = !selectedBuildingId || flat.buildingId === selectedBuildingId
       const matchesSearch = flat.flatNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            flat.notes?.toLowerCase().includes(searchTerm.toLowerCase())
       const matchesStatus = filterStatus === 'all' || flat.status === filterStatus
       
       return isActive && matchesBuilding && matchesSearch && matchesStatus
     })
-  }, [flats, selectedBuilding, searchTerm, filterStatus])
+  }, [flats, selectedBuildingId, searchTerm, filterStatus])
 
   // Define table columns - NO ICONS
   const columns: Column<Flat & { isActive: boolean }>[] = useMemo(() => [
@@ -379,24 +351,6 @@ const FlatsDataTableFixed: React.FC = () => {
         
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
-          {/* Building Selector */}
-          <div className="relative flex items-center gap-2">
-            <BuildingIcon className="h-4 w-4 text-neutral-400" />
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-              title={`Current building: ${buildings.find(b => b.id === selectedBuilding)?.name || 'Select building'}`}
-            >
-              {buildings.map((building) => (
-                <option key={building.id} value={building.id}>
-                  {building.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-          </div>
-          
           {/* Add Flat Button - NO ICONS */}
           <button
             onClick={() => setShowCreateFlat(true)}
@@ -431,8 +385,8 @@ const FlatsDataTableFixed: React.FC = () => {
         {/* Bulk Import/Export */}
         <BulkImportExport
           dataType="flats"
-          buildings={buildings}
-          selectedBuildingId={selectedBuilding}
+          buildings={[]}
+          selectedBuildingId={selectedBuildingId}
           onExport={handleExportFlats}
           onImport={handleImportFlats}
           onImportConfirm={handleImportConfirm}

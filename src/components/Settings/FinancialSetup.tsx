@@ -214,23 +214,13 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
         )}
       </div>
 
-      {/* Building Switcher */}
-      <div className="bg-white border border-neutral-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-medium text-neutral-900">Select Building</h3>
-            <p className="text-sm text-gray-600">Choose a building to configure its financial settings</p>
-          </div>
-          <BuildingSwitcher />
-        </div>
-      </div>
 
       {!selectedBuilding && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
           <Building className="h-12 w-12 mx-auto mb-4 text-yellow-400" />
           <h3 className="text-lg font-medium text-neutral-900 mb-2">No Building Selected</h3>
           <p className="text-gray-600">
-            Please select a building from the dropdown above to configure its financial settings.
+            Please select a building from the global building switcher in the header to configure its financial settings.
           </p>
         </div>
       )}
