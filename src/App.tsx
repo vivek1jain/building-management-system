@@ -21,6 +21,7 @@ import TicketsWorkOrders from './pages/TicketsWorkOrders'
 import Finances from './pages/Finances' // Unified Financial Management
 import Settings from './pages/Settings'
 import DensityTest from './components/DensityTest'
+import './utils/testPermissions' // Load test functions for development
 
 function App() {
   return (

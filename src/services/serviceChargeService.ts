@@ -30,45 +30,27 @@ export const getServiceChargeDemands = async (buildingId: string): Promise<Servi
       orderBy('issuedDate', 'desc')
     )
     const querySnapshot = await getDocs(q)
-    const firebaseData = querySnapshot.docs.map(doc => ({
+    const demands = querySnapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
+      // Convert Firestore timestamps to Date objects
+      dueDate: doc.data().dueDate?.toDate?.() || new Date(doc.data().dueDate),
+      issuedDate: doc.data().issuedDate?.toDate?.() || new Date(doc.data().issuedDate),
+      createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
+      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(doc.data().updatedAt),
+      penaltyAppliedAt: doc.data().penaltyAppliedAt?.toDate?.() || null,
+      paymentHistory: (doc.data().paymentHistory || []).map((payment: any) => ({
+        ...payment,
+        paymentDate: payment.paymentDate?.toDate?.() || new Date(payment.paymentDate),
+        recordedAt: payment.recordedAt?.toDate?.() || new Date(payment.recordedAt)
+      }))
     })) as ServiceChargeDemand[]
     
-    // If we have Firebase data, return it
-    if (firebaseData.length > 0) {
-      console.log('Loaded service charge demands from Firebase:', firebaseData)
-      return firebaseData
-    }
-    
-    // Fallback: Try to get mock data from localStorage
-    const mockDemands = JSON.parse(localStorage.getItem('mockServiceCharges') || '[]')
-    const buildingMockDemands = mockDemands.filter((demand: any) => demand.buildingId === buildingId)
-    
-    if (buildingMockDemands.length > 0) {
-      console.log('Loaded service charge demands from mock data:', buildingMockDemands)
-      return buildingMockDemands
-    }
-    
-    console.log('No service charge demands found for building:', buildingId)
-    return []
+    console.log(`Loaded ${demands.length} service charge demands from Firebase for building:`, buildingId)
+    return demands
   } catch (error) {
     console.error('Error fetching service charge demands:', error)
-    
-    // Fallback: Try to get mock data from localStorage
-    try {
-      const mockDemands = JSON.parse(localStorage.getItem('mockServiceCharges') || '[]')
-      const buildingMockDemands = mockDemands.filter((demand: any) => demand.buildingId === buildingId)
-      
-      if (buildingMockDemands.length > 0) {
-        console.log('Using mock service charge demands due to Firebase error:', buildingMockDemands)
-        return buildingMockDemands
-      }
-    } catch (mockError) {
-      console.error('Error loading mock service charge demands:', mockError)
-    }
-    
-    return []
+    throw error
   }
 }
 
@@ -313,25 +295,17 @@ export const createExpenditure = async (expenditure: Omit<Expenditure, 'id' | 'c
 // Financial Summary
 export const getBuildingFinancialSummary = async (buildingId: string, quarter: string): Promise<any> => {
   try {
-    // Try Firebase queries with fallback to mock data
-    // Check if building exists in mock data first
-    const { mockBuildings } = await import('./mockData')
-    const mockBuilding = mockBuildings.find(b => b.id === buildingId)
-    
-    if (!mockBuilding) {
-      console.warn('Building not found in mock data:', buildingId)
-      // Try Firebase as fallback
-      try {
-        const buildingRef = doc(db, 'buildings', buildingId)
-        const buildingSnap = await getDoc(buildingRef)
-        if (!buildingSnap.exists()) {
-          console.warn('Building not found in Firebase:', buildingId)
-        }
-      } catch (buildingError) {
-        console.warn('Building fetch failed:', buildingError)
+    // Verify building exists in Firebase
+    try {
+      const buildingRef = doc(db, 'buildings', buildingId)
+      const buildingSnap = await getDoc(buildingRef)
+      if (!buildingSnap.exists()) {
+        throw new Error(`Building ${buildingId} not found`)
       }
-    } else {
-      console.log('Found building in mock data:', mockBuilding.name)
+      console.log('Found building in Firebase:', buildingSnap.data()?.name)
+    } catch (buildingError) {
+      console.error('Building fetch failed:', buildingError)
+      throw buildingError
     }
 
     // Get service charge demands using single-field query (no composite index needed)
@@ -738,78 +712,7 @@ export const generateServiceChargeDemands = async (
     return demandIds
   } catch (error) {
     console.error('Error generating service charge demands:', error)
-    
-    // Fallback: Create mock service charge demands in localStorage
-    console.warn('Firebase service charge creation failed, using mock data fallback')
-    
-    const mockDemands = flats.map((flat, index) => {
-      const baseAmount = flat.areaSqFt * rate
-      const groundRentAmount = flat.groundRent || 0
-      const totalAmountDue = baseAmount + groundRentAmount
-      
-      return {
-        id: `mock-demand-${buildingId}-${flat.flatNumber}-${quarter}`,
-        buildingId,
-        flatId: flat.id || `flat-${flat.flatNumber}`,
-        flatNumber: flat.flatNumber || 'Unknown',
-        residentUid: flat.residentUid || '',
-        residentName: flat.residentName || `Resident of ${flat.flatNumber}`,
-        financialQuarterDisplayString: quarter,
-        areaSqFt: flat.areaSqFt || 0,
-        rateApplied: rate,
-        baseAmount,
-        groundRentAmount,
-        penaltyAmountApplied: 0,
-        totalAmountDue,
-        amountPaid: 0,
-        outstandingAmount: totalAmountDue,
-        dueDate: getQuarterEndDate(quarter),
-        issuedDate: new Date(),
-        status: ServiceChargeDemandStatus.ISSUED,
-        paymentHistory: [],
-        notes: `Service charge for ${quarter} - ${flat.flatNumber}`,
-        issuedByUid: 'system',
-        penaltyAppliedAt: null,
-        invoiceGrouping: 'per_unit',
-        showBreakdown: true,
-        chargeBreakdown: [
-          {
-            id: `maintenance-${flat.flatNumber}`,
-            description: 'Maintenance Charge',
-            amount: baseAmount,
-            category: 'maintenance'
-          },
-          ...(groundRentAmount > 0 ? [{
-            id: `ground-rent-${flat.flatNumber}`,
-            description: 'Ground Rent (Quarterly)',
-            amount: groundRentAmount,
-            category: 'ground_rent'
-          }] : [])
-        ],
-        penaltyConfig: {
-          type: 'flat',
-          flatAmount: 50,
-          gracePeriodDays: 7
-        },
-        remindersConfig: {
-          reminderDays: [7, 3, 1],
-          maxReminders: 3
-        },
-        remindersSent: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    })
-    
-    // Store mock demands in localStorage
-    const existingMockDemands = JSON.parse(localStorage.getItem('mockServiceCharges') || '[]')
-    const updatedMockDemands = [...existingMockDemands, ...mockDemands]
-    localStorage.setItem('mockServiceCharges', JSON.stringify(updatedMockDemands))
-    
-    console.log('Created mock service charge demands:', mockDemands)
-    
-    // Return mock demand IDs
-    return mockDemands.map(demand => demand.id)
+    throw error
   }
 }
 

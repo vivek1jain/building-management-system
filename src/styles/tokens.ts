@@ -7,14 +7,24 @@
  */
 
 // Theme preset definitions
+export type ColorScale = Record<number, string>
+export interface BaseColors {
+  primary: ColorScale
+  success: ColorScale
+  warning: ColorScale
+  danger: ColorScale
+  neutral: ColorScale
+  info: ColorScale
+}
+
 export interface ThemePreset {
   id: string
   name: string
-  colors: typeof baseColors
+  colors: BaseColors
 }
 
 // Base color definitions
-const baseColors = {
+const baseColors: BaseColors = {
   // Primary Brand Colors
   primary: {
     50: '#f0f9ff',
@@ -105,7 +115,7 @@ const baseColors = {
     900: '#1e3a8a',
     950: '#172554',
   },
-} as const
+}
 
 // Predefined theme presets
 export const themePresets: ThemePreset[] = [
@@ -441,13 +451,13 @@ export class ThemeManager {
   }
   
   // Generate CSS custom properties from theme colors
-  private generateCSSCustomProperties(colors: typeof baseColors): Record<string, string> {
+  private generateCSSCustomProperties(colors: BaseColors): Record<string, string> {
     const cssProps: Record<string, string> = {}
     
     Object.entries(colors).forEach(([colorName, colorValues]) => {
       if (typeof colorValues === 'object') {
         Object.entries(colorValues).forEach(([shade, value]) => {
-          cssProps[`--color-${colorName}-${shade}`] = value
+          cssProps[`--color-${colorName}-${shade}`] = value as string
         })
       }
     })
@@ -466,7 +476,7 @@ export class ThemeManager {
   }
   
   // Create and save a custom theme
-  createCustomTheme(name: string, colors: Partial<typeof baseColors>): void {
+  createCustomTheme(name: string, colors: Partial<BaseColors>): void {
     const customTheme: ThemePreset = {
       id: `custom-${Date.now()}`,
       name,
@@ -487,7 +497,7 @@ export const generateCSSCustomProperties = (colors = tokens.colors) => {
   Object.entries(colors).forEach(([colorName, colorValues]) => {
     if (typeof colorValues === 'object') {
       Object.entries(colorValues).forEach(([shade, value]) => {
-        cssProps[`--color-${colorName}-${shade}`] = value
+        cssProps[`--color-${colorName}-${shade}`] = value as string
       })
     }
   })
@@ -499,7 +509,7 @@ export const generateCSSCustomProperties = (colors = tokens.colors) => {
   
   // Generate typography properties
   Object.entries(tokens.typography.fontSize).forEach(([key, value]) => {
-    const [size] = Array.isArray(value) ? value : [value]
+    const size = (Array.isArray(value) ? value[0] : value) as unknown as string
     cssProps[`--font-size-${key}`] = size
   })
   

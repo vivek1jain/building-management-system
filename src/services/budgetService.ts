@@ -121,7 +121,7 @@ export const budgetService = {
       await updateDoc(doc(db, 'budgets', budgetId), {
         ...updates,
         updatedAt: serverTimestamp()
-      })
+      } as any) // Type assertion needed for Firestore FieldValue compatibility
     } catch (error) {
       console.error('Error updating budget:', error)
       throw error
@@ -131,7 +131,7 @@ export const budgetService = {
   // Update budget status
   async updateBudgetStatus(budgetId: string, status: BudgetStatus, approvedBy?: string): Promise<void> {
     try {
-      const updates: Partial<Budget> = {
+      const updates: any = {
         status,
         updatedAt: serverTimestamp()
       }

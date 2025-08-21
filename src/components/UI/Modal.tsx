@@ -12,6 +12,7 @@ export interface ModalProps {
   title?: string
   description?: string
   children: ReactNode
+  footer?: ReactNode
   size?: ModalSize
   showCloseButton?: boolean
   closeOnBackdropClick?: boolean
@@ -34,6 +35,7 @@ export const Modal: React.FC<ModalProps> = ({
   title,
   description,
   children,
+  footer,
   size = 'md',
   showCloseButton = true,
   closeOnBackdropClick = true,
@@ -150,6 +152,13 @@ export const Modal: React.FC<ModalProps> = ({
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {children}
         </div>
+
+        {/* Sticky Footer */}
+        {footer && (
+          <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   )

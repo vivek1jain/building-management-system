@@ -11,7 +11,8 @@ import {
   PaymentFrequency,
   ServiceChargeDemandStatus,
   PaymentMethod,
-  PaymentRecord
+  PaymentRecord,
+  InvoiceStatus
 } from '../types';
 import { budgetService } from '../services/budgetService';
 // Note: Financial summary now uses real Firebase data instead of mock data
@@ -41,6 +42,7 @@ import {
   Send,
   ChevronDown
 } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter } from '../components/UI'
 
 // UK-specific budget categories
 const UK_INCOME_CATEGORIES = [
@@ -132,7 +134,7 @@ const Finances: React.FC = () => {
     
     // Calculate outstanding amounts from real Firebase data
     const outstandingServiceCharges = serviceCharges.reduce((sum, sc) => sum + (sc.outstandingAmount || 0), 0)
-    const outstandingInvoices = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE')
+    const outstandingInvoices = invoices.filter(inv => inv.status === InvoiceStatus.PENDING || inv.paymentStatus === 'overdue')
                                       .reduce((sum, inv) => sum + (inv.amount || 0), 0)
     const outstanding = outstandingServiceCharges + outstandingInvoices
     
@@ -626,20 +628,21 @@ const Finances: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 font-inter">Financial Management</h1>
-          <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
+    <div className="min-h-screen bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Financial Management</h1>
+            <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
+          </div>
         </div>
-      </div>
 
       {/* Financial Summary Cards */}
-      {financialSummary && (
+{financialSummary && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
-            <div className="flex items-center justify-between">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Total Income</p>
                 <p className="text-2xl font-bold text-success-600 font-inter">
@@ -647,11 +650,11 @@ const Finances: React.FC = () => {
                 </p>
               </div>
               <TrendingUp className="h-8 w-8 text-success-600" />
-            </div>
-          </div>
+            </CardHeader>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
-            <div className="flex items-center justify-between">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Total Expenditure</p>
                 <p className="text-2xl font-bold text-red-600 font-inter">
@@ -659,11 +662,11 @@ const Finances: React.FC = () => {
                 </p>
               </div>
               <TrendingDown className="h-8 w-8 text-red-600" />
-            </div>
-          </div>
+            </CardHeader>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
-            <div className="flex items-center justify-between">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Net Position</p>
                 <p className={`text-2xl font-bold font-inter ${
@@ -673,11 +676,11 @@ const Finances: React.FC = () => {
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-primary-600" />
-            </div>
-          </div>
+            </CardHeader>
+          </Card>
 
-          <div className="bg-white rounded-lg shadow-sm border border-neutral-200 p-6">
-            <div className="flex items-center justify-between">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 font-inter">Outstanding</p>
                 <p className="text-2xl font-bold text-orange-600 font-inter">
@@ -685,8 +688,8 @@ const Finances: React.FC = () => {
                 </p>
               </div>
               <Clock className="h-8 w-8 text-orange-600" />
-            </div>
-          </div>
+            </CardHeader>
+          </Card>
         </div>
       )}
 
@@ -738,13 +741,9 @@ const Finances: React.FC = () => {
                       <span>{budgetLocked ? 'Locked' : 'Unlocked'}</span>
                     </button>
                   )}
-                  <button
-                    onClick={() => setShowBudgetSetup(true)}
-                    className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 font-inter"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>{budget ? 'Edit Budget' : 'Create Budget'}</span>
-                  </button>
+<Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                    {budget ? 'Edit Budget' : 'Create Budget'}
+                  </Button>
                 </div>
               </div>
 
@@ -804,7 +803,9 @@ const Finances: React.FC = () => {
                     <option value="Q3-2024">Q3 2024 (Oct-Dec)</option>
                     <option value="Q4-2024">Q4 2024 (Jan-Mar)</option>
                   </select>
-                  <button
+<Button
+                    variant="danger"
+                    size="sm"
                     onClick={() => {
                       // Clear all mock data and restart
                       localStorage.removeItem('mockFlats')
@@ -819,18 +820,12 @@ const Finances: React.FC = () => {
                         type: 'info' 
                       })
                     }}
-                    className="flex items-center space-x-2 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 font-inter text-sm"
                   >
-                    <span>Clear Data</span>
-                  </button>
-                  <button
-                    onClick={handleGenerateDemands}
-                    disabled={loading || !selectedBuildingId}
-                    className="flex items-center space-x-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Generate Demands</span>
-                  </button>
+                    Clear Data
+                  </Button>
+<Button onClick={handleGenerateDemands} disabled={loading || !selectedBuildingId} leftIcon={<Plus className="h-4 w-4" />}>
+                    Generate Demands
+                  </Button>
                 </div>
               </div>
 
@@ -974,7 +969,7 @@ const Finances: React.FC = () => {
 
       {/* Budget Setup Modal */}
       {showBudgetSetup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -986,12 +981,9 @@ const Finances: React.FC = () => {
                     Building: {selectedBuilding?.name || 'No building selected'}
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowBudgetSetup(false)}
-                  className="text-neutral-400 hover:text-gray-600"
-                >
+<Button variant="ghost" size="sm" onClick={() => setShowBudgetSetup(false)} aria-label="Close budget modal">
                   <X className="h-6 w-6" />
-                </button>
+                </Button>
               </div>
 
               <form onSubmit={handleBudgetSubmit} className="space-y-6">
@@ -1020,11 +1012,10 @@ const Finances: React.FC = () => {
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Budget Year
                     </label>
-                    <input
+<Input
                       type="number"
                       value={budgetForm.year}
                       onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
@@ -1032,11 +1023,10 @@ const Finances: React.FC = () => {
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Financial Year Start
                     </label>
-                    <input
+<Input
                       type="date"
                       value={budgetForm.financialYearStart.toISOString().split('T')[0]}
                       onChange={(e) => setBudgetForm({ ...budgetForm, financialYearStart: new Date(e.target.value) })}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
@@ -1048,12 +1038,11 @@ const Finances: React.FC = () => {
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Service Charge Rate (£ per sq ft)
                     </label>
-                    <input
+<Input
                       type="number"
                       step="0.01"
                       value={budgetForm.serviceChargeRate || 0}
                       onChange={(e) => setBudgetForm({ ...budgetForm, serviceChargeRate: parseFloat(e.target.value) })}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
@@ -1061,12 +1050,11 @@ const Finances: React.FC = () => {
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Ground Rent Rate (£ per sq ft)
                     </label>
-                    <input
+<Input
                       type="number"
                       step="0.01"
                       value={budgetForm.groundRentRate}
                       onChange={(e) => setBudgetForm({ ...budgetForm, groundRentRate: parseFloat(e.target.value) })}
-                      className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                       required
                     />
                   </div>
@@ -1082,7 +1070,7 @@ const Finances: React.FC = () => {
                           <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Category Name
                           </label>
-                          <input
+<Input
                             type="text"
                             value={category.name}
                             onChange={(e) => {
@@ -1090,7 +1078,6 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], name: e.target.value }
                               setBudgetForm({ ...budgetForm, incomeCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
@@ -1098,7 +1085,7 @@ const Finances: React.FC = () => {
                           <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Budget Amount (£)
                           </label>
-                          <input
+<Input
                             type="number"
                             step="0.01"
                             value={category.budgetAmount}
@@ -1107,7 +1094,6 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], budgetAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, incomeCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
@@ -1115,7 +1101,7 @@ const Finances: React.FC = () => {
                           <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Actual Amount (£)
                           </label>
-                          <input
+<Input
                             type="number"
                             step="0.01"
                             value={category.actualAmount}
@@ -1124,7 +1110,6 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], actualAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, incomeCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                           />
                         </div>
                       </div>
@@ -1142,7 +1127,7 @@ const Finances: React.FC = () => {
                           <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Category Name
                           </label>
-                          <input
+<Input
                             type="text"
                             value={category.name}
                             onChange={(e) => {
@@ -1150,7 +1135,6 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], name: e.target.value }
                               setBudgetForm({ ...budgetForm, expenditureCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
@@ -1158,7 +1142,7 @@ const Finances: React.FC = () => {
                           <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Budget Amount (£)
                           </label>
-                          <input
+<Input
                             type="number"
                             step="0.01"
                             value={category.budgetAmount}
@@ -1167,7 +1151,6 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], budgetAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, expenditureCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                             required
                           />
                         </div>
@@ -1175,7 +1158,7 @@ const Finances: React.FC = () => {
                           <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
                             Actual Amount (£)
                           </label>
-                          <input
+<Input
                             type="number"
                             step="0.01"
                             value={category.actualAmount}
@@ -1184,7 +1167,6 @@ const Finances: React.FC = () => {
                               updated[index] = { ...updated[index], actualAmount: parseFloat(e.target.value) || 0 }
                               setBudgetForm({ ...budgetForm, expenditureCategories: updated })
                             }}
-                            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
                           />
                         </div>
                       </div>
@@ -1223,21 +1205,13 @@ const Finances: React.FC = () => {
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
-                  <button
-                    type="button"
-                    onClick={() => setShowBudgetSetup(false)}
-                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 font-inter"
-                  >
+<div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
+                  <Button variant="secondary" type="button" onClick={() => setShowBudgetSetup(false)}>
                     Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || !selectedBuildingId}
-                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
-                  >
-                    {loading ? 'Saving...' : (budget ? 'Update Budget' : 'Create Budget')}
-                  </button>
+                  </Button>
+                  <Button type="submit" disabled={loading || !selectedBuildingId} loading={loading}>
+                    {budget ? 'Update Budget' : 'Create Budget'}
+                  </Button>
                 </div>
               </form>
             </div>
@@ -1246,245 +1220,217 @@ const Finances: React.FC = () => {
       )}
 
       {/* Payment Recording Modal */}
-      {showPaymentModal && selectedDemand && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-neutral-900 font-inter">
-                  Record Payment
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowPaymentModal(false)
-                    setSelectedDemand(null)
-                    setPaymentAmount('')
-                  }}
-                  className="text-neutral-400 hover:text-gray-600"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm text-gray-600 font-inter">Flat: {selectedDemand.flatNumber}</p>
-                  <p className="text-sm text-gray-600 font-inter">Resident: {selectedDemand.residentName}</p>
-                  <p className="text-sm text-gray-600 font-inter">
-                    Outstanding: {formatCurrency(selectedDemand.outstandingAmount || 0)}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                    Payment Amount (£)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
-                    placeholder="Enter payment amount"
-                    max={selectedDemand.outstandingAmount || 0}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                    Payment Date
-                  </label>
-                  <input
-                    type="date"
-                    value={paymentDate.toISOString().split('T')[0]}
-                    onChange={(e) => setPaymentDate(new Date(e.target.value))}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-blue-500 font-inter"
-                  />
-                </div>
-
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPaymentModal(false)
-                      setSelectedDemand(null)
-                      setPaymentAmount('')
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 font-inter"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmitPayment}
-                    disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || loading}
-                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed font-inter"
-                  >
-                    {loading ? 'Recording...' : 'Record Payment'}
-                  </button>
-                </div>
-              </div>
+{showPaymentModal && selectedDemand && (
+        <Modal
+          isOpen={showPaymentModal}
+          onClose={() => {
+            setShowPaymentModal(false)
+            setSelectedDemand(null)
+            setPaymentAmount('')
+          }}
+          title="Record Payment"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-gray-600 font-inter">Flat: {selectedDemand.flatNumber}</p>
+              <p className="text-sm text-gray-600 font-inter">Resident: {selectedDemand.residentName}</p>
+              <p className="text-sm text-gray-600 font-inter">
+                Outstanding: {formatCurrency(selectedDemand.outstandingAmount || 0)}
+              </p>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
+                Payment Amount (£)
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="Enter payment amount"
+                max={selectedDemand.outstandingAmount || 0}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
+                Payment Date
+              </label>
+              <Input
+                type="date"
+                value={paymentDate.toISOString().split('T')[0]}
+                onChange={(e) => setPaymentDate(new Date(e.target.value))}
+              />
+            </div>
+
+            <ModalFooter>
+              <Button
+                variant="secondary"
+                type="button"
+                onClick={() => {
+                  setShowPaymentModal(false)
+                  setSelectedDemand(null)
+                  setPaymentAmount('')
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleSubmitPayment} disabled={!paymentAmount || parseFloat(paymentAmount) <= 0 || loading} loading={loading}>
+                Record Payment
+              </Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Demand Details Modal */}
-      {showDemandDetails && selectedDemand && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-semibold text-neutral-900 font-inter">
-                  Service Charge Details
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowDemandDetails(false)
-                    setSelectedDemand(null)
-                  }}
-                  className="text-neutral-400 hover:text-gray-600"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+{showDemandDetails && selectedDemand && (
+        <Modal
+          isOpen={showDemandDetails}
+          onClose={() => {
+            setShowDemandDetails(false)
+            setSelectedDemand(null)
+          }}
+          title="Service Charge Details"
+          size="lg"
+        >
+          <div className="space-y-6">
+            {/* Basic Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <h3 className="text-sm font-medium text-neutral-500 font-inter">Flat Number</h3>
+                <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.flatNumber}</p>
               </div>
-
-              <div className="space-y-6">
-                {/* Basic Information */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Flat Number</h3>
-                    <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.flatNumber}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Resident</h3>
-                    <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.residentName}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Quarter</h3>
-                    <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.financialQuarterDisplayString}</p>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-medium text-neutral-500 font-inter">Status</h3>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
-                      selectedDemand.status === ServiceChargeDemandStatus.PAID
-                        ? 'bg-success-100 text-success-800'
-                        : selectedDemand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : selectedDemand.status === ServiceChargeDemandStatus.OVERDUE
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-neutral-100 text-gray-800'
-                    }`}>
-                      {selectedDemand.status}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Financial Information */}
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Financial Details</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <h4 className="text-sm font-medium text-blue-900 font-inter">Total Amount Due</h4>
-                      <p className="text-xl font-bold text-primary-600 font-inter">
-                        {formatCurrency(selectedDemand.totalAmountDue || 0)}
-                      </p>
-                    </div>
-                    <div className="bg-success-50 p-3 rounded-lg">
-                      <h4 className="text-sm font-medium text-success-900 font-inter">Amount Paid</h4>
-                      <p className="text-xl font-bold text-success-600 font-inter">
-                        {formatCurrency(selectedDemand.amountPaid || 0)}
-                      </p>
-                    </div>
-                    <div className="bg-red-50 p-3 rounded-lg">
-                      <h4 className="text-sm font-medium text-red-900 font-inter">Outstanding</h4>
-                      <p className="text-xl font-bold text-red-600 font-inter">
-                        {formatCurrency(selectedDemand.outstandingAmount || 0)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Payment History */}
-                {selectedDemand.paymentHistory && selectedDemand.paymentHistory.length > 0 && (
-                  <div className="border-t pt-4">
-                    <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Payment History</h3>
-                    <div className="space-y-2">
-                      {selectedDemand.paymentHistory.map((payment, index) => (
-                        <div key={index} className="flex justify-between items-center p-3 bg-neutral-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-neutral-900 font-inter">
-                              {formatCurrency(payment.amount)}
-                            </p>
-                            <div className="text-xs text-neutral-500">Issued: {selectedDemand.issuedDate ? new Date(selectedDemand.issuedDate).toLocaleDateString() : 'N/A'}</div>
-                            <p className="text-sm text-gray-600 font-inter">
-                              {new Date(payment.paymentDate).toLocaleDateString('en-GB')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-gray-600 font-inter">{payment.method}</p>
-                            <div className="text-xs text-neutral-500">{selectedDemand.financialQuarterDisplayString}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Important Dates */}
-                <div className="border-t pt-4">
-                  <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Important Dates</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="text-sm font-medium text-neutral-500 font-inter">Issue Date</h4>
-                      <p className="text-neutral-900 font-inter">
-                        {new Date(selectedDemand.issuedDate).toLocaleDateString('en-GB')}
-                      </p>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium text-neutral-500 font-inter">Due Date</h4>
-                      <p className={`font-inter ${
-                        new Date(selectedDemand.dueDate) < new Date() && selectedDemand.status !== ServiceChargeDemandStatus.PAID
-                          ? 'text-red-600 font-semibold'
-                          : 'text-neutral-900'
-                      }`}>
-                        {new Date(selectedDemand.dueDate).toLocaleDateString('en-GB')}
-                        {new Date(selectedDemand.dueDate) < new Date() && selectedDemand.status !== ServiceChargeDemandStatus.PAID && (
-                          <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
-                            OVERDUE
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <h3 className="text-sm font-medium text-neutral-500 font-inter">Resident</h3>
+                <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.residentName}</p>
               </div>
-
-              <div className="flex justify-end space-x-3 pt-6 border-t">
-                <button
-                  onClick={() => {
-                    setShowDemandDetails(false)
-                    setSelectedDemand(null)
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 font-inter"
-                >
-                  Close
-                </button>
-                {selectedDemand.status !== ServiceChargeDemandStatus.PAID && (
-                  <button
-                    onClick={() => {
-                      setShowDemandDetails(false)
-                      handleRecordPayment(selectedDemand)
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 font-inter"
-                  >
-                    Record Payment
-                  </button>
-                )}
+              <div>
+                <h3 className="text-sm font-medium text-neutral-500 font-inter">Quarter</h3>
+                <p className="text-lg font-semibold text-neutral-900 font-inter">{selectedDemand.financialQuarterDisplayString}</p>
+              </div>
+              <div>
+                <h3 className="text-sm font-medium text-neutral-500 font-inter">Status</h3>
+                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
+                  selectedDemand.status === ServiceChargeDemandStatus.PAID
+                    ? 'bg-success-100 text-success-800'
+                    : selectedDemand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
+                    ? 'bg-yellow-100 text-yellow-800'
+                    : selectedDemand.status === ServiceChargeDemandStatus.OVERDUE
+                    ? 'bg-red-100 text-red-800'
+                    : 'bg-neutral-100 text-gray-800'
+                }`}>
+                  {selectedDemand.status}
+                </span>
               </div>
             </div>
+
+            {/* Financial Information */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Financial Details</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-blue-900 font-inter">Total Amount Due</h4>
+                  <p className="text-xl font-bold text-primary-600 font-inter">
+                    {formatCurrency(selectedDemand.totalAmountDue || 0)}
+                  </p>
+                </div>
+                <div className="bg-success-50 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-success-900 font-inter">Amount Paid</h4>
+                  <p className="text-xl font-bold text-success-600 font-inter">
+                    {formatCurrency(selectedDemand.amountPaid || 0)}
+                  </p>
+                </div>
+                <div className="bg-red-50 p-3 rounded-lg">
+                  <h4 className="text-sm font-medium text-red-900 font-inter">Outstanding</h4>
+                  <p className="text-xl font-bold text-red-600 font-inter">
+                    {formatCurrency(selectedDemand.outstandingAmount || 0)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Payment History */}
+            {selectedDemand.paymentHistory && selectedDemand.paymentHistory.length > 0 && (
+              <div className="border-t pt-4">
+                <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Payment History</h3>
+                <div className="space-y-2">
+                  {selectedDemand.paymentHistory.map((payment, index) => (
+                    <div key={index} className="flex justify-between items-center p-3 bg-neutral-50 rounded-lg">
+                      <div>
+                        <p className="font-medium text-neutral-900 font-inter">
+                          {formatCurrency(payment.amount)}
+                        </p>
+                        <div className="text-xs text-neutral-500">Issued: {selectedDemand.issuedDate ? new Date(selectedDemand.issuedDate).toLocaleDateString() : 'N/A'}</div>
+                        <p className="text-sm text-gray-600 font-inter">
+                          {new Date(payment.paymentDate).toLocaleDateString('en-GB')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-gray-600 font-inter">{payment.method}</p>
+                        <div className="text-xs text-neutral-500">{selectedDemand.financialQuarterDisplayString}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Important Dates */}
+            <div className="border-t pt-4">
+              <h3 className="text-lg font-medium text-neutral-900 mb-3 font-inter">Important Dates</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h4 className="text-sm font-medium text-neutral-500 font-inter">Issue Date</h4>
+                  <p className="text-neutral-900 font-inter">
+                    {new Date(selectedDemand.issuedDate).toLocaleDateString('en-GB')}
+                  </p>
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium text-neutral-500 font-inter">Due Date</h4>
+                  <p className={`font-inter ${
+                    new Date(selectedDemand.dueDate) < new Date() && selectedDemand.status !== ServiceChargeDemandStatus.PAID
+                      ? 'text-red-600 font-semibold'
+                      : 'text-neutral-900'
+                  }`}>
+                    {new Date(selectedDemand.dueDate).toLocaleDateString('en-GB')}
+                    {new Date(selectedDemand.dueDate) < new Date() && selectedDemand.status !== ServiceChargeDemandStatus.PAID && (
+                      <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
+                        OVERDUE
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <ModalFooter>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowDemandDetails(false)
+                  setSelectedDemand(null)
+                }}
+              >
+                Close
+              </Button>
+              {selectedDemand.status !== ServiceChargeDemandStatus.PAID && (
+                <Button
+                  onClick={() => {
+                    setShowDemandDetails(false)
+                    handleRecordPayment(selectedDemand)
+                  }}
+                >
+                  Record Payment
+                </Button>
+              )}
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
+      </div>
     </div>
   )
 }

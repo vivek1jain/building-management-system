@@ -527,24 +527,28 @@ const Events = () => {
 
 
   return (
-    <div className="space-y-6">
-      {/* Header with Building Selector */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Events</h1>
-          <p className="text-gray-600 mt-1">
-            Manage scheduled work and building events
-          </p>
+    <div className="min-h-screen bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-neutral-900">Events</h1>
+            <p className="text-gray-600 mt-1">
+              Manage scheduled work and building events
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => {
+              resetForm()
+              setShowCreateForm(true)
+            }}
+            className="flex items-center space-x-2"
+          >
+            <Calendar className="h-4 w-4" />
+            <span>Schedule Event</span>
+          </Button>
         </div>
-        <Button
-          onClick={() => {
-            resetForm()
-            setShowCreateForm(true)
-          }}
-        >
-          Schedule Event
-        </Button>
-      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -911,7 +915,7 @@ const Events = () => {
                 {getWorkflowActions(event.status).map((action) => (
                   <Button
                     key={action.action}
-                    variant={action.color === 'btn-primary' ? 'default' : 'outline'}
+                    variant={action.color === 'btn-primary' ? 'primary' : 'outline'}
                     size="sm"
                     className="px-3"
                     onClick={() => handleStatusUpdate(event.id, action.action)}
@@ -932,6 +936,7 @@ const Events = () => {
           <p className="text-gray-600">Try adjusting your search or schedule a new event</p>
         </div>
       )}
+      </div>
     </div>
   )
 }

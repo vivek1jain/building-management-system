@@ -4,6 +4,36 @@ import { useNotifications } from '../contexts/NotificationContext'
 import { getAllBuildings } from '../services/buildingService'
 import { getWorkOrderStats } from '../services/workOrderService'
 import { WorkOrder, WorkOrderStatus, WorkOrderPriority, Building } from '../types'
+
+// This interface is for the mock data used in this component
+interface MockWorkOrder {
+  id: string;
+  buildingId: string;
+  title: string;
+  description: string;
+  priority: WorkOrderPriority;
+  status: WorkOrderStatus;
+  flatId: string;
+  category: string;
+  estimatedCost: number;
+  cost?: number;
+  scheduledDate: Date | null;
+  completedDate: Date | null;
+  assignedTo: string;
+  requestedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  activityLog: {
+    id: string;
+    action: string;
+    description: string;
+    performedBy: string;
+    timestamp: Date;
+    metadata: Record<string, any>;
+  }[];
+  quotes: any[];
+  userFeedback: any;
+}
 import { 
   Wrench, 
   Clock, 
@@ -27,7 +57,7 @@ const WorkOrdersPage: React.FC = () => {
   const { addNotification } = useNotifications()
   const [buildings, setBuildings] = useState<Building[]>([])
   const [selectedBuilding, setSelectedBuilding] = useState<string>('')
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [workOrders, setWorkOrders] = useState<MockWorkOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateWorkOrder, setShowCreateWorkOrder] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -38,7 +68,7 @@ const WorkOrdersPage: React.FC = () => {
   const [workOrderForm, setWorkOrderForm] = useState({
     title: '',
     description: '',
-    priority: 'medium' as WorkOrderPriority,
+    priority: WorkOrderPriority.MEDIUM,
     status: WorkOrderStatus.TRIAGE,
     flatId: '',
     category: 'repairs',
@@ -86,18 +116,18 @@ const WorkOrdersPage: React.FC = () => {
     try {
       setLoading(true)
       // Mock data for demonstration
-      const mockWorkOrders: WorkOrder[] = [
+      const mockWorkOrders: MockWorkOrder[] = [
         {
           id: '1',
           buildingId: selectedBuilding,
           title: 'Leaking Faucet Repair',
           description: 'Kitchen faucet is leaking and needs replacement',
-          priority: 'high',
-          status: 'in_progress',
+          priority: WorkOrderPriority.HIGH,
+          status: WorkOrderStatus.IN_PROGRESS,
           flatId: 'A101',
           category: 'plumbing',
           estimatedCost: 150,
-          actualCost: 120,
+          cost: 120,
           scheduledDate: new Date('2024-03-20'),
           completedDate: null,
           assignedTo: 'John Contractor',
@@ -130,12 +160,12 @@ const WorkOrdersPage: React.FC = () => {
           buildingId: selectedBuilding,
           title: 'HVAC Maintenance',
           description: 'Annual HVAC system maintenance and cleaning',
-          priority: 'medium',
-          status: 'scheduled',
+          priority: WorkOrderPriority.MEDIUM,
+          status: WorkOrderStatus.SCHEDULED,
           flatId: 'B201',
           category: 'hvac',
           estimatedCost: 300,
-          actualCost: 0,
+          cost: 0,
           scheduledDate: new Date('2024-03-25'),
           completedDate: null,
           assignedTo: 'HVAC Services Ltd',
@@ -160,12 +190,12 @@ const WorkOrdersPage: React.FC = () => {
           buildingId: selectedBuilding,
           title: 'Electrical Outlet Repair',
           description: 'Electrical outlet not working in bedroom',
-          priority: 'urgent',
-          status: 'triage',
+          priority: WorkOrderPriority.URGENT,
+          status: WorkOrderStatus.TRIAGE,
           flatId: 'A102',
           category: 'electrical',
           estimatedCost: 200,
-          actualCost: 0,
+          cost: 0,
           scheduledDate: null,
           completedDate: null,
           assignedTo: '',
@@ -207,11 +237,11 @@ const WorkOrdersPage: React.FC = () => {
     try {
       setLoading(true)
       // Mock creation
-      const newWorkOrder: WorkOrder = {
+      const newWorkOrder: MockWorkOrder = {
         id: Date.now().toString(),
         buildingId: selectedBuilding,
         ...workOrderForm,
-        actualCost: 0,
+        cost: 0,
         completedDate: null,
         requestedBy: currentUser.name || 'Unknown',
         scheduledDate: workOrderForm.scheduledDate ? new Date(workOrderForm.scheduledDate) : null,
@@ -236,8 +266,8 @@ const WorkOrdersPage: React.FC = () => {
       setWorkOrderForm({
         title: '',
         description: '',
-        priority: 'medium',
-        status: 'triage',
+        priority: WorkOrderPriority.MEDIUM,
+        status: WorkOrderStatus.TRIAGE,
         flatId: '',
         category: 'repairs',
         estimatedCost: 0,
@@ -267,46 +297,48 @@ const WorkOrdersPage: React.FC = () => {
 
   const getStatusColor = (status: WorkOrderStatus) => {
     switch (status) {
-      case 'triage': return 'bg-neutral-100 text-gray-800'
-      case 'quoting': return 'bg-blue-100 text-blue-800'
-      case 'with_user': return 'bg-yellow-100 text-yellow-800'
-      case 'scheduled': return 'bg-purple-100 text-purple-800'
-      case 'in_progress': return 'bg-orange-100 text-orange-800'
-      case 'resolved': return 'bg-success-100 text-success-800'
-      case 'closed': return 'bg-neutral-100 text-gray-800'
+      case WorkOrderStatus.TRIAGE: return 'bg-neutral-100 text-gray-800'
+      case WorkOrderStatus.QUOTING: return 'bg-blue-100 text-blue-800'
+      case WorkOrderStatus.AWAITING_USER_FEEDBACK: return 'bg-yellow-100 text-yellow-800'
+      case WorkOrderStatus.SCHEDULED: return 'bg-purple-100 text-purple-800'
+      case WorkOrderStatus.IN_PROGRESS: return 'bg-orange-100 text-orange-800'
+      case WorkOrderStatus.RESOLVED: return 'bg-success-100 text-success-800'
+      case WorkOrderStatus.CLOSED: return 'bg-neutral-100 text-gray-800'
+      case WorkOrderStatus.CANCELLED: return 'bg-red-100 text-red-800'
       default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
   const getPriorityColor = (priority: WorkOrderPriority) => {
     switch (priority) {
-      case 'low': return 'bg-success-100 text-success-800'
-      case 'medium': return 'bg-yellow-100 text-yellow-800'
-      case 'high': return 'bg-orange-100 text-orange-800'
-      case 'urgent': return 'bg-red-100 text-red-800'
+      case WorkOrderPriority.LOW: return 'bg-success-100 text-success-800'
+      case WorkOrderPriority.MEDIUM: return 'bg-yellow-100 text-yellow-800'
+      case WorkOrderPriority.HIGH: return 'bg-orange-100 text-orange-800'
+      case WorkOrderPriority.URGENT: return 'bg-red-100 text-red-800'
       default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
   const getPriorityIcon = (priority: WorkOrderPriority) => {
     switch (priority) {
-      case 'low': return <Star className="h-4 w-4 text-success-600" />
-      case 'medium': return <Star className="h-4 w-4 text-yellow-600" />
-      case 'high': return <Star className="h-4 w-4 text-orange-600" />
-      case 'urgent': return <AlertTriangle className="h-4 w-4 text-red-600" />
+      case WorkOrderPriority.LOW: return <Star className="h-4 w-4 text-success-600" />
+      case WorkOrderPriority.MEDIUM: return <Star className="h-4 w-4 text-yellow-600" />
+      case WorkOrderPriority.HIGH: return <Star className="h-4 w-4 text-orange-600" />
+      case WorkOrderPriority.URGENT: return <AlertTriangle className="h-4 w-4 text-red-600" />
       default: return <Star className="h-4 w-4 text-gray-600" />
     }
   }
 
   const getStatusIcon = (status: WorkOrderStatus) => {
     switch (status) {
-      case 'triage': return <Clock className="h-4 w-4 text-gray-600" />
-      case 'quoting': return <Search className="h-4 w-4 text-primary-600" />
-      case 'with_user': return <User className="h-4 w-4 text-yellow-600" />
-      case 'scheduled': return <Calendar className="h-4 w-4 text-purple-600" />
-      case 'in_progress': return <Wrench className="h-4 w-4 text-orange-600" />
-      case 'resolved': return <CheckCircle className="h-4 w-4 text-success-600" />
-      case 'closed': return <CheckCircle className="h-4 w-4 text-gray-600" />
+      case WorkOrderStatus.TRIAGE: return <Clock className="h-4 w-4 text-gray-600" />
+      case WorkOrderStatus.QUOTING: return <Search className="h-4 w-4 text-primary-600" />
+      case WorkOrderStatus.AWAITING_USER_FEEDBACK: return <User className="h-4 w-4 text-yellow-600" />
+      case WorkOrderStatus.SCHEDULED: return <Calendar className="h-4 w-4 text-purple-600" />
+      case WorkOrderStatus.IN_PROGRESS: return <Wrench className="h-4 w-4 text-orange-600" />
+      case WorkOrderStatus.RESOLVED: return <CheckCircle className="h-4 w-4 text-success-600" />
+      case WorkOrderStatus.CLOSED: return <CheckCircle className="h-4 w-4 text-gray-600" />
+      case WorkOrderStatus.CANCELLED: return <AlertTriangle className="h-4 w-4 text-red-600" />
       default: return <Clock className="h-4 w-4 text-gray-600" />
     }
   }
@@ -338,8 +370,8 @@ const WorkOrdersPage: React.FC = () => {
   })
 
   const totalWorkOrders = workOrders.length
-  const inProgressCount = workOrders.filter(order => order.status === 'in_progress').length
-  const urgentCount = workOrders.filter(order => order.priority === 'urgent').length
+  const inProgressCount = workOrders.filter(order => order.status === WorkOrderStatus.IN_PROGRESS).length
+  const urgentCount = workOrders.filter(order => order.priority === WorkOrderPriority.URGENT).length
   const totalEstimatedCost = workOrders.reduce((sum, order) => sum + order.estimatedCost, 0)
 
   if (loading) {
@@ -466,13 +498,14 @@ const WorkOrdersPage: React.FC = () => {
               className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Status</option>
-              <option value="triage">Triage</option>
-              <option value="quoting">Quoting</option>
-              <option value="with_user">With User</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="in_progress">In Progress</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
+              <option value={WorkOrderStatus.TRIAGE}>Triage</option>
+              <option value={WorkOrderStatus.QUOTING}>Quoting</option>
+              <option value={WorkOrderStatus.AWAITING_USER_FEEDBACK}>With User</option>
+              <option value={WorkOrderStatus.SCHEDULED}>Scheduled</option>
+              <option value={WorkOrderStatus.IN_PROGRESS}>In Progress</option>
+              <option value={WorkOrderStatus.RESOLVED}>Resolved</option>
+              <option value={WorkOrderStatus.CLOSED}>Closed</option>
+              <option value={WorkOrderStatus.CANCELLED}>Cancelled</option>
             </select>
             <select
               value={filterPriority}
@@ -480,10 +513,10 @@ const WorkOrdersPage: React.FC = () => {
               className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               <option value="all">All Priority</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
+              <option value={WorkOrderPriority.LOW}>Low</option>
+              <option value={WorkOrderPriority.MEDIUM}>Medium</option>
+              <option value={WorkOrderPriority.HIGH}>High</option>
+              <option value={WorkOrderPriority.URGENT}>Urgent</option>
             </select>
           </div>
         </div>
@@ -607,10 +640,10 @@ const WorkOrdersPage: React.FC = () => {
                     onChange={(e) => setWorkOrderForm({...workOrderForm, priority: e.target.value as WorkOrderPriority})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
+                    <option value={WorkOrderPriority.LOW}>Low</option>
+                    <option value={WorkOrderPriority.MEDIUM}>Medium</option>
+                    <option value={WorkOrderPriority.HIGH}>High</option>
+                    <option value={WorkOrderPriority.URGENT}>Urgent</option>
                   </select>
                 </div>
                 <div>

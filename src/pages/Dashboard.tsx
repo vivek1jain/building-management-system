@@ -21,11 +21,12 @@ import {
   Bell,
   RefreshCw,
   Home,
-  ChevronDown
+  ChevronDown,
+  FileText
 } from 'lucide-react'
 import { getAllBuildings } from '../services/buildingService'
 import { ticketService } from '../services/ticketService'
-import { Building as BuildingType, Ticket } from '../types'
+import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel } from '../types'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '../components/UI'
 
 const Dashboard: React.FC = () => {
@@ -74,12 +75,12 @@ const Dashboard: React.FC = () => {
   const calculateMetrics = () => {
     // Calculate ticket metrics
     const urgentTickets = tickets.filter(t => 
-      t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high')
+      (t.status === 'New' || t.status === 'Quote Requested') && (t.urgency === 'Critical' || t.urgency === 'High')
     ).length
     
-    const openTickets = tickets.filter(t => t.status === 'open').length
-    const inProgressTickets = tickets.filter(t => t.status === 'in_progress').length
-    const resolvedTickets = tickets.filter(t => t.status === 'resolved').length
+    const openTickets = tickets.filter(t => t.status === 'New').length
+    const inProgressTickets = tickets.filter(t => t.status === 'In Progress').length
+    const resolvedTickets = tickets.filter(t => t.status === 'Complete').length
 
     // Mock data for metrics we don't have services for yet
     const totalFlats = 24
@@ -115,13 +116,13 @@ const Dashboard: React.FC = () => {
 
     // Add urgent tickets from Firebase data
     tickets
-      .filter(t => t.status === 'open' && (t.priority === 'urgent' || t.priority === 'high'))
+      .filter(t => (t.status === 'New' || t.status === 'Quote Requested') && (t.urgency === 'Critical' || t.urgency === 'High'))
       .forEach(ticket => {
         urgentItems.push({
           id: ticket.id,
           title: ticket.title,
           type: 'ticket',
-          priority: ticket.priority,
+          priority: ticket.urgency,
           status: ticket.status,
           assignedTo: ticket.assignedTo || 'Unassigned',
           createdAt: ticket.createdAt
@@ -132,7 +133,7 @@ const Dashboard: React.FC = () => {
     // This can be extended when those services are added
 
     return urgentItems.sort((a, b) => {
-      const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
+      const priorityOrder = { Critical: 4, High: 3, Medium: 2, Low: 1 }
       return (priorityOrder[b.priority as keyof typeof priorityOrder] || 0) - 
              (priorityOrder[a.priority as keyof typeof priorityOrder] || 0)
     })
@@ -142,13 +143,12 @@ const Dashboard: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'urgent':
+      case 'Critical':
+      case 'High':
         return 'text-red-600 bg-red-100'
-      case 'high':
-        return 'text-red-600 bg-red-100'
-      case 'medium':
+      case 'Medium':
         return 'text-yellow-600 bg-yellow-100'
-      case 'low':
+      case 'Low':
         return 'text-success-600 bg-success-100'
       default:
         return 'text-gray-600 bg-neutral-100'
@@ -165,6 +165,33 @@ const Dashboard: React.FC = () => {
         return <Calendar className="h-4 w-4" />
       default:
         return <Bell className="h-4 w-4" />
+    }
+  }
+
+  const formatTimeAgo = (date: Date) => {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    return `${Math.floor(diffInSeconds / 86400)} days ago`
+  }
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'New': return 'bg-blue-100 text-blue-800'
+      case 'Quote Requested': return 'bg-yellow-100 text-yellow-800'
+      case 'Quote Received': return 'bg-purple-100 text-purple-800'
+      case 'PO Sent': return 'bg-indigo-100 text-indigo-800'
+      case 'Contracted': return 'bg-orange-100 text-orange-800'
+      case 'Scheduled': return 'bg-cyan-100 text-cyan-800'
+      case 'In Progress': return 'bg-blue-100 text-blue-800'
+      case 'Complete': return 'bg-success-100 text-success-800'
+      case 'Closed': return 'bg-neutral-100 text-gray-800'
+      case 'Triage': return 'bg-yellow-100 text-yellow-800'
+      case 'Cancelled': return 'bg-red-100 text-red-800'
+      default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
@@ -185,7 +212,7 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Building Manager Dashboard</h1>
+<h1 className="text-3xl font-bold text-neutral-900 mb-2">Building Manager Dashboard</h1>
             <p className="text-gray-600">Welcome back, {currentUser.name}</p>
             {selectedBuildingData && (
               <p className="text-sm text-neutral-500 mt-1">Current building: {selectedBuildingData.name}</p>
@@ -195,102 +222,90 @@ const Dashboard: React.FC = () => {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Total Buildings */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Building className="h-8 w-8 text-primary-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-neutral-500">Total Buildings</p>
-                <p className="text-2xl font-semibold text-neutral-900">{metrics.totalBuildings}</p>
-              </div>
-            </div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Buildings</CardTitle>
+              <Building className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.totalBuildings}</div>
+            </CardContent>
+          </Card>
 
-          {/* Total Flats */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="h-8 w-8 text-success-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-neutral-500">Total Flats</p>
-                <p className="text-2xl font-semibold text-neutral-900">{metrics.totalFlats}</p>
-              </div>
-            </div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Flats</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.totalFlats}</div>
+            </CardContent>
+          </Card>
 
-          {/* Occupancy Rate */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <TrendingUp className="h-8 w-8 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-neutral-500">Occupancy Rate</p>
-                <p className="text-2xl font-semibold text-neutral-900">{metrics.occupancyRate}%</p>
-              </div>
-            </div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
+              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{metrics.occupancyRate}%</div>
+            </CardContent>
+          </Card>
 
-          {/* Monthly Revenue */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <DollarSign className="h-8 w-8 text-success-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-neutral-500">Monthly Revenue</p>
-                <p className="text-2xl font-semibold text-neutral-900">£{metrics.monthlyRevenue.toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Monthly Revenue</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">£{metrics.monthlyRevenue.toLocaleString()}</div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Urgent Items Triage */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-neutral-200">
+<Card padding="none" shadow="sm" className="bg-white">
+              <CardHeader className="px-6 py-4 border-b border-neutral-200">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium text-neutral-900">Urgent Items Triage</h2>
-                  <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                  <CardTitle as="h2" className="text-lg font-medium text-neutral-900">Urgent Items Triage</CardTitle>
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-800">
                     {urgentItems.length} items
                   </span>
                 </div>
-              </div>
+              </CardHeader>
               <div className="divide-y divide-gray-200">
                 {urgentItems.length === 0 ? (
-                  <div className="px-6 py-8 text-center">
-                    <CheckCircle className="mx-auto h-12 w-12 text-success-400" />
-                    <h3 className="mt-2 text-sm font-medium text-neutral-900">No urgent items</h3>
-                    <p className="mt-1 text-sm text-neutral-500">All caught up! Great work.</p>
+                  <div className="text-center py-8">
+                    <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                    <h3 className="mt-2 text-sm font-medium">No urgent items</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">All caught up! Great work.</p>
                   </div>
                 ) : (
-                  urgentItems.slice(0, 5).map((item) => (
-                    <div key={`${item.type}-${item.id}`} className="px-6 py-4">
-                      <div className="flex items-center justify-between">
+<div className="divide-y divide-gray-200">
+                    {urgentItems.slice(0, 5).map((item) => (
+                      <div key={`${item.type}-${item.id}`} className="py-4 flex items-center justify-between">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 mr-3">
                             {getTypeIcon(item.type)}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-neutral-900">{item.title}</p>
-                            <p className="text-sm text-neutral-500">
+                            <p className="text-sm font-medium">{item.title}</p>
+                            <p className="text-sm text-muted-foreground">
                               Assigned to: {item.assignedTo || 'Unassigned'}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(item.priority)}`}>
+<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(item.priority)}`}>
                             {item.priority}
                           </span>
                           <span className="text-xs text-neutral-500 capitalize">{item.type.replace('_', ' ')}</span>
                         </div>
                       </div>
-                    </div>
-                  ))
+))}
+              </div>
                 )}
               </div>
               {urgentItems.length > 5 && (
@@ -300,90 +315,117 @@ const Dashboard: React.FC = () => {
                   </Link>
                 </div>
               )}
-            </div>
+            </Card>
           </div>
 
-          {/* Quick Actions */}
+          {/* Quick Actions & Stats */}
           <div className="space-y-6">
-            {/* Quick Stats */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-neutral-900 mb-4">Quick Stats</h3>
+<Card padding="md" shadow="sm" className="bg-white">
+              <CardTitle as="h3" className="text-lg font-medium text-neutral-900 mb-4">Quick Stats</CardTitle>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-                    <span className="text-sm text-gray-600">Urgent Tickets</span>
+                    <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
+                    <span className="text-sm text-muted-foreground">Urgent Tickets</span>
                   </div>
-                  <span className="text-sm font-semibold text-neutral-900">{metrics.urgentTickets}</span>
+                  <span className="text-sm font-semibold">{metrics.urgentTickets}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Wrench className="h-5 w-5 text-blue-500 mr-2" />
-                    <span className="text-sm text-gray-600">Pending Work Orders</span>
+                    <Wrench className="h-5 w-5 text-primary mr-2" />
+                    <span className="text-sm text-muted-foreground">Pending Work Orders</span>
                   </div>
-                  <span className="text-sm font-semibold text-neutral-900">{metrics.pendingWorkOrders}</span>
+                  <span className="text-sm font-semibold">{metrics.pendingWorkOrders}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-success-500 mr-2" />
-                    <span className="text-sm text-gray-600">Upcoming Events</span>
+                    <Calendar className="h-5 w-5 text-green-500 mr-2" />
+                    <span className="text-sm text-muted-foreground">Upcoming Events</span>
                   </div>
-                  <span className="text-sm font-semibold text-neutral-900">{metrics.upcomingEvents}</span>
+                  <span className="text-sm font-semibold">{metrics.upcomingEvents}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
                     <TrendingDown className="h-5 w-5 text-purple-500 mr-2" />
-                    <span className="text-sm text-gray-600">Monthly Expenses</span>
+                    <span className="text-sm text-muted-foreground">Monthly Expenses</span>
                   </div>
-                  <span className="text-sm font-semibold text-neutral-900">£{metrics.monthlyExpenses.toLocaleString()}</span>
+                  <span className="text-sm font-semibold">£{metrics.monthlyExpenses.toLocaleString()}</span>
                 </div>
-              </div>
-            </div>
+</div>
+            </Card>
 
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-neutral-900 mb-4">Quick Actions</h3>
+            <Card padding="md" shadow="sm" className="bg-white">
+              <CardTitle as="h3" className="text-lg font-medium text-neutral-900 mb-4">Quick Actions</CardTitle>
               <div className="space-y-3">
-                <Link
-                  to="/tickets-work-orders"
-                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
-                >
+                <Link to="/tickets-work-orders" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center">
-                    <AlertTriangle className="h-5 w-5 text-red-500 mr-3" />
-                    <span className="text-sm font-medium text-neutral-900">Manage Tickets</span>
+                    <AlertTriangle className="h-5 w-5 text-destructive mr-3" />
+                    <span className="text-sm font-medium">Manage Tickets</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
-                <Link
-                  to="/finances"
-                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
-                >
+                <Link to="/finances" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center">
-                    <CreditCard className="h-5 w-5 text-success-500 mr-3" />
-                    <span className="text-sm font-medium text-neutral-900">View Finances</span>
+                    <CreditCard className="h-5 w-5 text-green-500 mr-3" />
+                    <span className="text-sm font-medium">View Finances</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
-                <Link
-                  to="/events"
-                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
-                >
+                <Link to="/events" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-blue-500 mr-3" />
-                    <span className="text-sm font-medium text-neutral-900">Manage Events</span>
+                    <Calendar className="h-5 w-5 text-primary mr-3" />
+                    <span className="text-sm font-medium">Manage Events</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
-                <Link
-                  to="/building-data"
-                  className="flex items-center justify-between p-3 border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
-                >
+                <Link to="/building-data" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
                   <div className="flex items-center">
                     <Building className="h-5 w-5 text-purple-500 mr-3" />
-                    <span className="text-sm font-medium text-neutral-900">Building Data</span>
+                    <span className="text-sm font-medium">Building Data</span>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-neutral-400" />
-                </Link>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+</Link>
+              </div>
+            </Card>
+          </div>
+        </div>
+
+        {/* Recent Activity Section */}
+        <div className="mt-8">
+<div className="bg-white rounded-lg shadow">
+            <div className="px-6 py-4 border-b border-neutral-200">
+              <h3 className="text-lg font-medium text-neutral-900">Recent Activity</h3>
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                {tickets
+                  .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                  .slice(0, 5)
+                  .map((item) => (
+                    <div key={item.id} className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+<FileText className="h-5 w-5 text-blue-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+<p className="text-sm font-medium text-neutral-900">
+                          {item.title}
+                        </p>
+                        <p className="text-sm text-neutral-500">
+                          Ticket • {formatTimeAgo(item.updatedAt)}
+                        </p>
+                      </div>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                        {item.status}
+                      </span>
+                    </div>
+                  ))}
+                {tickets.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-neutral-500">
+                      No recent activity to show
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
           </div>

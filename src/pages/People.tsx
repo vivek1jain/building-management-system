@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useBuilding } from '../contexts/BuildingContext'
 import { getPeopleStats } from '../services/peopleService'
-import { Person, PersonStatus, Building } from '../types'
+import { Person, PersonStatus, UserRole, Building } from '../types'
 import { 
   Users, 
   UserPlus, 
@@ -67,45 +67,43 @@ const PeoplePage: React.FC = () => {
       const mockPeople: Person[] = [
         {
           id: `${selectedBuildingId}-1`,
+          name: selectedBuildingData?.name.includes('Tower') ? 'Alice Chen' : 'John Smith',
           buildingId: selectedBuildingId,
-          firstName: selectedBuildingData?.name.includes('Tower') ? 'Alice' : 'John',
-          lastName: selectedBuildingData?.name.includes('Tower') ? 'Chen' : 'Smith',
+          flatId: selectedBuildingData?.name.includes('Tower') ? 'T301' : 'A101',
           email: selectedBuildingData?.name.includes('Tower') ? 'alice.chen@email.com' : 'john.smith@email.com',
           phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1001' : '+1-555-0123',
-          role: 'resident',
-          status: 'active',
-          flatId: selectedBuildingData?.name.includes('Tower') ? 'T301' : 'A101',
+          role: 'resident' as UserRole,
+          status: PersonStatus.RESIDENT,
           moveInDate: new Date('2023-01-15'),
           moveOutDate: null,
           emergencyContact: {
             name: selectedBuildingData?.name.includes('Tower') ? 'David Chen' : 'Jane Smith',
-            phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1002' : '+1-555-0124',
-            relationship: 'Spouse'
+            phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1002' : '+1-555-0124'
           },
           notes: `Primary contact for ${selectedBuildingData?.name || 'building'}`,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          createdByUid: currentUser?.id || 'system'
         },
         {
           id: `${selectedBuildingId}-2`,
+          name: selectedBuildingData?.name.includes('Tower') ? 'Michael Rodriguez' : 'Sarah Johnson',
           buildingId: selectedBuildingId,
-          firstName: selectedBuildingData?.name.includes('Tower') ? 'Michael' : 'Sarah',
-          lastName: selectedBuildingData?.name.includes('Tower') ? 'Rodriguez' : 'Johnson',
+          flatId: selectedBuildingData?.name.includes('Tower') ? 'T401' : 'B201',
           email: selectedBuildingData?.name.includes('Tower') ? 'michael.rodriguez@email.com' : 'sarah.johnson@email.com',
           phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1003' : '+1-555-0125',
-          role: 'owner',
-          status: 'active',
-          flatId: selectedBuildingData?.name.includes('Tower') ? 'T401' : 'B201',
+          role: 'resident' as UserRole,
+          status: PersonStatus.OWNER,
           moveInDate: new Date('2022-06-01'),
           moveOutDate: null,
           emergencyContact: {
             name: selectedBuildingData?.name.includes('Tower') ? 'Sofia Rodriguez' : 'Mike Johnson',
-            phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1004' : '+1-555-0126',
-            relationship: selectedBuildingData?.name.includes('Tower') ? 'Wife' : 'Brother'
+            phone: selectedBuildingData?.name.includes('Tower') ? '+1-555-1004' : '+1-555-0126'
           },
           notes: selectedBuildingData?.name.includes('Tower') ? 'High-floor unit owner' : 'Penthouse owner',
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          createdByUid: currentUser?.id || 'system'
         }
       ]
       
@@ -131,12 +129,23 @@ const PeoplePage: React.FC = () => {
       // Mock creation
       const newPerson: Person = {
         id: Date.now().toString(),
+        name: `${personForm.firstName} ${personForm.lastName}`,
         buildingId: selectedBuildingId,
-        ...personForm,
-        moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : new Date(),
+        flatId: personForm.flatId || null,
+        email: personForm.email,
+        phone: personForm.phone,
+        role: personForm.role as UserRole,
+        status: PersonStatus.RESIDENT, // Default to RESIDENT status
+        moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : null,
         moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
+        emergencyContact: {
+          name: personForm.emergencyContact.name,
+          phone: personForm.emergencyContact.phone
+        },
+        notes: personForm.notes,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        createdByUid: currentUser?.id || 'system'
       }
       
       setPeople([...people, newPerson])
@@ -180,10 +189,13 @@ const PeoplePage: React.FC = () => {
 
   const getStatusColor = (status: PersonStatus) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-800'
-      case 'inactive': return 'bg-neutral-100 text-gray-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'suspended': return 'bg-red-100 text-red-800'
+      case PersonStatus.OWNER: return 'bg-purple-100 text-purple-800'
+      case PersonStatus.TENANT: return 'bg-green-100 text-green-800'
+      case PersonStatus.RESIDENT: return 'bg-blue-100 text-blue-800'
+      case PersonStatus.MANAGER: return 'bg-orange-100 text-orange-800'
+      case PersonStatus.PROSPECT: return 'bg-yellow-100 text-yellow-800'
+      case PersonStatus.ARCHIVED: return 'bg-neutral-100 text-gray-800'
+      case PersonStatus.PENDING_APPROVAL: return 'bg-yellow-100 text-yellow-800'
       default: return 'bg-neutral-100 text-gray-800'
     }
   }
@@ -209,10 +221,9 @@ const PeoplePage: React.FC = () => {
 
   const filteredPeople = people.filter(person => {
     const matchesSearch = 
-      person.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      person.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      person.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      person.phone.includes(searchTerm)
+      person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (person.email && person.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (person.phone && person.phone.includes(searchTerm))
     const matchesStatus = filterStatus === 'all' || person.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -311,13 +322,13 @@ const PeoplePage: React.FC = () => {
                       <div className="flex-shrink-0 h-10 w-10">
                         <div className="h-10 w-10 rounded-full bg-primary-600 flex items-center justify-center">
                           <span className="text-sm font-medium text-white">
-                            {person.firstName.charAt(0)}{person.lastName.charAt(0)}
+                            {person.name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
                           </span>
                         </div>
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-neutral-900">
-                          {person.firstName} {person.lastName}
+                          {person.name}
                         </div>
                         <div className="text-sm text-neutral-500">
                           {person.email}
@@ -370,7 +381,7 @@ const PeoplePage: React.FC = () => {
 
       {/* Create Person Modal */}
       {showCreatePerson && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold text-neutral-900 mb-4">Add New Person</h2>
             

@@ -8,9 +8,12 @@ import {
   CheckCircle,
   Search,
   Filter,
-  Send
+  Send,
+  Calendar,
+  Award,
+  AlertCircle
 } from 'lucide-react'
-import { Supplier } from '../../types'
+import { Supplier, AssetCategory } from '../../types'
 import { supplierService } from '../../services/supplierService'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'

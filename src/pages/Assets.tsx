@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { getAllBuildings } from '../services/buildingService'
-import { Asset, Building, AssetStatus } from '../types'
+import { Asset, Building, AssetStatus, AssetCategory } from '../types'
 import { 
   Package, 
   Plus, 
@@ -35,6 +35,8 @@ const AssetsPage: React.FC = () => {
     serialNumber: '',
     warrantyExpiryDate: '',
     status: AssetStatus.OPERATIONAL,
+    category: AssetCategory.OTHER,
+    maintenanceSchedule: '',
     notes: ''
   })
 
@@ -84,54 +86,57 @@ const AssetsPage: React.FC = () => {
           buildingId: selectedBuilding,
           name: 'Main Elevator',
           description: 'Primary passenger elevator serving all floors',
-          location: 'Central Lobby',
+          locationDescription: 'Central Lobby',
           installationDate: new Date('2020-01-15'),
           manufacturer: 'Otis',
-          model: 'Gen2 Premier',
+          modelNumber: 'Gen2 Premier',
           serialNumber: 'OT-2020-001',
-          warrantyExpiry: new Date('2025-01-15'),
-          status: 'operational',
-          category: 'elevator',
+          warrantyExpiryDate: new Date('2025-01-15'),
+          status: AssetStatus.OPERATIONAL,
+          category: AssetCategory.ELEVATORS,
           maintenanceSchedule: 'monthly',
           notes: 'Regular maintenance required',
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          createdByUid: 'mock-user'
         },
         {
           id: '2',
           buildingId: selectedBuilding,
           name: 'HVAC System - Floor 1',
           description: 'Heating, ventilation, and air conditioning for ground floor',
-          location: 'Mechanical Room 1',
+          locationDescription: 'Mechanical Room 1',
           installationDate: new Date('2019-06-01'),
           manufacturer: 'Carrier',
-          model: 'AquaEdge 19DV',
+          modelNumber: 'AquaEdge 19DV',
           serialNumber: 'CR-2019-045',
-          warrantyExpiry: new Date('2024-06-01'),
-          status: 'needs_repair',
-          category: 'hvac',
+          warrantyExpiryDate: new Date('2024-06-01'),
+          status: AssetStatus.NEEDS_REPAIR,
+          category: AssetCategory.HVAC,
           maintenanceSchedule: 'quarterly',
           notes: 'Requires filter replacement',
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          createdByUid: 'mock-user'
         },
         {
           id: '3',
           buildingId: selectedBuilding,
           name: 'Fire Alarm System',
           description: 'Building-wide fire detection and alarm system',
-          location: 'Throughout Building',
+          locationDescription: 'Throughout Building',
           installationDate: new Date('2018-03-10'),
           manufacturer: 'Honeywell',
-          model: 'NOTIFIER NFS2-3030',
+          modelNumber: 'NOTIFIER NFS2-3030',
           serialNumber: 'HW-2018-012',
-          warrantyExpiry: new Date('2023-03-10'),
-          status: 'operational',
-          category: 'safety',
+          warrantyExpiryDate: new Date('2023-03-10'),
+          status: AssetStatus.OPERATIONAL,
+          category: AssetCategory.FIRE_SAFETY,
           maintenanceSchedule: 'monthly',
           notes: 'Annual inspection due',
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+          createdByUid: 'mock-user'
         }
       ]
       
@@ -160,19 +165,20 @@ const AssetsPage: React.FC = () => {
         id: Date.now().toString(),
         buildingId: selectedBuilding,
         name: assetForm.name,
-        description: assetForm.description,
-        location: assetForm.location,
+        type: assetForm.type,
+        locationDescription: assetForm.locationDescription,
         installationDate: new Date(assetForm.installationDate),
         manufacturer: assetForm.manufacturer,
-        model: assetForm.model,
+        modelNumber: assetForm.modelNumber,
         serialNumber: assetForm.serialNumber,
-        warrantyExpiry: new Date(assetForm.warrantyExpiry),
-        status: assetForm.status as any,
+        warrantyExpiryDate: new Date(assetForm.warrantyExpiryDate),
+        status: assetForm.status,
         category: assetForm.category,
         maintenanceSchedule: assetForm.maintenanceSchedule,
         notes: assetForm.notes,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        createdByUid: currentUser.id
       }
 
       setAssets(prev => [...prev, newAsset])
@@ -181,16 +187,16 @@ const AssetsPage: React.FC = () => {
       // Reset form
       setAssetForm({
         name: '',
-        description: '',
-        location: '',
+        type: '',
+        locationDescription: '',
         installationDate: '',
         manufacturer: '',
-        model: '',
+        modelNumber: '',
         serialNumber: '',
-        warrantyExpiry: '',
-        status: 'operational',
-        category: 'equipment',
-        maintenanceSchedule: 'monthly',
+        warrantyExpiryDate: '',
+        status: AssetStatus.OPERATIONAL,
+        category: AssetCategory.OTHER,
+        maintenanceSchedule: '',
         notes: ''
       })
 
@@ -239,8 +245,8 @@ const AssetsPage: React.FC = () => {
 
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         asset.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         asset.location.toLowerCase().includes(searchTerm.toLowerCase())
+                         (asset.description && asset.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         (asset.locationDescription && asset.locationDescription.toLowerCase().includes(searchTerm.toLowerCase()))
     
     const matchesStatus = filterStatus === 'all' || asset.status === filterStatus
     
@@ -349,14 +355,14 @@ const AssetsPage: React.FC = () => {
                     <div className="text-sm font-medium text-neutral-900">{asset.name}</div>
                     <div className="text-sm text-neutral-500">{asset.description}</div>
                     <div className="text-xs text-neutral-400">
-                      {asset.manufacturer} {asset.model}
+                      {asset.manufacturer} {asset.modelNumber}
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4 text-neutral-400" />
-                    <span className="text-sm text-neutral-900">{asset.location}</span>
+                    <span className="text-sm text-neutral-900">{asset.locationDescription || asset.location}</span>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -370,7 +376,7 @@ const AssetsPage: React.FC = () => {
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900">
-                  {formatDate(asset.warrantyExpiry)}
+                  {formatDate(asset.warrantyExpiryDate)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <div className="flex items-center gap-2">
@@ -401,7 +407,7 @@ const AssetsPage: React.FC = () => {
 
       {/* Create Asset Modal */}
       {showCreateAsset && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
             <h3 className="text-lg font-medium text-neutral-900 mb-4">Add New Asset</h3>
             
@@ -420,20 +426,21 @@ const AssetsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Location</label>
                   <input
                     type="text"
-                    value={assetForm.location}
-                    onChange={(e) => setAssetForm({...assetForm, location: e.target.value})}
+                    value={assetForm.locationDescription}
+                    onChange={(e) => setAssetForm({...assetForm, locationDescription: e.target.value})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Description</label>
-                <textarea
-                  value={assetForm.description}
-                  onChange={(e) => setAssetForm({...assetForm, description: e.target.value})}
-                  rows={3}
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Type</label>
+                <input
+                  type="text"
+                  value={assetForm.type}
+                  onChange={(e) => setAssetForm({...assetForm, type: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="e.g., Chiller, Boiler, etc."
                 />
               </div>
 
@@ -448,11 +455,11 @@ const AssetsPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Model</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Model Number</label>
                   <input
                     type="text"
-                    value={assetForm.model}
-                    onChange={(e) => setAssetForm({...assetForm, model: e.target.value})}
+                    value={assetForm.modelNumber}
+                    onChange={(e) => setAssetForm({...assetForm, modelNumber: e.target.value})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -472,15 +479,18 @@ const AssetsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Category</label>
                   <select
                     value={assetForm.category}
-                    onChange={(e) => setAssetForm({...assetForm, category: e.target.value})}
+                    onChange={(e) => setAssetForm({...assetForm, category: e.target.value as AssetCategory})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="equipment">Equipment</option>
-                    <option value="elevator">Elevator</option>
-                    <option value="hvac">HVAC</option>
-                    <option value="safety">Safety</option>
-                    <option value="electrical">Electrical</option>
-                    <option value="plumbing">Plumbing</option>
+                    <option value={AssetCategory.APPLIANCES}>Appliances</option>
+                    <option value={AssetCategory.ELEVATORS}>Elevators</option>
+                    <option value={AssetCategory.HVAC}>HVAC</option>
+                    <option value={AssetCategory.FIRE_SAFETY}>Fire Safety</option>
+                    <option value={AssetCategory.ELECTRICAL}>Electrical</option>
+                    <option value={AssetCategory.PLUMBING}>Plumbing</option>
+                    <option value={AssetCategory.SECURITY}>Security</option>
+                    <option value={AssetCategory.IT_EQUIPMENT}>IT Equipment</option>
+                    <option value={AssetCategory.OTHER}>Other</option>
                   </select>
                 </div>
               </div>
@@ -499,8 +509,8 @@ const AssetsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Warranty Expiry</label>
                   <input
                     type="date"
-                    value={assetForm.warrantyExpiry}
-                    onChange={(e) => setAssetForm({...assetForm, warrantyExpiry: e.target.value})}
+                    value={assetForm.warrantyExpiryDate}
+                    onChange={(e) => setAssetForm({...assetForm, warrantyExpiryDate: e.target.value})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -511,27 +521,25 @@ const AssetsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
                   <select
                     value={assetForm.status}
-                    onChange={(e) => setAssetForm({...assetForm, status: e.target.value})}
+                    onChange={(e) => setAssetForm({...assetForm, status: e.target.value as AssetStatus})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   >
-                    <option value="operational">Operational</option>
-                    <option value="needs_repair">Needs Repair</option>
-                    <option value="in_repair">In Repair</option>
-                    <option value="decommissioned">Decommissioned</option>
+                    <option value={AssetStatus.OPERATIONAL}>Operational</option>
+                    <option value={AssetStatus.NEEDS_REPAIR}>Needs Repair</option>
+                    <option value={AssetStatus.IN_REPAIR}>In Repair</option>
+                    <option value={AssetStatus.NEEDS_MAINTENANCE}>Needs Maintenance</option>
+                    <option value={AssetStatus.DECOMMISSIONED}>Decommissioned</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Maintenance Schedule</label>
-                  <select
-                    value={assetForm.maintenanceSchedule}
+                  <input
+                    type="text"
+                    value={assetForm.maintenanceSchedule || ''}
                     onChange={(e) => setAssetForm({...assetForm, maintenanceSchedule: e.target.value})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  >
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="annually">Annually</option>
-                  </select>
+                    placeholder="e.g., Monthly, Quarterly, As needed"
+                  />
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2 } from 'lucide-react';
-import { Ticket, TicketComment, TicketStatus } from '../types';
+import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign } from 'lucide-react';
+import { Ticket, TicketComment, TicketStatus, EnhancedQuote } from '../types';
 import { TicketComments } from './TicketComments';
 import { TicketCommentService } from '../services/ticketCommentService';
 import { ticketService } from '../services/ticketService';
@@ -11,6 +11,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { Modal } from './UI';
 import { DateTimePicker } from './DateTimePicker';
+import SupplierSelectionModal from './Suppliers/SupplierSelectionModal';
+import QuoteComparisonModal from './Tickets/QuoteComparisonModal';
+import QuoteManagementModal from './Tickets/QuoteManagementModal';
 
 interface TicketDetailModalProps {
   ticket: Ticket;
@@ -36,6 +39,11 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [selectedRescheduleDate, setSelectedRescheduleDate] = useState<Date | undefined>();
   const [localTicket, setLocalTicket] = useState<Ticket>(ticket);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
+  
+  // Quote workflow states
+  const [showSupplierSelection, setShowSupplierSelection] = useState(false);
+  const [showQuoteComparison, setShowQuoteComparison] = useState(false);
+  const [showQuoteManagement, setShowQuoteManagement] = useState(false);
 
   // Update local ticket when prop changes
   useEffect(() => {
@@ -192,6 +200,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const handleStatusUpdate = async (newStatus: TicketStatus) => {
     if (!currentUser) return;
 
+    // If transitioning to Quoting, show supplier selection modal
+    if (newStatus === 'Quoting') {
+      setShowSupplierSelection(true);
+      return;
+    }
+
     // If transitioning to Scheduled, show the date picker
     if (newStatus === 'Scheduled') {
       setShowSchedulePicker(true);
@@ -237,6 +251,52 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       });
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  // Handle quote workflow events
+  const handleQuotesRequested = () => {
+    setShowSupplierSelection(false);
+    
+    // Refresh the ticket to show updated status
+    if (onUpdate) {
+      const updatedTicket = {
+        ...localTicket,
+        status: 'Quoting' as TicketStatus,
+        updatedAt: new Date()
+      };
+      setLocalTicket(updatedTicket);
+      onUpdate(updatedTicket);
+    }
+  };
+
+  const handleQuoteSelected = (quoteId: string) => {
+    setShowQuoteComparison(false);
+    
+    // Refresh the ticket data
+    if (onUpdate) {
+      // In a real implementation, you'd fetch the updated ticket
+      // For now, we'll just update the local state
+      const updatedTicket = {
+        ...localTicket,
+        updatedAt: new Date()
+      };
+      setLocalTicket(updatedTicket);
+      onUpdate(updatedTicket);
+    }
+  };
+
+  const handleQuoteManagement = () => {
+    setShowQuoteManagement(false);
+    
+    // Refresh the ticket data to show any updates
+    if (onUpdate) {
+      const updatedTicket = {
+        ...localTicket,
+        updatedAt: new Date()
+      };
+      setLocalTicket(updatedTicket);
+      onUpdate(updatedTicket);
     }
   };
 
@@ -465,6 +525,63 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const canUpdateStatus = currentUser?.role === 'manager' || currentUser?.role === 'admin';
   const nextStatusOptions = getNextStatusOptions(localTicket.status);
 
+  // Render sticky footer with stage transition buttons
+  const renderStickyFooter = () => {
+    if (!canUpdateStatus || nextStatusOptions.length === 0) return null;
+
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-neutral-900">Move to Next Stage</h4>
+          <p className="text-xs text-neutral-500">Current: {localTicket.status}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {nextStatusOptions.map((status) => {
+            // Map status to user-friendly button text
+            const getButtonText = (status: TicketStatus) => {
+              switch (status) {
+                case 'Quoting': return 'Request Quote';
+                case 'Scheduled': 
+                  return localTicket.status === 'New' ? 'Schedule Work (Skip Quoting)' : 'Schedule Work';
+                case 'Complete': return 'Mark Complete';
+                case 'Closed': return 'Close Ticket';
+                case 'Cancelled': return 'Cancel';
+                default: return status;
+              }
+            };
+            
+            const getButtonColor = (status: TicketStatus) => {
+              switch (status) {
+                case 'Quoting': return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
+                case 'Scheduled': return 'bg-cyan-600 hover:bg-cyan-700 focus:ring-cyan-500';
+                case 'Complete': return 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
+                case 'Closed': return 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500';
+                case 'Cancelled': return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
+                default: return 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500';
+              }
+            };
+            
+            return (
+              <button
+                key={status}
+                onClick={() => handleStatusUpdate(status)}
+                disabled={isUpdatingStatus}
+                className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor(status)}`}
+              >
+                {isUpdatingStatus ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 mr-2" />
+                )}
+                {getButtonText(status)}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // Get actual scheduled/completed dates from activity log or status changes
   const getActualScheduledDate = () => {
     // Only show scheduled date if ticket is actually scheduled
@@ -497,8 +614,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={localTicket.title}
-      description={
-        <div className="flex items-center gap-2 mt-2">
+      footer={renderStickyFooter()}
+      size="xl"
+    >
+      <div className="space-y-6">
+        {/* Status and Priority Display */}
+        <div className="flex items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(localTicket.status)}`}>
             {localTicket.status}
           </span>
@@ -506,10 +627,6 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             {localTicket.urgency} priority
           </span>
         </div>
-      }
-      size="xl"
-    >
-      <div className="space-y-6">
         {/* Ticket Information Card */}
         <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
           <h3 className="text-lg font-semibold text-neutral-900 mb-4">Ticket Details</h3>
@@ -584,43 +701,47 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Workflow Status Update Card */}
-          {canUpdateStatus && nextStatusOptions.length > 0 && (
+
+          {/* Quote Management for Quoting Tickets */}
+          {canUpdateStatus && localTicket.status === 'Quoting' && (
             <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-              <h4 className="text-md font-semibold text-neutral-900 mb-4">Move to Next Stage</h4>
-              <div className="flex flex-wrap gap-2">
-                {nextStatusOptions.map((status) => {
-                  // Map status to user-friendly button text
-                  const getButtonText = (status: TicketStatus) => {
-                    switch (status) {
-                      case 'Quoting': return 'Request Quote';
-                      case 'Scheduled': 
-                        return localTicket.status === 'New' ? 'Schedule Work (Skip Quoting)' : 'Schedule Work';
-                      case 'Cancelled': return 'Cancel';
-                      default: return status;
-                    }
-                  };
-                  
-                  return (
+              <h4 className="text-md font-semibold text-neutral-900 mb-4">Quote Management</h4>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">Waiting for Quotes</p>
+                    <p className="text-xs text-yellow-600">
+                      {localTicket.quoteRequests?.length || 0} supplier(s) contacted
+                    </p>
+                  </div>
+                  <Award className="h-5 w-5 text-yellow-600" />
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-600">
+                    Manage supplier quotes and track responses.  
+                  </p>
+                  <div className="flex flex-wrap gap-2">
                     <button
-                      key={status}
-                      onClick={() => handleStatusUpdate(status)}
-                      disabled={isUpdatingStatus}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                      onClick={() => setShowQuoteManagement(true)}
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
                     >
-                      {isUpdatingStatus ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <ChevronRight className="w-4 h-4 mr-2" />
-                      )}
-                      {getButtonText(status)}
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Manage Quotes
                     </button>
-                  )
-                })}
+                    
+                    {localTicket.quotes && localTicket.quotes.length > 0 && (
+                      <button
+                        onClick={() => setShowQuoteComparison(true)}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
+                      >
+                        <Award className="w-4 h-4 mr-2" />
+                        Compare & Select ({localTicket.quotes.length})
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-neutral-500 mt-3">
-                Select the next status to move this ticket along the workflow
-              </p>
             </div>
           )}
 
@@ -747,6 +868,32 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Supplier Selection Modal */}
+      <SupplierSelectionModal
+        isOpen={showSupplierSelection}
+        onClose={() => setShowSupplierSelection(false)}
+        ticketId={ticket.id}
+        onQuotesRequested={handleQuotesRequested}
+      />
+
+      {/* Quote Comparison Modal */}
+      <QuoteComparisonModal
+        isOpen={showQuoteComparison}
+        onClose={() => setShowQuoteComparison(false)}
+        ticketId={ticket.id}
+        quotes={localTicket.quotes as EnhancedQuote[] || []}
+        onQuoteSelected={handleQuoteSelected}
+      />
+
+      {/* Quote Management Modal */}
+      <QuoteManagementModal
+        isOpen={showQuoteManagement}
+        onClose={() => setShowQuoteManagement(false)}
+        ticketId={ticket.id}
+        quoteRequests={localTicket.quoteRequests || []}
+        onQuotesUpdated={handleQuoteManagement}
+      />
     </Modal>
   );
 };

@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Building, Asset, Meter, AssetStatus } from '../types'
-import { mockBuildings, mockAssets } from './mockData'
 
   // Get all buildings
 export const getAllBuildings = async (): Promise<Building[]> => {
@@ -196,6 +195,7 @@ export const getAssetsByBuilding = async (buildingId: string): Promise<Asset[]> 
         id: doc.id,
         buildingId: data.buildingId,
         name: data.name,
+        category: data.category || 'OTHER',
         type: data.type,
         status: data.status || AssetStatus.OPERATIONAL,
         locationDescription: data.locationDescription,
@@ -239,6 +239,7 @@ export const getAssetById = async (assetId: string): Promise<Asset | null> => {
         id: assetSnap.id,
         buildingId: data.buildingId,
         name: data.name,
+        category: data.category || 'OTHER',
         type: data.type,
         status: data.status || AssetStatus.OPERATIONAL,
         locationDescription: data.locationDescription,

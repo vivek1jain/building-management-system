@@ -20,17 +20,28 @@ import {
   CheckCircle,
   Search,
   Filter,
-  Send
+  Send,
+  ChevronRight,
+  Loader2,
+  Award
 } from 'lucide-react'
 import { ticketService } from '../services/ticketService'
 import { supplierService } from '../services/supplierService'
 import { eventService } from '../services/eventService'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
-import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent } from '../types'
+import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent, TicketComment, EnhancedQuote } from '../types'
+import { TicketComments } from '../components/TicketComments'
+import { TicketCommentService } from '../services/ticketCommentService'
+import { ticketEventService } from '../services/ticketEventService'
+import { UserBuildingService } from '../services/userBuildingService'
+import { getUserDisplayNames } from '../services/userLookupService'
 import QuoteComparison from '../components/Quotes/QuoteComparison'
 import ScheduleModal from '../components/Scheduling/ScheduleModal'
 import EmailNotification from '../components/EmailNotification'
+import SupplierSelectionModal from '../components/Suppliers/SupplierSelectionModal'
+import QuoteComparisonModal from '../components/Tickets/QuoteComparisonModal'
+import NewQuoteManagementModal from '../components/Tickets/NewQuoteManagementModal'
 
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -50,6 +61,14 @@ const TicketDetail = () => {
   const [requesting, setRequesting] = useState(false)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [scheduledEvents, setScheduledEvents] = useState<BuildingEvent[]>([])
+  
+  // Additional state for quote management and comments
+  const [comments, setComments] = useState<TicketComment[]>([])
+  const [canComment, setCanComment] = useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
+  const [userNames, setUserNames] = useState<Record<string, string>>({})
+  const [showQuoteManagement, setShowQuoteManagement] = useState(false)
+  const [localTicket, setLocalTicket] = useState<Ticket | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -58,6 +77,7 @@ const TicketDetail = () => {
       try {
         const ticketData = await ticketService.getTicketById(id)
         setTicket(ticketData)
+        setLocalTicket(ticketData)
       } catch (error) {
         console.error('Error fetching ticket:', error)
       } finally {
@@ -67,6 +87,14 @@ const TicketDetail = () => {
 
     fetchTicket()
   }, [id])
+
+  useEffect(() => {
+    if (ticket) {
+      loadComments()
+      checkCommentPermissions()
+      loadUserNames()
+    }
+  }, [ticket, currentUser])
 
   useEffect(() => {
     if (!id) return
@@ -81,6 +109,119 @@ const TicketDetail = () => {
     }
     fetchEvents()
   }, [id])
+
+  const loadComments = async () => {
+    if (!ticket) return
+    try {
+      const ticketComments = await TicketCommentService.getComments(ticket.id)
+      setComments(ticketComments)
+    } catch (error) {
+      console.error('Failed to load comments:', error)
+    }
+  }
+
+  const checkCommentPermissions = async () => {
+    if (!currentUser || !ticket) {
+      setCanComment(false)
+      return
+    }
+
+    // Get user's building associations using the UserBuildingService
+    const userBuildingIds = UserBuildingService.getUserBuildingIds(currentUser)
+    const userResidentId = UserBuildingService.getUserResidentId(currentUser)
+    
+    const canUserComment = await TicketCommentService.canUserComment(
+      ticket.id,
+      userResidentId || currentUser.id, // Use resident ID if available
+      currentUser.role as 'resident' | 'manager',
+      userBuildingIds
+    )
+    
+    setCanComment(canUserComment)
+  }
+
+  const handleAddComment = async (content: string) => {
+    if (!currentUser || !ticket) return
+
+    try {
+      const newComment = await TicketCommentService.addComment(
+        ticket.id,
+        content,
+        currentUser.id,
+        currentUser.name || 'Unknown User',
+        currentUser.role as 'resident' | 'manager'
+      )
+
+      setComments(prev => [...prev, newComment])
+      
+      addNotification({
+        userId: currentUser.id,
+        title: 'Comment Added',
+        message: 'Your comment has been posted successfully.',
+        type: 'success'
+      })
+    } catch (error) {
+      console.error('Failed to add comment:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to add comment. Please try again.',
+        type: 'error'
+      })
+    }
+  }
+
+  // Load user names for display
+  const loadUserNames = async () => {
+    if (!ticket) return
+    try {
+      // Collect all user IDs from the ticket
+      const userIds = new Set<string>()
+      
+      // Add requestedBy and assignedTo
+      if (ticket.requestedBy) userIds.add(ticket.requestedBy)
+      if (ticket.assignedTo) userIds.add(ticket.assignedTo)
+      
+      // Add all user IDs from activity log
+      ticket.activityLog.forEach(activity => {
+        if (activity.performedBy) userIds.add(activity.performedBy)
+      })
+      
+      // Convert to array and fetch names
+      const userIdArray = Array.from(userIds)
+      
+      if (userIdArray.length > 0) {
+        const names = await getUserDisplayNames(userIdArray)
+        
+        // Enhance with current user info if available
+        if (currentUser && currentUser.name) {
+          // If current user is in the list and has a fallback name, use their real name
+          if (userIdArray.includes(currentUser.id)) {
+            const currentUserFallback = names[currentUser.id]
+            if (currentUserFallback && currentUserFallback.startsWith('User ')) {
+              names[currentUser.id] = currentUser.name
+            }
+          }
+        }
+        
+        setUserNames(names)
+      }
+    } catch (error) {
+      console.error('Failed to load user names:', error)
+    }
+  }
+
+  // Helper function to get display name for a user ID
+  const getDisplayName = (userId: string): string => {
+    return userNames[userId] || `User ${userId.substring(0, 8)}...`
+  }
+
+  // Helper function to get first name for a user ID
+  const getFirstName = (userId: string): string => {
+    const fullName = getDisplayName(userId)
+    const parts = fullName.split(' ')
+    return parts[0] || 'Unknown'
+  }
 
   const getStatusColor = (status: TicketStatus) => {
     switch (status) {
@@ -237,11 +378,8 @@ const TicketDetail = () => {
     setRequesting(true)
     try {
       console.log('Sending quote requests...')
-      await supplierService.requestQuotes(ticket?.id || '', selectedSuppliers, currentUser?.id || '')
-      
-      // Update ticket status to "Quote Requested"
-      console.log('Updating ticket status...')
-      await ticketService.updateTicketStatus(ticket?.id || '', 'Quote Requested', currentUser?.id || '')
+      // Use the proper ticket service method that updates ticket.quoteRequests
+      await ticketService.requestQuotesFromSuppliers(ticket?.id || '', selectedSuppliers, currentUser?.id || '')
       
       addNotification({
         title: 'Quote Requests Sent',
@@ -252,6 +390,13 @@ const TicketDetail = () => {
 
       setShowSupplierModal(false)
       setSelectedSuppliers([])
+      
+      // Refresh ticket data to show updated quote requests
+      if (id) {
+        const updatedTicket = await ticketService.getTicketById(id)
+        setTicket(updatedTicket)
+        setLocalTicket(updatedTicket)
+      }
     } catch (error) {
       console.error('Error requesting quotes:', error)
       addNotification({
@@ -293,6 +438,7 @@ const TicketDetail = () => {
         title: event.title,
         description: event.description,
         location: event.location,
+        buildingId: ticket?.buildingId || '',
         startDate: event.startDate,
         endDate: event.endDate,
         ticketId: event.ticketId,
@@ -481,6 +627,59 @@ const TicketDetail = () => {
             </div>
           </div>
 
+          {/* Quote Management for Quoting Tickets */}
+          {currentUser?.role === 'manager' && (ticket.status === 'Quoting' || ticket.status === 'Quote Requested') && (
+            <div className="card">
+              <h3 className="text-lg font-medium text-neutral-900 mb-4">Quote Management</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div>
+                    <p className="text-sm font-medium text-yellow-800">Waiting for Quotes</p>
+                    <p className="text-xs text-yellow-600">
+                      {ticket.quoteRequests?.length || 0} supplier(s) contacted
+                    </p>
+                  </div>
+                  <Award className="h-5 w-5 text-yellow-600" />
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-600">
+                    Manage supplier quotes and track responses.  
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        console.log('Manage Quotes button clicked')
+                        console.log('Current ticket:', ticket)
+                        console.log('Quote requests:', ticket.quoteRequests)
+                        console.log('Ticket ID:', ticket.id)
+                        try {
+                          setShowQuoteManagement(true)
+                        } catch (error) {
+                          console.error('Error setting showQuoteManagement:', error)
+                        }
+                      }}
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Manage Quotes
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Comments Section */}
+          <div className="card">
+            <TicketComments
+              ticketId={ticket.id}
+              comments={comments}
+              onAddComment={handleAddComment}
+              canComment={canComment}
+            />
+          </div>
+
           {/* Email Notifications */}
           <EmailNotification ticketId={ticket.id} />
         </div>
@@ -511,7 +710,7 @@ const TicketDetail = () => {
                 <User className="h-5 w-5 text-neutral-400 mr-3" />
                 <div>
                   <p className="text-sm font-medium text-neutral-900">Requested By</p>
-                  <p className="text-sm text-gray-600">User ID: {ticket.requestedBy}</p>
+                  <p className="text-sm text-gray-600">{getFirstName(ticket.requestedBy)}</p>
                 </div>
               </div>
 
@@ -520,7 +719,7 @@ const TicketDetail = () => {
                   <User className="h-5 w-5 text-neutral-400 mr-3" />
                   <div>
                     <p className="text-sm font-medium text-neutral-900">Assigned To</p>
-                    <p className="text-sm text-gray-600">User ID: {ticket.assignedTo}</p>
+                    <p className="text-sm text-gray-600">{getFirstName(ticket.assignedTo)}</p>
                   </div>
                 </div>
               )}
@@ -763,6 +962,31 @@ const TicketDetail = () => {
             ))}
           </ul>
         </div>
+      )}
+      
+      {/* Quote Management Modal */}
+      {showQuoteManagement && ticket && ticket.id && (
+        <NewQuoteManagementModal
+          isOpen={showQuoteManagement}
+          onClose={() => {
+            console.log('Closing quote management modal')
+            setShowQuoteManagement(false)
+          }}
+          ticketId={ticket.id}
+          quoteRequests={ticket.quoteRequests || []}
+          onQuotesUpdated={() => {
+            console.log('onQuotesUpdated called')
+            // Refresh ticket data when quotes are updated
+            if (id) {
+              ticketService.getTicketById(id).then(updatedTicket => {
+                setTicket(updatedTicket)
+                setLocalTicket(updatedTicket)
+              }).catch(error => {
+                console.error('Error refreshing ticket:', error)
+              })
+            }
+          }}
+        />
       )}
     </div>
   )

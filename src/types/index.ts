@@ -295,6 +295,7 @@ export enum WorkOrderStatus {
   QUOTING = "Quoting", 
   AWAITING_USER_FEEDBACK = "With User",
   SCHEDULED = "Scheduled",
+  IN_PROGRESS = "In Progress",
   RESOLVED = "Resolved",
   CLOSED = "Closed",
   CANCELLED = "Cancelled",
@@ -316,14 +317,61 @@ export enum QuoteRequestStatus {
 }
 
 export interface QuoteRequest {
+  id: string;
   supplierId: string;
   supplierName: string;
+  supplierEmail: string;
+  specialties: string[];
   sentAt: Date;
   quoteAmount?: number | null;
   quoteDocumentUrl?: string | null;
   notes?: string | null;
   status: QuoteRequestStatus;
   updatedAt?: Date;
+  validUntil?: Date;
+  isWinner?: boolean;
+  rejectionReason?: string;
+  responseTime?: number; // hours taken to respond
+}
+
+// Enhanced Quote interface for better comparison
+export interface EnhancedQuote extends Quote {
+  supplierId: string;
+  supplierName: string;
+  supplierEmail: string;
+  supplierRating?: number;
+  estimatedDuration?: string;
+  warranty?: string;
+  breakdown?: QuoteLineItem[];
+  isWinner?: boolean;
+  responseReceivedAt?: Date;
+}
+
+export interface QuoteLineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  category?: string;
+}
+
+// Quote comparison data
+export interface QuoteComparison {
+  ticketId: string;
+  quotes: EnhancedQuote[];
+  criteria: ComparisonCriteria;
+  notes?: string;
+  selectedQuoteId?: string;
+  comparedAt: Date;
+  comparedBy: string;
+}
+
+export interface ComparisonCriteria {
+  priceWeight: number;
+  timeWeight: number;
+  qualityWeight: number;
+  ratingWeight: number;
 }
 
 export interface UserFeedback {
@@ -571,14 +619,19 @@ export interface BuildingFinancialSummary {
   updatedAt: Date;
 }
 
-// Ticket status types (simplified 6-stage workflow)
+// Ticket status types (detailed workflow)
 export type TicketStatus = 
-  | 'New'         // Initial state - needs manager review
-  | 'Quoting'     // Getting quotes from suppliers (includes approval)
-  | 'Scheduled'   // Work approved and scheduled
-  | 'Complete'    // Work finished, awaiting closure
-  | 'Closed'     // Ticket resolved and closed
-  | 'Cancelled'   // Ticket cancelled at any stage
+  | 'New'                // Initial state - needs manager review
+  | 'Quote Requested'    // Quotes requested from suppliers
+  | 'Quote Received'     // Quotes received from suppliers
+  | 'PO Sent'           // Purchase order sent to selected supplier
+  | 'Contracted'        // Contract established with supplier
+  | 'Scheduled'         // Work approved and scheduled
+  | 'In Progress'       // Work is actively being performed
+  | 'Complete'          // Work finished, awaiting closure
+  | 'Closed'           // Ticket resolved and closed
+  | 'Cancelled'         // Ticket cancelled at any stage
+  | 'Quoting'           // Legacy alias for Quote Requested (for backward compatibility)
 
 // Urgency levels
 export type UrgencyLevel = 'Low' | 'Medium' | 'High' | 'Critical';
@@ -611,6 +664,7 @@ export interface Ticket {
   attachments: string[]; // File URLs
   activityLog: ActivityLogEntry[];
   quotes: Quote[];
+  quoteRequests?: QuoteRequest[]; // Track quote requests and responses
   comments: TicketComment[]; // Comments from residents and managers
   scheduledDate?: Date;
   completedDate?: Date;
@@ -762,6 +816,18 @@ export interface Building {
     serviceChargeRate: number;
     reserveFundBalance: number;
     monthlyExpenses: number;
+  };
+  financialSettings?: {
+    startMonth: number;
+    startDay: number;
+    currentYear: number;
+    budgetLockDate: string;
+    serviceChargeFrequency: 'monthly' | 'quarterly' | 'annually';
+    groundRentFrequency: 'monthly' | 'quarterly' | 'annually';
+    currency: string;
+    latePaymentInterestRate: number;
+    paymentGracePeriod: number;
+    reminderDays: number;
   };
   createdAt: Date;
   updatedAt: Date;

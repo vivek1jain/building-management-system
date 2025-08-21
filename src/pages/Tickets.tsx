@@ -99,163 +99,165 @@ const Tickets = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Tickets</h1>
-          <p className="text-gray-600 mt-1">
-            Manage and track all maintenance tickets
+    <div className="min-h-screen bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-neutral-900">Tickets</h1>
+            <p className="text-gray-600 mt-1">
+              Manage and track all maintenance tickets
+            </p>
+          </div>
+          <Link
+            to="/tickets/new"
+            className="btn-primary flex items-center space-x-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>New Ticket</span>
+          </Link>
+        </div>
+
+        {/* Filters */}
+        <div className="card">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-neutral-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search tickets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input pl-10"
+              />
+            </div>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
+              className="select"
+            >
+              <option value="All">All Statuses</option>
+              {statusOptions.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+
+            {/* Urgency Filter */}
+            <select
+              value={urgencyFilter}
+              onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | 'All')}
+              className="select"
+            >
+              <option value="All">All Urgencies</option>
+              {urgencyOptions.map(urgency => (
+                <option key={urgency} value={urgency}>{urgency}</option>
+              ))}
+            </select>
+
+            {/* Clear Filters */}
+            <button
+              onClick={() => {
+                setSearchTerm('')
+                setStatusFilter('All')
+                setUrgencyFilter('All')
+              }}
+              className="btn-secondary flex items-center justify-center"
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Clear Filters
+            </button>
+          </div>
+        </div>
+
+        {/* Results Count */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600">
+            {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} found
           </p>
         </div>
-        <Link
-          to="/tickets/new"
-          className="btn-primary flex items-center space-x-2"
-        >
-          <Plus className="h-4 w-4" />
-          <span>New Ticket</span>
-        </Link>
-      </div>
 
-      {/* Filters */}
-      <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {/* Search */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-neutral-400" />
-            </div>
-            <input
-              type="text"
-              placeholder="Search tickets..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
-            className="select"
-          >
-            <option value="All">All Statuses</option>
-            {statusOptions.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
-
-          {/* Urgency Filter */}
-          <select
-            value={urgencyFilter}
-            onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | 'All')}
-            className="select"
-          >
-            <option value="All">All Urgencies</option>
-            {urgencyOptions.map(urgency => (
-              <option key={urgency} value={urgency}>{urgency}</option>
-            ))}
-          </select>
-
-          {/* Clear Filters */}
-          <button
-            onClick={() => {
-              setSearchTerm('')
-              setStatusFilter('All')
-              setUrgencyFilter('All')
-            }}
-            className="btn-secondary flex items-center justify-center"
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Clear Filters
-          </button>
-        </div>
-      </div>
-
-      {/* Results Count */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-gray-600">
-          {filteredTickets.length} ticket{filteredTickets.length !== 1 ? 's' : ''} found
-        </p>
-      </div>
-
-      {/* Tickets List */}
-      <div className="space-y-4">
-        {filteredTickets.map((ticket) => (
-          <Link
-            key={ticket.id}
-            to={`/tickets/${ticket.id}`}
-            className="card hover:shadow-apple-lg transition-shadow duration-200 cursor-pointer"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-lg font-medium text-neutral-900">{ticket.title}</h3>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
-                    {ticket.status}
-                  </span>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUrgencyColor(ticket.urgency)}`}>
-                    {getUrgencyIcon(ticket.urgency)} {ticket.urgency}
-                  </span>
+        {/* Tickets List */}
+        <div className="space-y-4">
+          {filteredTickets.map((ticket) => (
+            <Link
+              key={ticket.id}
+              to={`/tickets/${ticket.id}`}
+              className="card hover:shadow-apple-lg transition-shadow duration-200 cursor-pointer"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <h3 className="text-lg font-medium text-neutral-900">{ticket.title}</h3>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(ticket.status)}`}>
+                      {ticket.status}
+                    </span>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getUrgencyColor(ticket.urgency)}`}>
+                      {getUrgencyIcon(ticket.urgency)} {ticket.urgency}
+                    </span>
+                  </div>
+                  
+                  <p className="text-gray-600 mb-3 line-clamp-2">{ticket.description}</p>
+                  
+                  <div className="flex items-center space-x-4 text-sm text-neutral-500">
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      {ticket.location}
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      {formatTimeAgo(ticket.createdAt)}
+                    </div>
+                    {ticket.attachments.length > 0 && (
+                      <div className="flex items-center">
+                        <span className="text-xs bg-neutral-100 px-2 py-1 rounded">
+                          {ticket.attachments.length} attachment{ticket.attachments.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
-                <p className="text-gray-600 mb-3 line-clamp-2">{ticket.description}</p>
-                
-                <div className="flex items-center space-x-4 text-sm text-neutral-500">
-                  <div className="flex items-center">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {ticket.location}
-                  </div>
-                  <div className="flex items-center">
-                    <Clock className="h-4 w-4 mr-1" />
-                    {formatTimeAgo(ticket.createdAt)}
-                  </div>
-                  {ticket.attachments.length > 0 && (
-                    <div className="flex items-center">
-                      <span className="text-xs bg-neutral-100 px-2 py-1 rounded">
-                        {ticket.attachments.length} attachment{ticket.attachments.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
+                <div className="flex items-center space-x-2">
+                  {ticket.status === 'Complete' && (
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  )}
+                  {ticket.urgency === 'Critical' && (
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
                   )}
                 </div>
               </div>
-              
-              <div className="flex items-center space-x-2">
-                {ticket.status === 'Complete' && (
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                )}
-                {ticket.urgency === 'Critical' && (
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                )}
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {/* Empty State */}
-      {filteredTickets.length === 0 && (
-        <div className="text-center py-12">
-          <div className="mx-auto h-12 w-12 text-neutral-400 mb-4">
-            <Search className="h-12 w-12" />
-          </div>
-          <h3 className="text-lg font-medium text-neutral-900 mb-2">No tickets found</h3>
-          <p className="text-gray-600 mb-6">
-            {searchTerm || statusFilter !== 'All' || urgencyFilter !== 'All'
-              ? 'Try adjusting your search or filters'
-              : 'Get started by creating your first ticket'
-            }
-          </p>
-          {!searchTerm && statusFilter === 'All' && urgencyFilter === 'All' && (
-            <Link to="/tickets/new" className="btn-primary">
-              Create First Ticket
             </Link>
-          )}
+          ))}
         </div>
-      )}
+
+        {/* Empty State */}
+        {filteredTickets.length === 0 && (
+          <div className="text-center py-12">
+            <div className="mx-auto h-12 w-12 text-neutral-400 mb-4">
+              <Search className="h-12 w-12" />
+            </div>
+            <h3 className="text-lg font-medium text-neutral-900 mb-2">No tickets found</h3>
+            <p className="text-gray-600 mb-6">
+              {searchTerm || statusFilter !== 'All' || urgencyFilter !== 'All'
+                ? 'Try adjusting your search or filters'
+                : 'Get started by creating your first ticket'
+              }
+            </p>
+            {!searchTerm && statusFilter === 'All' && urgencyFilter === 'All' && (
+              <Link to="/tickets/new" className="btn-primary">
+                Create First Ticket
+              </Link>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
-export default Tickets 
+export default Tickets

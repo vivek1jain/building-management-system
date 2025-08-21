@@ -15,7 +15,7 @@ const NotificationList: React.FC = () => {
   }
 
   return (
-    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm" data-testid="notification-list">
+    <div className="fixed top-4 right-4 z-toast space-y-2 max-w-sm" data-testid="notification-list">
       {notifications.map((n) => (
         <div
           key={n.id}

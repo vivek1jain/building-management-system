@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react'
 // import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -246,7 +247,7 @@ const TicketsWorkOrders: React.FC = () => {
       case 'scheduled':
         return workOrders.filter(wo => wo.status === 'Scheduled' || wo.status === 'In Progress')
       case 'resolved':
-        return workOrders.filter(wo => wo.status === 'Complete')
+        return workOrders.filter(wo => wo.status === WorkOrderStatus.RESOLVED)
       default:
         return []
     }
@@ -313,15 +314,16 @@ const TicketsWorkOrders: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 font-inter">Ticketing</h1>
-          <p className="text-gray-600 mt-1 font-inter">
-            Manage tickets and work orders following the complete workflow
-          </p>
-        </div>
+    <div className="min-h-screen bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Ticketing</h1>
+            <p className="text-gray-600 mt-1 font-inter">
+              Manage tickets and work orders following the complete workflow
+            </p>
+          </div>
         <div className="flex items-center space-x-3">
           <button
             onClick={openCreateTicketModal}
@@ -724,7 +726,7 @@ const TicketsWorkOrders: React.FC = () => {
                       </div>
                       <div className="flex items-center">
                         <DollarSign className="h-4 w-4 mr-1" />
-                        £{workOrder.estimatedHours ? workOrder.estimatedHours * 50 : 0}
+                        £{workOrder.cost || 0}
                       </div>
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-1" />
@@ -748,6 +750,7 @@ const TicketsWorkOrders: React.FC = () => {
           onUpdate={handleTicketUpdate}
         />
       )}
+      </div>
     </div>
   )
 }

@@ -101,86 +101,79 @@ const Settings: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <Card className="mb-6">
-          <div className="flex border-b border-neutral-200">
-            <Button
-              variant="ghost"
+        <div className="border-b border-neutral-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
               onClick={() => setActiveTab('buildings')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'buildings'
-                  ? 'text-primary-600 border-primary-600 bg-primary-50'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              <BuildingIcon className="w-5 h-5" />
+              <BuildingIcon className="w-4 h-4" />
               Building Management
-            </Button>
-            <Button
-              variant="ghost"
+            </button>
+            <button
               onClick={() => setActiveTab('users')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'users'
-                  ? 'text-primary-600 border-primary-600 bg-primary-50'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              <Users className="w-5 h-5" />
+              <Users className="w-4 h-4" />
               User Management
-            </Button>
-            <Button
-              variant="ghost"
+            </button>
+            <button
               onClick={() => setActiveTab('financial')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'financial'
-                  ? 'text-primary-600 border-primary-600 bg-primary-50'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              <Calendar className="w-5 h-5" />
+              <Calendar className="w-4 h-4" />
               Financial Setup
-            </Button>
-            <Button
-              variant="ghost"
+            </button>
+            <button
               onClick={() => setActiveTab('security')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'security'
-                  ? 'text-primary-600 border-primary-600 bg-primary-50'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              <Shield className="w-5 h-5" />
+              <Shield className="w-4 h-4" />
               Security & Access
-            </Button>
-            <Button
-              variant="ghost"
+            </button>
+            <button
               onClick={() => setActiveTab('appearance')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'appearance'
-                  ? 'text-primary-600 border-primary-600 bg-primary-50'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              <Palette className="w-5 h-5" />
+              <Palette className="w-4 h-4" />
               Appearance
-            </Button>
-            <Button
-              variant="ghost"
+            </button>
+            <button
               onClick={() => setActiveTab('testing')}
-              className={`flex items-center gap-2 px-6 py-4 font-medium transition-colors rounded-none border-b-2 ${
+              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'testing'
-                  ? 'text-primary-600 border-primary-600 bg-primary-50'
-                  : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-50 border-transparent'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              <TestTube className="w-5 h-5" />
+              <TestTube className="w-4 h-4" />
               Testing
-            </Button>
-          </div>
-        </Card>
+            </button>
+          </nav>
+        </div>
 
         {/* Tab Content */}
-        <Card>
-          <CardContent>
+        <div className="space-y-6">
           {/* Building Management Tab */}
           {activeTab === 'buildings' && (
             <BuildingManagement 
@@ -237,8 +230,7 @@ const Settings: React.FC = () => {
               currentUser={currentUser}
             />
           )}
-          </CardContent>
-        </Card>
+        </div>
       </div>
     </div>
   );

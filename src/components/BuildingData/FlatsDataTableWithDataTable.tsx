@@ -138,14 +138,14 @@ const FlatsDataTableWithDataTable: React.FC = () => {
     {
       key: 'view',
       label: 'View',
-      icon: Eye,
+      icon: <Eye className="h-4 w-4" />,
       onClick: (flat) => console.log('View flat:', flat.id),
       variant: 'outline'
     },
     {
       key: 'edit',
       label: 'Edit',
-      icon: Edit,
+      icon: <Edit className="h-4 w-4" />,
       onClick: (flat) => console.log('Edit flat:', flat.id),
       variant: 'outline'
     }

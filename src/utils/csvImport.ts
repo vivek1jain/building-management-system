@@ -1,4 +1,4 @@
-import { Supplier, Person, PersonStatus } from '../types'
+import { Supplier, Person, PersonStatus, Asset, AssetStatus, AssetCategory } from '../types'
 
 // Generic CSV parser
 export const parseCSV = (csvText: string): string[][] => {
@@ -338,6 +338,136 @@ export const importPeopleFromCSV = (
       }
       
       result.valid.push(person)
+      
+    } catch (error) {
+      result.errors.push({
+        row: actualRowNumber,
+        field: 'general',
+        message: `Error processing row: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        data: row
+      })
+    }
+  })
+  
+  return result
+}
+
+// Asset import
+export const importAssetsFromCSV = (
+  csvText: string,
+  buildingId: string
+): ImportValidationResult<Asset & { buildingId: string }> => {
+  const rows = parseCSV(csvText)
+  const headers = rows[0]
+  const dataRows = rows.slice(1)
+  
+  const result: ImportValidationResult<Asset & { buildingId: string }> = {
+    valid: [],
+    errors: [],
+    warnings: []
+  }
+  
+  // Expected headers mapping
+  const headerMap: Record<string, string> = {
+    'asset name': 'name',
+    'name': 'name',
+    'type': 'type',
+    'category': 'category',
+    'status': 'status',
+    'location': 'locationDescription',
+    'manufacturer': 'manufacturer',
+    'model number': 'modelNumber',
+    'serial number': 'serialNumber',
+    'installation date': 'installationDate',
+    'warranty expiry': 'warrantyExpiryDate'
+  }
+  
+  // Find header indices
+  const indices: Record<string, number> = {}
+  headers.forEach((header, index) => {
+    const normalizedHeader = header.toLowerCase().trim()
+    const mappedField = headerMap[normalizedHeader]
+    if (mappedField) {
+      indices[mappedField] = index
+    }
+  })
+  
+  // Validate required fields exist
+  const requiredFields = ['name']
+  for (const field of requiredFields) {
+    if (indices[field] === undefined) {
+      result.errors.push({
+        row: 0,
+        field,
+        message: `Required column '${field}' not found in CSV headers`,
+        data: headers
+      })
+    }
+  }
+  
+  if (result.errors.length > 0) {
+    return result
+  }
+  
+  // Process each data row
+  dataRows.forEach((row, rowIndex) => {
+    const actualRowNumber = rowIndex + 2 // +2 because we skip header and arrays are 0-indexed
+    
+    try {
+      const name = row[indices.name]?.trim()
+      const type = row[indices.type]?.trim() || ''
+      const categoryStr = row[indices.category]?.trim() || 'OTHER'
+      const statusStr = row[indices.status]?.trim() || 'OPERATIONAL'
+      const locationDescription = row[indices.locationDescription]?.trim() || ''
+      const manufacturer = row[indices.manufacturer]?.trim() || ''
+      const modelNumber = row[indices.modelNumber]?.trim() || ''
+      const serialNumber = row[indices.serialNumber]?.trim() || ''
+      const installationDateStr = row[indices.installationDate]?.trim()
+      const warrantyExpiryDateStr = row[indices.warrantyExpiryDate]?.trim()
+      
+      // Validation
+      if (!name) {
+        result.errors.push({
+          row: actualRowNumber,
+          field: 'name',
+          message: 'Asset name is required',
+          data: row
+        })
+        return
+      }
+      
+      // Parse category
+      const validCategories = Object.values(AssetCategory)
+      const category = validCategories.find(c => c.toLowerCase() === categoryStr.toLowerCase()) || AssetCategory.OTHER
+      
+      // Parse status
+      const validStatuses = Object.values(AssetStatus)
+      const status = validStatuses.find(s => s.toLowerCase() === statusStr.toLowerCase()) || AssetStatus.OPERATIONAL
+      
+      // Parse dates
+      const installationDate = installationDateStr ? new Date(installationDateStr) : null
+      const warrantyExpiryDate = warrantyExpiryDateStr ? new Date(warrantyExpiryDateStr) : null
+      
+      // Create asset object
+      const asset: Asset & { buildingId: string } = {
+        id: `asset-import-${Date.now()}-${rowIndex}`,
+        name,
+        category,
+        type,
+        status,
+        locationDescription,
+        manufacturer,
+        modelNumber,
+        serialNumber,
+        installationDate,
+        warrantyExpiryDate,
+        buildingId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdByUid: 'import'
+      }
+      
+      result.valid.push(asset)
       
     } catch (error) {
       result.errors.push({

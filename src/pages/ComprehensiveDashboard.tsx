@@ -209,7 +209,24 @@ const ComprehensiveDashboard = () => {
 
       // Set work order stats
       if (workOrderStatsData.status === 'fulfilled') {
-        setWorkOrderStats(workOrderStatsData.value)
+        const rawStats = workOrderStatsData.value
+        setWorkOrderStats({
+          totalWorkOrders: rawStats.total,
+          byStatus: {
+            [WorkOrderStatus.SCHEDULED]: rawStats.scheduled,
+            [WorkOrderStatus.IN_PROGRESS]: rawStats.in_progress,
+            [WorkOrderStatus.RESOLVED]: rawStats.completed,
+            [WorkOrderStatus.TRIAGE]: 0,
+            [WorkOrderStatus.QUOTING]: 0,
+            [WorkOrderStatus.AWAITING_USER_FEEDBACK]: 0,
+            [WorkOrderStatus.CLOSED]: 0,
+            [WorkOrderStatus.CANCELLED]: 0
+          },
+          byPriority: {},
+          urgentWorkOrders: 0,
+          resolvedThisMonth: rawStats.completed,
+          averageResolutionTime: 0
+        })
       }
 
       // Set budget stats
@@ -481,7 +498,7 @@ const ComprehensiveDashboard = () => {
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">In Progress</span>
                 <span className="font-semibold text-yellow-600">
-                  {workOrderStats.byStatus[WorkOrderStatus.IN_REPAIR] || 0}
+                  {workOrderStats.byStatus[WorkOrderStatus.IN_PROGRESS] || 0}
                 </span>
               </div>
             </div>

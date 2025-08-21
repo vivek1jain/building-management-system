@@ -96,7 +96,7 @@ const Invoices: React.FC = () => {
         amount: invoiceForm.amount,
         currency: invoiceForm.currency,
         category: invoiceForm.category,
-        status: 'pending',
+        status: InvoiceStatus.PENDING,
         paymentStatus: 'pending',
         dueDate: new Date(invoiceForm.dueDate),
         description: invoiceForm.description,
@@ -384,7 +384,7 @@ const Invoices: React.FC = () => {
 
       {/* Create Invoice Modal */}
       {showCreateInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Create New Invoice</h3>
             <div className="space-y-4">

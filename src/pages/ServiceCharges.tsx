@@ -756,7 +756,7 @@ const ServiceCharges: React.FC = () => {
         {/* Modals */}
         {/* Create Demand Modal */}
         {showDemandForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1400 }}>
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-neutral-900 mb-4">Create Service Charge Demand</h3>
@@ -842,7 +842,7 @@ const ServiceCharges: React.FC = () => {
 
         {/* Record Income Modal */}
         {showIncomeForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1400 }}>
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-neutral-900 mb-4">Record Income</h3>
@@ -912,7 +912,7 @@ const ServiceCharges: React.FC = () => {
 
         {/* Record Expenditure Modal */}
         {showExpenditureForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1400 }}>
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-neutral-900 mb-4">Record Expenditure</h3>
@@ -1007,7 +1007,7 @@ const ServiceCharges: React.FC = () => {
 
         {/* Settings Modal */}
         {showSettings && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1400 }}>
             <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
               <div className="mt-3">
                 <h3 className="text-lg font-medium text-neutral-900 mb-4">Financial Settings</h3>

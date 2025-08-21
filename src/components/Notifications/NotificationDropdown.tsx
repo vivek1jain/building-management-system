@@ -26,7 +26,7 @@ const NotificationDropdown = () => {
   }
 
   return (
-    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-neutral-200 z-50 max-h-96 overflow-hidden">
+    <div className="absolute right-0 mt-2 w-96 bg-white rounded-lg shadow-xl border border-neutral-200 z-dropdown max-h-96 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-100">
         <h3 className="text-sm font-semibold text-neutral-900">Notifications</h3>

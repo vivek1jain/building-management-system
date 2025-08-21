@@ -14,6 +14,7 @@ import {
   PersonStatus,
   Asset, 
   AssetStatus,
+  AssetCategory,
   Ticket, 
   TicketStatus, 
   UrgencyLevel,
@@ -41,6 +42,17 @@ const sampleBuildings: Omit<Building, 'id' | 'createdAt' | 'updatedAt'>[] = [
   {
     name: 'Sunset Towers',
     address: '123 Sunset Boulevard, Los Angeles, CA 90210',
+    code: 'ST001',
+    buildingType: 'Residential',
+    floors: 15,
+    units: 120,
+    capacity: 150,
+    area: 50000,
+    financialYearStart: new Date('2024-01-01'),
+    managers: ['manager1'],
+    admins: ['manager1'],
+    assets: [],
+    meters: [],
     totalFloors: 15,
     totalUnits: 120,
     yearBuilt: 2010,
@@ -60,6 +72,17 @@ const sampleBuildings: Omit<Building, 'id' | 'createdAt' | 'updatedAt'>[] = [
   {
     name: 'Marina Heights',
     address: '456 Ocean Drive, Miami, FL 33139',
+    code: 'MH001',
+    buildingType: 'Residential',
+    floors: 20,
+    units: 180,
+    capacity: 220,
+    area: 75000,
+    financialYearStart: new Date('2024-01-01'),
+    managers: ['manager2'],
+    admins: ['manager2'],
+    assets: [],
+    meters: [],
     totalFloors: 20,
     totalUnits: 180,
     yearBuilt: 2015,
@@ -110,24 +133,24 @@ const samplePeople: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>[] = [
 
 const sampleAssets: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>[] = [
   // Sunset Towers Assets
-  { buildingId: 'building1', name: 'HVAC System - Floor 1', type: 'HVAC', locationDescription: 'Mechanical Room - Floor 1', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2020-01-15'), warrantyExpiryDate: new Date('2025-01-15'), nextServiceDate: new Date('2024-02-15'), createdByUid: 'manager1' },
-  { buildingId: 'building1', name: 'Elevator - Main', type: 'Elevator', locationDescription: 'Main Lobby', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2019-06-20'), warrantyExpiryDate: new Date('2024-06-20'), nextServiceDate: new Date('2024-01-17'), createdByUid: 'manager1' },
-  { buildingId: 'building1', name: 'Security System', type: 'Security', locationDescription: 'Security Office', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2021-03-10'), warrantyExpiryDate: new Date('2026-03-10'), nextServiceDate: new Date('2024-04-15'), createdByUid: 'manager1' },
+  { buildingId: 'building1', name: 'HVAC System - Floor 1', category: AssetCategory.HVAC, type: 'HVAC', locationDescription: 'Mechanical Room - Floor 1', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2020-01-15'), warrantyExpiryDate: new Date('2025-01-15'), nextServiceDate: new Date('2024-02-15'), createdByUid: 'manager1' },
+  { buildingId: 'building1', name: 'Elevator - Main', category: AssetCategory.ELEVATORS, type: 'Elevator', locationDescription: 'Main Lobby', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2019-06-20'), warrantyExpiryDate: new Date('2024-06-20'), nextServiceDate: new Date('2024-01-17'), createdByUid: 'manager1' },
+  { buildingId: 'building1', name: 'Security System', category: AssetCategory.SECURITY, type: 'Security', locationDescription: 'Security Office', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2021-03-10'), warrantyExpiryDate: new Date('2026-03-10'), nextServiceDate: new Date('2024-04-15'), createdByUid: 'manager1' },
   
   // Marina Heights Assets
-  { buildingId: 'building2', name: 'Pool Filtration System', type: 'Pool Equipment', locationDescription: 'Pool Equipment Room', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2020-08-05'), warrantyExpiryDate: new Date('2025-08-05'), nextServiceDate: new Date('2024-01-19'), createdByUid: 'manager2' },
-  { buildingId: 'building2', name: 'Marina Dock System', type: 'Marina Equipment', locationDescription: 'Marina Area', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2019-12-01'), warrantyExpiryDate: new Date('2024-12-01'), nextServiceDate: new Date('2024-02-15'), createdByUid: 'manager2' },
-  { buildingId: 'building2', name: 'Spa Equipment', type: 'Spa Equipment', locationDescription: 'Spa Area', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2021-01-20'), warrantyExpiryDate: new Date('2026-01-20'), nextServiceDate: new Date('2024-02-05'), createdByUid: 'manager2' }
+  { buildingId: 'building2', name: 'Pool Filtration System', category: AssetCategory.OTHER, type: 'Pool Equipment', locationDescription: 'Pool Equipment Room', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2020-08-05'), warrantyExpiryDate: new Date('2025-08-05'), nextServiceDate: new Date('2024-01-19'), createdByUid: 'manager2' },
+  { buildingId: 'building2', name: 'Marina Dock System', category: AssetCategory.OTHER, type: 'Marina Equipment', locationDescription: 'Marina Area', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2019-12-01'), warrantyExpiryDate: new Date('2024-12-01'), nextServiceDate: new Date('2024-02-15'), createdByUid: 'manager2' },
+  { buildingId: 'building2', name: 'Spa Equipment', category: AssetCategory.OTHER, type: 'Spa Equipment', locationDescription: 'Spa Area', status: AssetStatus.OPERATIONAL, purchaseDate: new Date('2021-01-20'), warrantyExpiryDate: new Date('2026-01-20'), nextServiceDate: new Date('2024-02-05'), createdByUid: 'manager2' }
 ]
 
 const sampleTickets: Omit<Ticket, 'id' | 'createdAt' | 'updatedAt'>[] = [
-  { title: 'HVAC not cooling properly', description: 'Air conditioning unit in apartment 101 is not cooling effectively', location: 'Apartment 101', urgency: 'Medium', status: 'In Progress', requestedBy: 'resident1', assignedTo: 'supplier1', attachments: [], activityLog: [], quotes: [] },
-  { title: 'Elevator making strange noise', description: 'Main elevator is making grinding noises when moving between floors', location: 'Main Lobby', urgency: 'High', status: 'New', requestedBy: 'resident2', assignedTo: 'supplier2', attachments: [], activityLog: [], quotes: [] },
-  { title: 'Security camera malfunction', description: 'Camera 3 in parking garage is showing black screen', location: 'Parking Garage', urgency: 'Low', status: 'Complete', requestedBy: 'resident3', assignedTo: 'supplier3', attachments: [], activityLog: [], quotes: [] },
+  { buildingId: 'building1', title: 'HVAC not cooling properly', description: 'Air conditioning unit in apartment 101 is not cooling effectively', location: 'Apartment 101', urgency: 'Medium', status: 'In Progress', requestedBy: 'resident1', assignedTo: 'supplier1', attachments: [], activityLog: [], quotes: [], comments: [] },
+  { buildingId: 'building1', title: 'Elevator making strange noise', description: 'Main elevator is making grinding noises when moving between floors', location: 'Main Lobby', urgency: 'High', status: 'New', requestedBy: 'resident2', assignedTo: 'supplier2', attachments: [], activityLog: [], quotes: [], comments: [] },
+  { buildingId: 'building1', title: 'Security camera malfunction', description: 'Camera 3 in parking garage is showing black screen', location: 'Parking Garage', urgency: 'Low', status: 'Complete', requestedBy: 'resident3', assignedTo: 'supplier3', attachments: [], activityLog: [], quotes: [], comments: [] },
   
-  { title: 'Pool heater not working', description: 'Pool water temperature is too cold, heater seems to be malfunctioning', location: 'Pool Area', urgency: 'High', status: 'In Progress', requestedBy: 'resident6', assignedTo: 'supplier4', attachments: [], activityLog: [], quotes: [] },
-  { title: 'Marina dock lights out', description: 'Several dock lights are not working, creating safety hazard', location: 'Marina Dock', urgency: 'Medium', status: 'New', requestedBy: 'resident7', assignedTo: 'supplier5', attachments: [], activityLog: [], quotes: [] },
-  { title: 'Spa jets not functioning', description: 'Half of the spa jets are not working properly', location: 'Spa Area', urgency: 'Low', status: 'Complete', requestedBy: 'resident8', assignedTo: 'supplier6', attachments: [], activityLog: [], quotes: [] }
+  { buildingId: 'building2', title: 'Pool heater not working', description: 'Pool water temperature is too cold, heater seems to be malfunctioning', location: 'Pool Area', urgency: 'High', status: 'In Progress', requestedBy: 'resident6', assignedTo: 'supplier4', attachments: [], activityLog: [], quotes: [], comments: [] },
+  { buildingId: 'building2', title: 'Marina dock lights out', description: 'Several dock lights are not working, creating safety hazard', location: 'Marina Dock', urgency: 'Medium', status: 'New', requestedBy: 'resident7', assignedTo: 'supplier5', attachments: [], activityLog: [], quotes: [], comments: [] },
+  { buildingId: 'building2', title: 'Spa jets not functioning', description: 'Half of the spa jets are not working properly', location: 'Spa Area', urgency: 'Low', status: 'Complete', requestedBy: 'resident8', assignedTo: 'supplier6', attachments: [], activityLog: [], quotes: [], comments: [] }
 ]
 
 const sampleBudgets: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'>[] = [

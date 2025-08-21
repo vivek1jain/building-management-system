@@ -190,6 +190,9 @@ const BudgetPage: React.FC = () => {
       const newCategory = await budgetService.createBudgetCategory({
         budgetId: selectedBudget.id,
         name: categoryForm.name,
+        type: 'expenditure', // Default to expenditure type
+        budgetAmount: categoryForm.allocatedAmount,
+        actualAmount: 0,
         allocatedAmount: categoryForm.allocatedAmount,
         spentAmount: 0,
         remainingAmount: categoryForm.allocatedAmount,
@@ -496,7 +499,7 @@ const BudgetPage: React.FC = () => {
 
       {/* Create Budget Modal */}
       {showCreateBudget && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Create New Budget</h3>
             <div className="space-y-4">
@@ -548,7 +551,7 @@ const BudgetPage: React.FC = () => {
 
       {/* Create Category Modal */}
       {showCreateCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h3 className="text-lg font-semibold mb-4">Add Budget Category</h3>
             <div className="space-y-4">

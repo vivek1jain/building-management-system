@@ -1,12 +1,11 @@
 import React from 'react';
-import { User } from '../../types';
-import { NotificationFunction } from '../../contexts/NotificationContext';
+import { User, Notification } from '../../types';
 import UITestSuite from '../Testing/UITestSuite';
 import DiagnosticTest from '../Testing/DiagnosticTest';
 
 interface TestingSettingsProps {
   currentUser: User | null;
-  addNotification: NotificationFunction;
+  addNotification: (notification: Omit<Notification, 'id' | 'createdAt' | 'isRead'>) => void;
 }
 
 export const TestingSettings: React.FC<TestingSettingsProps> = ({ 

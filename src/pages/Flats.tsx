@@ -34,14 +34,13 @@ const FlatsPage: React.FC = () => {
   const [flatForm, setFlatForm] = useState({
     flatNumber: '',
     floor: 1,
-    area: 0,
+    areaSqFt: 0,
     bedrooms: 1,
     bathrooms: 1,
-    type: 'apartment',
     status: 'available',
     groundRent: 0,
-    serviceCharge: 0,
-    description: ''
+    maintenanceCharge: 0,
+    notes: ''
   })
 
   useEffect(() => {
@@ -88,14 +87,13 @@ const FlatsPage: React.FC = () => {
           buildingId: selectedBuilding,
           flatNumber: 'A101',
           floor: 1,
-          area: 850,
+          areaSqFt: 850,
           bedrooms: 2,
           bathrooms: 1,
-          type: 'apartment',
           status: 'occupied',
           groundRent: 1200,
-          serviceCharge: 300,
-          description: 'Spacious 2-bedroom apartment with garden view',
+          maintenanceCharge: 300,
+          notes: 'Spacious 2-bedroom apartment with garden view',
           createdAt: new Date(),
           updatedAt: new Date()
         },
@@ -104,14 +102,13 @@ const FlatsPage: React.FC = () => {
           buildingId: selectedBuilding,
           flatNumber: 'A102',
           floor: 1,
-          area: 650,
+          areaSqFt: 650,
           bedrooms: 1,
           bathrooms: 1,
-          type: 'apartment',
           status: 'available',
           groundRent: 900,
-          serviceCharge: 250,
-          description: 'Modern 1-bedroom apartment',
+          maintenanceCharge: 250,
+          notes: 'Modern 1-bedroom apartment',
           createdAt: new Date(),
           updatedAt: new Date()
         },
@@ -120,14 +117,13 @@ const FlatsPage: React.FC = () => {
           buildingId: selectedBuilding,
           flatNumber: 'B201',
           floor: 2,
-          area: 1200,
+          areaSqFt: 1200,
           bedrooms: 3,
           bathrooms: 2,
-          type: 'penthouse',
           status: 'occupied',
           groundRent: 2000,
-          serviceCharge: 500,
-          description: 'Luxury penthouse with terrace',
+          maintenanceCharge: 500,
+          notes: 'Luxury penthouse with terrace',
           createdAt: new Date(),
           updatedAt: new Date()
         }
@@ -166,14 +162,13 @@ const FlatsPage: React.FC = () => {
       setFlatForm({
         flatNumber: '',
         floor: 1,
-        area: 0,
+        areaSqFt: 0,
         bedrooms: 1,
         bathrooms: 1,
-        type: 'apartment',
         status: 'available',
         groundRent: 0,
-        serviceCharge: 0,
-        description: ''
+        maintenanceCharge: 0,
+        notes: ''
       })
       
       addNotification({
@@ -224,7 +219,7 @@ const FlatsPage: React.FC = () => {
 
   const filteredFlats = flats.filter(flat => {
     const matchesSearch = flat.flatNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         flat.description.toLowerCase().includes(searchTerm.toLowerCase())
+                         (flat.notes && flat.notes.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesStatus = filterStatus === 'all' || flat.status === filterStatus
     return matchesSearch && matchesStatus
   })
@@ -327,43 +322,36 @@ const FlatsPage: React.FC = () => {
             
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Type</span>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getTypeColor(flat.type)}`}>
-                  {flat.type}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Status</span>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(flat.status)}`}>
-                  {flat.status}
+                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(flat.status || '')}`}>
+                  {flat.status || 'N/A'}
                 </span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Area</span>
-                <span className="text-sm font-medium text-neutral-900">{flat.area} sq ft</span>
+                <span className="text-sm font-medium text-neutral-900">{flat.areaSqFt || 'N/A'} sq ft</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Bedrooms</span>
-                <span className="text-sm font-medium text-neutral-900">{flat.bedrooms}</span>
+                <span className="text-sm font-medium text-neutral-900">{flat.bedrooms || 'N/A'}</span>
               </div>
               
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600">Ground Rent</span>
-                <span className="text-sm font-medium text-neutral-900">{formatCurrency(flat.groundRent)}</span>
+                <span className="text-sm font-medium text-neutral-900">{flat.groundRent ? formatCurrency(flat.groundRent) : 'N/A'}</span>
               </div>
               
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Service Charge</span>
-                <span className="text-sm font-medium text-neutral-900">{formatCurrency(flat.serviceCharge)}</span>
+                <span className="text-sm text-gray-600">Maintenance Charge</span>
+                <span className="text-sm font-medium text-neutral-900">{flat.maintenanceCharge ? formatCurrency(flat.maintenanceCharge) : 'N/A'}</span>
               </div>
             </div>
             
-            {flat.description && (
+            {flat.notes && (
               <div className="mt-4 pt-3 border-t border-neutral-200">
-                <p className="text-sm text-gray-600">{flat.description}</p>
+                <p className="text-sm text-gray-600">{flat.notes}</p>
               </div>
             )}
           </div>
@@ -372,7 +360,7 @@ const FlatsPage: React.FC = () => {
 
       {/* Create Flat Modal */}
       {showCreateFlat && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold text-neutral-900 mb-4">Add New Flat</h2>
             
@@ -401,8 +389,8 @@ const FlatsPage: React.FC = () => {
                   <label className="block text-sm font-medium text-neutral-700 mb-1">Area (sq ft)</label>
                   <input
                     type="number"
-                    value={flatForm.area}
-                    onChange={(e) => setFlatForm({...flatForm, area: parseInt(e.target.value) || 0})}
+                    value={flatForm.areaSqFt}
+                    onChange={(e) => setFlatForm({...flatForm, areaSqFt: parseInt(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
@@ -430,20 +418,6 @@ const FlatsPage: React.FC = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Type</label>
-                <select
-                  value={flatForm.type}
-                  onChange={(e) => setFlatForm({...flatForm, type: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="apartment">Apartment</option>
-                  <option value="penthouse">Penthouse</option>
-                  <option value="studio">Studio</option>
-                  <option value="duplex">Duplex</option>
-                </select>
-              </div>
-              
-              <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1">Status</label>
                 <select
                   value={flatForm.status}
@@ -468,21 +442,21 @@ const FlatsPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1">Service Charge</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1">Maintenance Charge</label>
                   <input
                     type="number"
-                    value={flatForm.serviceCharge}
-                    onChange={(e) => setFlatForm({...flatForm, serviceCharge: parseFloat(e.target.value) || 0})}
+                    value={flatForm.maintenanceCharge}
+                    onChange={(e) => setFlatForm({...flatForm, maintenanceCharge: parseFloat(e.target.value) || 0})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1">Description</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">Notes</label>
                 <textarea
-                  value={flatForm.description}
-                  onChange={(e) => setFlatForm({...flatForm, description: e.target.value})}
+                  value={flatForm.notes}
+                  onChange={(e) => setFlatForm({...flatForm, notes: e.target.value})}
                   rows={3}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
