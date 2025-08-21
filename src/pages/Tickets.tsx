@@ -7,7 +7,8 @@ import {
   Clock,
   AlertTriangle,
   CheckCircle,
-  MapPin
+  MapPin,
+  ChevronDown
 } from 'lucide-react'
 import { ticketService } from '../services/ticketService'
 import { Ticket, TicketStatus, UrgencyLevel } from '../types'
@@ -124,27 +125,33 @@ const Tickets = () => {
             />
           </div>
           
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
-            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[150px]"
-          >
-            <option value="All">All Statuses</option>
-            {statusOptions.map(status => (
-              <option key={status} value={status}>{status}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[150px]"
+            >
+              <option value="All">All Statuses</option>
+              {statusOptions.map(status => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
+          </div>
 
-          <select
-            value={urgencyFilter}
-            onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | 'All')}
-            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[150px]"
-          >
-            <option value="All">All Urgencies</option>
-            {urgencyOptions.map(urgency => (
-              <option key={urgency} value={urgency}>{urgency}</option>
-            ))}
-          </select>
+          <div className="relative">
+            <select
+              value={urgencyFilter}
+              onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | 'All')}
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[150px]"
+            >
+              <option value="All">All Urgencies</option>
+              {urgencyOptions.map(urgency => (
+                <option key={urgency} value={urgency}>{urgency}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400 pointer-events-none" />
+          </div>
           
           <Link
             to="/tickets/new"
