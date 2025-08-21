@@ -109,69 +109,49 @@ const Tickets = () => {
               Manage and track all maintenance tickets
             </p>
           </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search tickets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+            />
+          </div>
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
+            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[150px]"
+          >
+            <option value="All">All Statuses</option>
+            {statusOptions.map(status => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+
+          <select
+            value={urgencyFilter}
+            onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | 'All')}
+            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[150px]"
+          >
+            <option value="All">All Urgencies</option>
+            {urgencyOptions.map(urgency => (
+              <option key={urgency} value={urgency}>{urgency}</option>
+            ))}
+          </select>
+          
           <Link
             to="/tickets/new"
             className="btn-primary flex items-center space-x-2"
           >
-            <Plus className="h-4 w-4" />
             <span>New Ticket</span>
           </Link>
-        </div>
-
-        {/* Filters */}
-        <div className="card">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-neutral-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search tickets..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as TicketStatus | 'All')}
-              className="select"
-            >
-              <option value="All">All Statuses</option>
-              {statusOptions.map(status => (
-                <option key={status} value={status}>{status}</option>
-              ))}
-            </select>
-
-            {/* Urgency Filter */}
-            <select
-              value={urgencyFilter}
-              onChange={(e) => setUrgencyFilter(e.target.value as UrgencyLevel | 'All')}
-              className="select"
-            >
-              <option value="All">All Urgencies</option>
-              {urgencyOptions.map(urgency => (
-                <option key={urgency} value={urgency}>{urgency}</option>
-              ))}
-            </select>
-
-            {/* Clear Filters */}
-            <button
-              onClick={() => {
-                setSearchTerm('')
-                setStatusFilter('All')
-                setUrgencyFilter('All')
-              }}
-              className="btn-secondary flex items-center justify-center"
-            >
-              <Filter className="h-4 w-4 mr-2" />
-              Clear Filters
-            </button>
-          </div>
         </div>
 
         {/* Results Count */}

@@ -87,17 +87,16 @@ const Settings: React.FC = () => {
   });
 
   return (
-    <div className="min-h-screen bg-neutral-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-neutral-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <SettingsIcon className="w-8 h-8 text-primary-600" />
+        <div className="flex items-center justify-between">
+          <div>
             <h1 className="text-3xl font-bold text-neutral-900">System Settings</h1>
+            <p className="text-neutral-600">
+              Configure buildings, manage users, set up financial parameters, and control security settings.
+            </p>
           </div>
-          <p className="text-neutral-600">
-            Configure buildings, manage users, set up financial parameters, and control security settings.
-          </p>
         </div>
 
         {/* Tab Navigation */}
