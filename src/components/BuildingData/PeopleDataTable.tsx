@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
@@ -11,6 +12,7 @@ import { getAllBuildings } from '../../services/buildingService'
 import { getPeopleByBuilding, createPerson, updatePerson } from '../../services/peopleService'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
+import { Modal, ModalFooter } from '../UI'
 import { tokens } from '../../styles/tokens'
 import { getBadgeColors, getStatusColors, getButtonColors } from '../../utils/colors'
 
@@ -428,21 +430,11 @@ const PeopleDataTable: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900 font-inter">People Management</h2>
-          <p className="text-sm text-neutral-600 font-inter">Manage building residents and contacts</p>
-        </div>
-        
+      <div className="flex items-center justify-end">
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
           {/* Add Person Button */}
-          <button
-            onClick={() => setShowCreatePerson(true)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors font-inter"
-          >
-            Add Person
-          </button>
+          <Button onClick={() => setShowCreatePerson(true)}>Add Person</Button>
         </div>
       </div>
 
@@ -496,345 +488,307 @@ const PeopleDataTable: React.FC = () => {
       />
 
       {/* Create Person Modal */}
-      {showCreatePerson && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Add New Person</h3>
+{showCreatePerson && (
+        <Modal
+          isOpen={showCreatePerson}
+          onClose={() => setShowCreatePerson(false)}
+          title="Add New Person"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+              <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
+                {selectedBuilding?.name || 'No building selected'}
+              </div>
+            </div>
             
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
-                <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
-                  {selectedBuilding?.name || 'No building selected'}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
-                  <input
-                    type="text"
-                    value={personForm.name}
-                    onChange={(e) => setPersonForm({...personForm, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email *</label>
-                  <input
-                    type="email"
-                    value={personForm.email}
-                    onChange={(e) => setPersonForm({...personForm, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
-                  <input
-                    type="tel"
-                    value={personForm.phone}
-                    onChange={(e) => setPersonForm({...personForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <select
-                    value={personForm.status}
-                    onChange={(e) => setPersonForm({...personForm, status: e.target.value as PersonStatus})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value={PersonStatus.RESIDENT}>Resident</option>
-                    <option value={PersonStatus.OWNER}>Owner</option>
-                    <option value={PersonStatus.TENANT}>Tenant</option>
-                    <option value={PersonStatus.MANAGER}>Manager</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat ID</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
                 <input
                   type="text"
-                  value={personForm.flatId}
-                  onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
+                  value={personForm.name}
+                  onChange={(e) => setPersonForm({...personForm, name: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
-                  <input
-                    type="date"
-                    value={personForm.moveInDate}
-                    onChange={(e) => setPersonForm({...personForm, moveInDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
-                  <input
-                    type="date"
-                    value={personForm.moveOutDate}
-                    onChange={(e) => setPersonForm({...personForm, moveOutDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                <textarea
-                  value={personForm.notes}
-                  onChange={(e) => setPersonForm({...personForm, notes: e.target.value})}
-                  rows={3}
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email *</label>
+                <input
+                  type="email"
+                  value={personForm.email}
+                  onChange={(e) => setPersonForm({...personForm, email: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowCreatePerson(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreatePerson}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Add Person
-              </button>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <input
+                  type="tel"
+                  value={personForm.phone}
+                  onChange={(e) => setPersonForm({...personForm, phone: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <select
+                  value={personForm.status}
+                  onChange={(e) => setPersonForm({...personForm, status: e.target.value as PersonStatus})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={PersonStatus.RESIDENT}>Resident</option>
+                  <option value={PersonStatus.OWNER}>Owner</option>
+                  <option value={PersonStatus.TENANT}>Tenant</option>
+                  <option value={PersonStatus.MANAGER}>Manager</option>
+                </select>
+              </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat ID</label>
+              <input
+                type="text"
+                value={personForm.flatId}
+                onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
+                <input
+                  type="date"
+                  value={personForm.moveInDate}
+                  onChange={(e) => setPersonForm({...personForm, moveInDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
+                <input
+                  type="date"
+                  value={personForm.moveOutDate}
+                  onChange={(e) => setPersonForm({...personForm, moveOutDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={personForm.notes}
+                onChange={(e) => setPersonForm({...personForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowCreatePerson(false)}>Cancel</Button>
+              <Button onClick={handleCreatePerson}>Add Person</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* View Person Modal */}
-      {showViewPerson && selectedPerson && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Person Details</h3>
-              <button
-                onClick={() => setShowViewPerson(false)}
-                className="text-neutral-400 hover:text-gray-600 transition-colors"
-              >
-                ✕
-              </button>
+{showViewPerson && selectedPerson && (
+        <Modal
+          isOpen={showViewPerson}
+          onClose={() => setShowViewPerson(false)}
+          title="Person Details"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+                <p className="text-sm text-neutral-900 font-inter">
+                  {selectedBuilding?.name || 'Unknown Building'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusBadge(selectedPerson.status)}`}>
+                  {selectedPerson.status}
+                </span>
+              </div>
             </div>
             
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
-                  <p className="text-sm text-neutral-900 font-inter">
-                    {selectedBuilding?.name || 'Unknown Building'}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusBadge(selectedPerson.status)}`}>
-                    {selectedPerson.status}
-                  </span>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.name}</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Primary Contact</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.isPrimaryContact ? 'Yes' : 'No'}</p>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Primary Contact</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.isPrimaryContact ? 'Yes' : 'No'}</p>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.email || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.phone || 'N/A'}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.flatNumber || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Primary Contact</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.isPrimaryContact ? 'Yes' : 'No'}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
-                  <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedPerson.moveInDate)}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
-                  <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedPerson.moveOutDate)}</p>
-                </div>
-              </div>
-              
-              {selectedPerson.notes && (
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedPerson.notes}</p>
-                </div>
-              )}
             </div>
             
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setShowViewPerson(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Close
-              </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.email || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.phone || 'N/A'}</p>
+              </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.flatNumber || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Primary Contact</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.isPrimaryContact ? 'Yes' : 'No'}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
+                <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedPerson.moveInDate)}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
+                <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedPerson.moveOutDate)}</p>
+              </div>
+            </div>
+            
+            {selectedPerson.notes && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedPerson.notes}</p>
+              </div>
+            )}
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowViewPerson(false)}>Close</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Edit Person Modal */}
-      {showEditPerson && selectedPerson && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Edit Person</h3>
-              <button
-                onClick={() => setShowEditPerson(false)}
-                className="text-neutral-400 hover:text-gray-600 transition-colors"
-              >
-                ✕
-              </button>
+{showEditPerson && selectedPerson && (
+        <Modal
+          isOpen={showEditPerson}
+          onClose={() => setShowEditPerson(false)}
+          title="Edit Person"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+              <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
+                {selectedBuilding?.name || 'No building selected'}
+              </div>
             </div>
             
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
-                <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
-                  {selectedBuilding?.name || 'No building selected'}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
-                  <input
-                    type="text"
-                    value={personForm.name}
-                    onChange={(e) => setPersonForm({...personForm, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email *</label>
-                  <input
-                    type="email"
-                    value={personForm.email}
-                    onChange={(e) => setPersonForm({...personForm, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone *</label>
-                  <input
-                    type="tel"
-                    value={personForm.phone}
-                    onChange={(e) => setPersonForm({...personForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <select
-                    value={personForm.status}
-                    onChange={(e) => setPersonForm({...personForm, status: e.target.value as PersonStatus})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value={PersonStatus.RESIDENT}>Resident</option>
-                    <option value={PersonStatus.OWNER}>Owner</option>
-                    <option value={PersonStatus.TENANT}>Tenant</option>
-                    <option value={PersonStatus.MANAGER}>Manager</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat ID</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
                 <input
                   type="text"
-                  value={personForm.flatId}
-                  onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
+                  value={personForm.name}
+                  onChange={(e) => setPersonForm({...personForm, name: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
-                  <input
-                    type="date"
-                    value={personForm.moveInDate}
-                    onChange={(e) => setPersonForm({...personForm, moveInDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
-                  <input
-                    type="date"
-                    value={personForm.moveOutDate}
-                    onChange={(e) => setPersonForm({...personForm, moveOutDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                <textarea
-                  value={personForm.notes}
-                  onChange={(e) => setPersonForm({...personForm, notes: e.target.value})}
-                  rows={3}
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email *</label>
+                <input
+                  type="email"
+                  value={personForm.email}
+                  onChange={(e) => setPersonForm({...personForm, email: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowEditPerson(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdatePerson}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Update Person
-              </button>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone *</label>
+                <input
+                  type="tel"
+                  value={personForm.phone}
+                  onChange={(e) => setPersonForm({...personForm, phone: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <select
+                  value={personForm.status}
+                  onChange={(e) => setPersonForm({...personForm, status: e.target.value as PersonStatus})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={PersonStatus.RESIDENT}>Resident</option>
+                  <option value={PersonStatus.OWNER}>Owner</option>
+                  <option value={PersonStatus.TENANT}>Tenant</option>
+                  <option value={PersonStatus.MANAGER}>Manager</option>
+                </select>
+              </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat ID</label>
+              <input
+                type="text"
+                value={personForm.flatId}
+                onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
+                <input
+                  type="date"
+                  value={personForm.moveInDate}
+                  onChange={(e) => setPersonForm({...personForm, moveInDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
+                <input
+                  type="date"
+                  value={personForm.moveOutDate}
+                  onChange={(e) => setPersonForm({...personForm, moveOutDate: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={personForm.notes}
+                onChange={(e) => setPersonForm({...personForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowEditPerson(false)}>Cancel</Button>
+              <Button onClick={handleUpdatePerson}>Update Person</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

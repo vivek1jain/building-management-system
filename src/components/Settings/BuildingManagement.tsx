@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { 
   Building2, 
   Plus, 
@@ -308,15 +309,7 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Building2 className="h-6 w-6 text-primary-600" />
-          <div>
-            <h2 className="text-xl font-semibold text-neutral-900">Building Management</h2>
-            <p className="text-sm text-gray-600">Manage buildings and their properties</p>
-          </div>
-        </div>
-        
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setShowCreateModal(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors"
@@ -451,8 +444,8 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
       </div>
 
       {/* Create Building Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {showCreateModal && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-neutral-900">Add New Building</h3>
@@ -597,12 +590,13 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Building Modal */}
-      {showEditModal && selectedBuilding && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {showEditModal && selectedBuilding && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-neutral-900">Edit Building</h3>
@@ -748,12 +742,13 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* View Building Modal */}
-      {showViewModal && selectedBuilding && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      {showViewModal && selectedBuilding && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-modal" style={{ zIndex: 1400 }}>
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-neutral-900">Building Details</h3>
@@ -874,7 +869,8 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

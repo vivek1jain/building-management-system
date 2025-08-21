@@ -3,18 +3,19 @@ import { Plus, Wrench, Edit, Trash2, Eye, Building as BuildingIcon, Package, Che
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
-import { Asset, Building, AssetStatus } from '../../types'
+import { Asset, Building, AssetStatus, AssetCategory } from '../../types'
 import BulkImportExport from './BulkImportExport'
 import { exportAssetsToCSV } from '../../utils/csvExport'
-import { ImportValidationResult } from '../../utils/csvImport'
+import { ImportValidationResult, importAssetsFromCSV } from '../../utils/csvImport'
 import { getAllBuildings, getAssetsByBuilding, createAsset, updateAsset, deleteAsset } from '../../services/buildingService'
 import { DataTable, Column, TableAction } from '../UI/DataTable'
-import { Button } from '../UI'
+import { Button, Modal, ModalFooter } from '../UI'
 
 const AssetsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { selectedBuildingId, selectedBuilding } = useBuilding()
+  const [buildings, setBuildings] = useState<Building[]>([])
   const [assets, setAssets] = useState<(Asset & { isActive: boolean })[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateAsset, setShowCreateAsset] = useState(false)
@@ -28,6 +29,7 @@ const AssetsDataTable: React.FC = () => {
   const [assetForm, setAssetForm] = useState({
     name: '',
     type: '',
+    category: AssetCategory.OTHER,
     locationDescription: '',
     installationDate: '',
     manufacturer: '',
@@ -44,6 +46,19 @@ const AssetsDataTable: React.FC = () => {
       loadAssets()
     }
   }, [selectedBuildingId])
+
+  useEffect(() => {
+    loadBuildings()
+  }, [])
+
+  const loadBuildings = async () => {
+    try {
+      const allBuildings = await getAllBuildings()
+      setBuildings(allBuildings)
+    } catch (error) {
+      console.error('Error loading buildings:', error)
+    }
+  }
 
 
   const loadAssets = async () => {
@@ -90,6 +105,7 @@ const AssetsDataTable: React.FC = () => {
       const assetData = {
         name: assetForm.name,
         buildingId: selectedBuildingId,
+        category: assetForm.category,
         type: assetForm.type,
         status: assetForm.status,
         locationDescription: assetForm.locationDescription,
@@ -114,6 +130,7 @@ const AssetsDataTable: React.FC = () => {
       setAssetForm({
         name: '',
         type: '',
+        category: AssetCategory.OTHER,
         locationDescription: '',
         installationDate: '',
         manufacturer: '',
@@ -156,6 +173,7 @@ const AssetsDataTable: React.FC = () => {
     setAssetForm({
       name: asset.name,
       type: asset.type || '',
+      category: asset.category,
       locationDescription: asset.locationDescription || '',
       installationDate: asset.installationDate ? asset.installationDate.toISOString().split('T')[0] : '',
       manufacturer: asset.manufacturer || '',
@@ -187,6 +205,7 @@ const AssetsDataTable: React.FC = () => {
       const updateData = {
         name: assetForm.name,
         type: assetForm.type,
+        category: assetForm.category,
         status: assetForm.status,
         locationDescription: assetForm.locationDescription,
         manufacturer: assetForm.manufacturer,
@@ -220,6 +239,7 @@ const AssetsDataTable: React.FC = () => {
       setAssetForm({
         name: '',
         type: '',
+        category: AssetCategory.OTHER,
         locationDescription: '',
         installationDate: '',
         manufacturer: '',
@@ -280,20 +300,34 @@ const AssetsDataTable: React.FC = () => {
     }
   }
 
-  const handleBulkImport = (result: ImportValidationResult) => {
-    console.log('Bulk import result:', result)
-    if (currentUser) {
+  const handleAssetImport = (csvText: string, buildingId: string) => {
+    return importAssetsFromCSV(csvText, buildingId)
+  }
+
+  const handleBulkImportConfirm = async (assets: Asset[]) => {
+    if (!currentUser) return
+    
+    try {
+      for (const asset of assets) {
+        await createAsset(asset)
+      }
+      
+      loadAssets() // Reload assets after successful import
+      
       addNotification({
-        title: result.success ? 'Import Successful' : 'Import Failed',
-        message: result.success 
-          ? `Successfully imported ${result.validRows} assets` 
-          : `Import failed: ${result.errors.join(', ')}`,
-        type: result.success ? 'success' : 'error',
+        title: 'Import Successful',
+        message: `Successfully imported ${assets.length} assets`,
+        type: 'success',
         userId: currentUser.id
       })
-      if (result.success) {
-        loadAssets() // Reload assets after successful import
-      }
+    } catch (error) {
+      console.error('Error importing assets:', error)
+      addNotification({
+        title: 'Import Failed',
+        message: 'Failed to import some or all assets',
+        type: 'error',
+        userId: currentUser.id
+      })
     }
   }
 
@@ -441,21 +475,11 @@ const AssetsDataTable: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900 font-inter">Assets Management</h2>
-          <p className="text-sm text-neutral-600 font-inter">Manage building equipment and assets</p>
-        </div>
-        
+      <div className="flex items-center justify-end">
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
           {/* Add Asset Button */}
-          <button
-            onClick={() => setShowCreateAsset(true)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors font-inter"
-          >
-            Add Asset
-          </button>
+          <Button onClick={() => setShowCreateAsset(true)}>Add Asset</Button>
         </div>
       </div>
 
@@ -488,11 +512,12 @@ const AssetsDataTable: React.FC = () => {
         
         {/* Bulk Import/Export */}
         <BulkImportExport
-          entityType="assets"
-          buildingId={selectedBuildingId || ''}
+          dataType="assets"
+          buildings={buildings}
+          selectedBuildingId={selectedBuildingId || ''}
           onExport={() => exportAssetsToCSV(filteredAssets, selectedBuilding?.name || 'Unknown')}
-          onImport={handleBulkImport}
-          disabled={!selectedBuildingId}
+          onImport={handleAssetImport}
+          onImportConfirm={handleBulkImportConfirm}
           className="ml-auto"
         />
       </div>
@@ -508,248 +533,241 @@ const AssetsDataTable: React.FC = () => {
 
       {/* Create Asset Modal */}
       {showCreateAsset && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Add New Asset</h3>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Asset Name</label>
-                  <input
-                    type="text"
-                    value={assetForm.name}
-                    onChange={(e) => setAssetForm({...assetForm, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Location</label>
-                  <input
-                    type="text"
-                    value={assetForm.locationDescription}
-                    onChange={(e) => setAssetForm({...assetForm, locationDescription: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Type</label>
-                  <select
-                    value={assetForm.type}
-                    onChange={(e) => setAssetForm({...assetForm, type: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value="">Select Type</option>
-                    <option value="elevator">Elevator</option>
-                    <option value="hvac">HVAC</option>
-                    <option value="safety">Safety</option>
-                    <option value="electrical">Electrical</option>
-                    <option value="plumbing">Plumbing</option>
-                    <option value="equipment">Equipment</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <select
-                    value={assetForm.status}
-                    onChange={(e) => setAssetForm({...assetForm, status: e.target.value as AssetStatus})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value={AssetStatus.OPERATIONAL}>Operational</option>
-                    <option value={AssetStatus.NEEDS_REPAIR}>Needs Repair</option>
-                    <option value={AssetStatus.IN_REPAIR}>In Repair</option>
-                    <option value={AssetStatus.DECOMMISSIONED}>Decommissioned</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Manufacturer</label>
-                  <input
-                    type="text"
-                    value={assetForm.manufacturer}
-                    onChange={(e) => setAssetForm({...assetForm, manufacturer: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Model Number</label>
-                  <input
-                    type="text"
-                    value={assetForm.modelNumber}
-                    onChange={(e) => setAssetForm({...assetForm, modelNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Serial Number</label>
-                  <input
-                    type="text"
-                    value={assetForm.serialNumber}
-                    onChange={(e) => setAssetForm({...assetForm, serialNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Installation Date</label>
-                  <input
-                    type="date"
-                    value={assetForm.installationDate}
-                    onChange={(e) => setAssetForm({...assetForm, installationDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
+        <Modal
+          isOpen={showCreateAsset}
+          onClose={() => setShowCreateAsset(false)}
+          title="Add New Asset"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Warranty Expiry Date</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Asset Name</label>
+                <input
+                  type="text"
+                  value={assetForm.name}
+                  onChange={(e) => setAssetForm({...assetForm, name: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Location</label>
+                <input
+                  type="text"
+                  value={assetForm.locationDescription}
+                  onChange={(e) => setAssetForm({...assetForm, locationDescription: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Category *</label>
+                <select
+                  value={assetForm.category}
+                  onChange={(e) => setAssetForm({...assetForm, category: e.target.value as AssetCategory})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={AssetCategory.HVAC}>HVAC</option>
+                  <option value={AssetCategory.ELECTRICAL}>Electrical</option>
+                  <option value={AssetCategory.PLUMBING}>Plumbing</option>
+                  <option value={AssetCategory.SECURITY}>Security</option>
+                  <option value={AssetCategory.FIRE_SAFETY}>Fire Safety</option>
+                  <option value={AssetCategory.ELEVATORS}>Elevators</option>
+                  <option value={AssetCategory.LIGHTING}>Lighting</option>
+                  <option value={AssetCategory.APPLIANCES}>Appliances</option>
+                  <option value={AssetCategory.FURNITURE}>Furniture</option>
+                  <option value={AssetCategory.IT_EQUIPMENT}>IT Equipment</option>
+                  <option value={AssetCategory.CLEANING_EQUIPMENT}>Cleaning Equipment</option>
+                  <option value={AssetCategory.LANDSCAPING}>Landscaping</option>
+                  <option value={AssetCategory.OTHER}>Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Type</label>
+                <input
+                  type="text"
+                  value={assetForm.type}
+                  onChange={(e) => setAssetForm({...assetForm, type: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  placeholder="e.g. Fire Extinguisher, Boiler, etc."
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <select
+                  value={assetForm.status}
+                  onChange={(e) => setAssetForm({...assetForm, status: e.target.value as AssetStatus})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={AssetStatus.OPERATIONAL}>Operational</option>
+                  <option value={AssetStatus.NEEDS_REPAIR}>Needs Repair</option>
+                  <option value={AssetStatus.IN_REPAIR}>In Repair</option>
+                  <option value={AssetStatus.DECOMMISSIONED}>Decommissioned</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Manufacturer</label>
+                <input
+                  type="text"
+                  value={assetForm.manufacturer}
+                  onChange={(e) => setAssetForm({...assetForm, manufacturer: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Model Number</label>
+                <input
+                  type="text"
+                  value={assetForm.modelNumber}
+                  onChange={(e) => setAssetForm({...assetForm, modelNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Serial Number</label>
+                <input
+                  type="text"
+                  value={assetForm.serialNumber}
+                  onChange={(e) => setAssetForm({...assetForm, serialNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Installation Date</label>
                 <input
                   type="date"
-                  value={assetForm.warrantyExpiryDate}
-                  onChange={(e) => setAssetForm({...assetForm, warrantyExpiryDate: e.target.value})}
+                  value={assetForm.installationDate}
+                  onChange={(e) => setAssetForm({...assetForm, installationDate: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                <textarea
-                  value={assetForm.notes}
-                  onChange={(e) => setAssetForm({...assetForm, notes: e.target.value})}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Warranty Expiry Date</label>
+              <input
+                type="date"
+                value={assetForm.warrantyExpiryDate}
+                onChange={(e) => setAssetForm({...assetForm, warrantyExpiryDate: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowCreateAsset(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateAsset}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Add Asset
-              </button>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={assetForm.notes}
+                onChange={(e) => setAssetForm({...assetForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
             </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowCreateAsset(false)}>Cancel</Button>
+              <Button onClick={handleCreateAsset}>Add Asset</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* View Asset Modal */}
       {showViewAsset && selectedAsset && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Asset Details</h3>
-              <button
-                onClick={() => setShowViewAsset(false)}
-                className="text-neutral-400 hover:text-gray-600 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Asset Name</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedAsset.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Type</label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getTypeColor(selectedAsset.type || 'unknown')}`}>
-                    {selectedAsset.type || 'Unknown'}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusColor(selectedAsset.status)}`}>
-                    {selectedAsset.status}
-                  </span>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Location</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedAsset.locationDescription || 'N/A'}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Manufacturer</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedAsset.manufacturer || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Model Number</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedAsset.modelNumber || 'N/A'}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Serial Number</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedAsset.serialNumber || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Installation Date</label>
-                  <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedAsset.installationDate)}</p>
-                </div>
-              </div>
-              
+        <Modal
+          isOpen={showViewAsset}
+          onClose={() => setShowViewAsset(false)}
+          title="Asset Details"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Warranty Expiry Date</label>
-                <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedAsset.warrantyExpiryDate)}</p>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Asset Name</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedAsset.name}</p>
               </div>
-              
-              {selectedAsset.notes && (
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedAsset.notes}</p>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Type</label>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getTypeColor(selectedAsset.type || 'unknown')}`}>
+                  {selectedAsset.type || 'Unknown'}
+                </span>
+              </div>
             </div>
             
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setShowViewAsset(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Close
-              </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusColor(selectedAsset.status)}`}>
+                  {selectedAsset.status}
+                </span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Location</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedAsset.locationDescription || 'N/A'}</p>
+              </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Manufacturer</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedAsset.manufacturer || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Model Number</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedAsset.modelNumber || 'N/A'}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Serial Number</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedAsset.serialNumber || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Installation Date</label>
+                <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedAsset.installationDate)}</p>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Warranty Expiry Date</label>
+              <p className="text-sm text-neutral-900 font-inter">{formatDate(selectedAsset.warrantyExpiryDate)}</p>
+            </div>
+            
+            {selectedAsset.notes && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedAsset.notes}</p>
+              </div>
+            )}
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowViewAsset(false)}>Close</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Edit Asset Modal */}
       {showEditAsset && selectedAsset && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Edit Asset</h3>
-              <button
-                onClick={() => setShowEditAsset(false)}
-                className="text-neutral-400 hover:text-gray-600 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-            
-            <div className="space-y-4">
+        <Modal
+          isOpen={showEditAsset}
+          onClose={() => setShowEditAsset(false)}
+          title="Edit Asset"
+          size="lg"
+        >
+          <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Asset Name *</label>
@@ -761,25 +779,40 @@ const AssetsDataTable: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Type *</label>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Category *</label>
                   <select
-                    value={assetForm.type}
-                    onChange={(e) => setAssetForm({...assetForm, type: e.target.value})}
+                    value={assetForm.category}
+                    onChange={(e) => setAssetForm({...assetForm, category: e.target.value as AssetCategory})}
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   >
-                    <option value="">Select Type</option>
-                    <option value="elevator">Elevator</option>
-                    <option value="hvac">HVAC</option>
-                    <option value="electrical">Electrical</option>
-                    <option value="plumbing">Plumbing</option>
-                    <option value="safety">Safety</option>
-                    <option value="security">Security</option>
-                    <option value="other">Other</option>
+                    <option value={AssetCategory.HVAC}>HVAC</option>
+                    <option value={AssetCategory.ELECTRICAL}>Electrical</option>
+                    <option value={AssetCategory.PLUMBING}>Plumbing</option>
+                    <option value={AssetCategory.SECURITY}>Security</option>
+                    <option value={AssetCategory.FIRE_SAFETY}>Fire Safety</option>
+                    <option value={AssetCategory.ELEVATORS}>Elevators</option>
+                    <option value={AssetCategory.LIGHTING}>Lighting</option>
+                    <option value={AssetCategory.APPLIANCES}>Appliances</option>
+                    <option value={AssetCategory.FURNITURE}>Furniture</option>
+                    <option value={AssetCategory.IT_EQUIPMENT}>IT Equipment</option>
+                    <option value={AssetCategory.CLEANING_EQUIPMENT}>Cleaning Equipment</option>
+                    <option value={AssetCategory.LANDSCAPING}>Landscaping</option>
+                    <option value={AssetCategory.OTHER}>Other</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Type</label>
+                  <input
+                    type="text"
+                    value={assetForm.type}
+                    onChange={(e) => setAssetForm({...assetForm, type: e.target.value})}
+                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                    placeholder="e.g. Fire Extinguisher, Boiler, etc."
+                  />
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Location</label>
                   <input
@@ -789,100 +822,93 @@ const AssetsDataTable: React.FC = () => {
                     className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <select
-                    value={assetForm.status}
-                    onChange={(e) => setAssetForm({...assetForm, status: e.target.value as AssetStatus})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value={AssetStatus.OPERATIONAL}>Operational</option>
-                    <option value={AssetStatus.NEEDS_REPAIR}>Needs Repair</option>
-                    <option value={AssetStatus.IN_REPAIR}>In Repair</option>
-                    <option value={AssetStatus.DECOMMISSIONED}>Decommissioned</option>
-                  </select>
-                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Manufacturer</label>
-                  <input
-                    type="text"
-                    value={assetForm.manufacturer}
-                    onChange={(e) => setAssetForm({...assetForm, manufacturer: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Model Number</label>
-                  <input
-                    type="text"
-                    value={assetForm.modelNumber}
-                    onChange={(e) => setAssetForm({...assetForm, modelNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Serial Number</label>
-                  <input
-                    type="text"
-                    value={assetForm.serialNumber}
-                    onChange={(e) => setAssetForm({...assetForm, serialNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Installation Date</label>
-                  <input
-                    type="date"
-                    value={assetForm.installationDate}
-                    onChange={(e) => setAssetForm({...assetForm, installationDate: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Warranty Expiry Date</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <select
+                  value={assetForm.status}
+                  onChange={(e) => setAssetForm({...assetForm, status: e.target.value as AssetStatus})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={AssetStatus.OPERATIONAL}>Operational</option>
+                  <option value={AssetStatus.NEEDS_REPAIR}>Needs Repair</option>
+                  <option value={AssetStatus.IN_REPAIR}>In Repair</option>
+                  <option value={AssetStatus.DECOMMISSIONED}>Decommissioned</option>
+                </select>
+              </div>
+              <div></div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Manufacturer</label>
+                <input
+                  type="text"
+                  value={assetForm.manufacturer}
+                  onChange={(e) => setAssetForm({...assetForm, manufacturer: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Model Number</label>
+                <input
+                  type="text"
+                  value={assetForm.modelNumber}
+                  onChange={(e) => setAssetForm({...assetForm, modelNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Serial Number</label>
+                <input
+                  type="text"
+                  value={assetForm.serialNumber}
+                  onChange={(e) => setAssetForm({...assetForm, serialNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Installation Date</label>
                 <input
                   type="date"
-                  value={assetForm.warrantyExpiryDate}
-                  onChange={(e) => setAssetForm({...assetForm, warrantyExpiryDate: e.target.value})}
+                  value={assetForm.installationDate}
+                  onChange={(e) => setAssetForm({...assetForm, installationDate: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                <textarea
-                  value={assetForm.notes}
-                  onChange={(e) => setAssetForm({...assetForm, notes: e.target.value})}
-                  rows={3}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                />
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Warranty Expiry Date</label>
+              <input
+                type="date"
+                value={assetForm.warrantyExpiryDate}
+                onChange={(e) => setAssetForm({...assetForm, warrantyExpiryDate: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowEditAsset(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateAsset}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Update Asset
-              </button>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={assetForm.notes}
+                onChange={(e) => setAssetForm({...assetForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
             </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowEditAsset(false)}>Cancel</Button>
+              <Button onClick={handleUpdateAsset}>Update Asset</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

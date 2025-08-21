@@ -12,6 +12,7 @@ import { exportSuppliersToCSV } from '../../utils/csvExport'
 import { importSuppliersFromCSV, ImportValidationResult } from '../../utils/csvImport'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
+import { Modal, ModalFooter } from '../UI'
 import { tokens } from '../../styles/tokens'
 
 const SuppliersDataTable: React.FC = () => {
@@ -461,20 +462,22 @@ const SuppliersDataTable: React.FC = () => {
   // Define row actions
   const rowActions: TableAction<Supplier & { buildingId: string }>[] = useMemo(() => [
     {
+      key: 'view',
       label: 'View',
       onClick: handleViewSupplier,
       variant: 'outline'
     },
     {
+      key: 'edit',
       label: 'Edit',
       onClick: handleEditSupplier,
       variant: 'outline'
     },
     {
+      key: 'delete',
       label: 'Delete',
       onClick: (supplier) => handleDeleteSupplier(supplier.id),
-      variant: 'outline',
-      className: 'text-red-600 hover:text-red-900'
+      variant: 'outline'
     }
   ], [])
 
@@ -489,21 +492,11 @@ const SuppliersDataTable: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900 font-inter">Suppliers Management</h2>
-          <p className="text-sm text-neutral-600 font-inter">Manage building suppliers and service providers</p>
-        </div>
-        
+      <div className="flex items-center justify-end">
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
           {/* Add Supplier Button */}
-          <button
-            onClick={() => setShowCreateSupplier(true)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors font-inter"
-          >
-            Add Supplier
-          </button>
+          <Button onClick={() => setShowCreateSupplier(true)}>Add Supplier</Button>
         </div>
       </div>
 
@@ -558,313 +551,269 @@ const SuppliersDataTable: React.FC = () => {
       />
 
       {/* Create Supplier Modal */}
-      {showCreateSupplier && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Add New Supplier</h3>
-            
-            <div className="space-y-4">
+{showCreateSupplier && (
+        <Modal
+          isOpen={showCreateSupplier}
+          onClose={() => setShowCreateSupplier(false)}
+          title="Add New Supplier"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+              <input
+                type="text"
+                value={supplierForm.name}
+                onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
+              <input
+                type="text"
+                value={supplierForm.companyName}
+                onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
                 <input
-                  type="text"
-                  value={supplierForm.name}
-                  onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                  type="email"
+                  value={supplierForm.email}
+                  onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                 <input
-                  type="text"
-                  value={supplierForm.companyName}
-                  onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
-                  <input
-                    type="email"
-                    value={supplierForm.email}
-                    onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
-                  <input
-                    type="tel"
-                    value={supplierForm.phone}
-                    onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
-                  <select
-                    value={supplierForm.specialty}
-                    onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value="">Select Specialty</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="HVAC">HVAC</option>
-                    <option value="Cleaning">Cleaning</option>
-                    <option value="Security">Security</option>
-                    <option value="Landscaping">Landscaping</option>
-                    <option value="General Maintenance">General Maintenance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
-                  <select
-                    value={supplierForm.rating}
-                    onChange={(e) => setSupplierForm({...supplierForm, rating: parseFloat(e.target.value)})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value={5}>5 Stars</option>
-                    <option value={4.5}>4.5 Stars</option>
-                    <option value={4}>4 Stars</option>
-                    <option value={3.5}>3.5 Stars</option>
-                    <option value={3}>3 Stars</option>
-                    <option value={2.5}>2.5 Stars</option>
-                    <option value={2}>2 Stars</option>
-                    <option value={1.5}>1.5 Stars</option>
-                    <option value={1}>1 Star</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                <textarea
-                  value={supplierForm.notes}
-                  onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
-                  rows={3}
+                  type="tel"
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowCreateSupplier(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateSupplier}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Add Supplier
-              </button>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
+                <select
+                  value={supplierForm.specialty}
+                  onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value="">Select Specialty</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="HVAC">HVAC</option>
+                  <option value="Cleaning">Cleaning</option>
+                  <option value="Security">Security</option>
+                  <option value="Landscaping">Landscaping</option>
+                  <option value="General Maintenance">General Maintenance</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <select
+                  value={supplierForm.rating}
+                  onChange={(e) => setSupplierForm({...supplierForm, rating: parseFloat(e.target.value)})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={5}>5 Stars</option>
+                  <option value={4.5}>4.5 Stars</option>
+                  <option value={4}>4 Stars</option>
+                  <option value={3.5}>3.5 Stars</option>
+                  <option value={3}>3 Stars</option>
+                  <option value={2.5}>2.5 Stars</option>
+                  <option value={2}>2 Stars</option>
+                  <option value={1.5}>1.5 Stars</option>
+                  <option value={1}>1 Star</option>
+                </select>
+              </div>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={supplierForm.notes}
+                onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowCreateSupplier(false)}>Cancel</Button>
+              <Button onClick={handleCreateSupplier}>Add Supplier</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* View Supplier Modal */}
-      {showViewSupplier && selectedSupplier && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Supplier Details</h3>
-              <button
-                onClick={() => setShowViewSupplier(false)}
-                className="text-neutral-400 hover:text-gray-600 transition-colors"
-              >
-                <span className="sr-only">Close</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.name}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.companyName}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.email}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
-                  <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.phone || 'Not provided'}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialties</label>
-                  <div className="flex flex-wrap gap-1">
-                    {selectedSupplier.specialties.map((specialty, index) => (
-                      <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
-                  <div className="flex items-center gap-1">
-                    {selectedSupplier.rating ? renderStars(selectedSupplier.rating) : 'No rating'}
-                    {selectedSupplier.rating && <span className="text-sm text-gray-600 ml-1 font-inter">{selectedSupplier.rating}</span>}
-                  </div>
-                </div>
-              </div>
-              
+{showViewSupplier && selectedSupplier && (
+        <Modal
+          isOpen={showViewSupplier}
+          onClose={() => setShowViewSupplier(false)}
+          title="Supplier Details"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  selectedSupplier.isActive ? 'text-success-600 bg-success-100' : 'text-red-600 bg-red-100'
-                }`}>
-                  {selectedSupplier.isActive ? 'Active' : 'Inactive'}
-                </span>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.companyName}</p>
               </div>
             </div>
             
-            <div className="flex justify-end mt-6">
-              <button
-                onClick={() => setShowViewSupplier(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Close
-              </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.email}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.phone || 'Not provided'}</p>
+              </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialties</label>
+                <div className="flex flex-wrap gap-1">
+                  {selectedSupplier.specialties.map((specialty, index) => (
+                    <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+                      {specialty}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <div className="flex items-center gap-1">
+                  {selectedSupplier.rating ? renderStars(selectedSupplier.rating) : 'No rating'}
+                  {selectedSupplier.rating && <span className="text-sm text-gray-600 ml-1 font-inter">{selectedSupplier.rating}</span>}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+              <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                selectedSupplier.isActive ? 'text-success-600 bg-success-100' : 'text-red-600 bg-red-100'
+              }`}>
+                {selectedSupplier.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowViewSupplier(false)}>Close</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Edit Supplier Modal */}
       {showEditSupplier && selectedSupplier && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-neutral-900 font-inter">Edit Supplier</h3>
-              <button
-                onClick={() => setShowEditSupplier(false)}
-                className="text-neutral-400 hover:text-gray-600 transition-colors"
-              >
-                <span className="sr-only">Close</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+        <Modal
+          isOpen={showEditSupplier}
+          onClose={() => setShowEditSupplier(false)}
+          title="Edit Supplier"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+              <input
+                type="text"
+                value={supplierForm.name}
+                onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
             </div>
-            
-            <div className="space-y-4">
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
+              <input
+                type="text"
+                value={supplierForm.companyName}
+                onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
                 <input
-                  type="text"
-                  value={supplierForm.name}
-                  onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                  type="email"
+                  value={supplierForm.email}
+                  onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                 <input
-                  type="text"
-                  value={supplierForm.companyName}
-                  onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
+                  type="tel"
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
-                  <input
-                    type="email"
-                    value={supplierForm.email}
-                    onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
-                  <input
-                    type="tel"
-                    value={supplierForm.phone}
-                    onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
+                <select
+                  value={supplierForm.specialty}
+                  onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value="">Select specialty</option>
+                  <option value="Plumbing">Plumbing</option>
+                  <option value="Electrical">Electrical</option>
+                  <option value="HVAC">HVAC</option>
+                  <option value="Cleaning">Cleaning</option>
+                  <option value="Security">Security</option>
+                  <option value="Landscaping">Landscaping</option>
+                  <option value="General Maintenance">General Maintenance</option>
+                </select>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
-                  <select
-                    value={supplierForm.specialty}
-                    onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value="">Select specialty</option>
-                    <option value="Plumbing">Plumbing</option>
-                    <option value="Electrical">Electrical</option>
-                    <option value="HVAC">HVAC</option>
-                    <option value="Cleaning">Cleaning</option>
-                    <option value="Security">Security</option>
-                    <option value="Landscaping">Landscaping</option>
-                    <option value="Maintenance">General Maintenance</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
-                  <select
-                    value={supplierForm.rating}
-                    onChange={(e) => setSupplierForm({...supplierForm, rating: Number(e.target.value)})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value={0}>No rating</option>
-                    <option value={1}>1 Star</option>
-                    <option value={2}>2 Stars</option>
-                    <option value={3}>3 Stars</option>
-                    <option value={4}>4 Stars</option>
-                    <option value={5}>5 Stars</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <select
+                  value={supplierForm.rating}
+                  onChange={(e) => setSupplierForm({...supplierForm, rating: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={0}>No rating</option>
+                  <option value={1}>1 Star</option>
+                  <option value={2}>2 Stars</option>
+                  <option value={3}>3 Stars</option>
+                  <option value={4}>4 Stars</option>
+                  <option value={5}>5 Stars</option>
+                </select>
               </div>
             </div>
-            
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowEditSupplier(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateSupplier}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Update Supplier
-              </button>
-            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowEditSupplier(false)}>Cancel</Button>
+              <Button onClick={handleUpdateSupplier}>Update Supplier</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   )

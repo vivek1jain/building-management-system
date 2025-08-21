@@ -197,11 +197,7 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900">Financial Setup</h2>
-          <p className="text-gray-600 mt-1">Configure financial year, budget periods, and payment frequencies per building.</p>
-        </div>
+      <div className="flex items-center justify-end">
         {hasChanges && (
           <button
             onClick={handleSave}

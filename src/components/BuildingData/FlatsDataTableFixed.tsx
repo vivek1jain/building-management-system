@@ -11,6 +11,7 @@ import { getAllBuildings } from '../../services/buildingService'
 import { getFlatsByBuilding, createFlat, updateFlat, deleteFlat } from '../../services/flatService'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
+import { Modal, ModalFooter } from '../UI'
 
 const FlatsDataTableFixed: React.FC = () => {
   const { currentUser } = useAuth()
@@ -175,6 +176,66 @@ const FlatsDataTableFixed: React.FC = () => {
       buildingId: flat.buildingId || ''
     })
     setShowEditFlat(true)
+  }
+
+  const handleUpdateFlat = async () => {
+    if (!currentUser || !selectedFlat) return
+    
+    if (!flatForm.flatNumber || !flatForm.floor || !flatForm.areaSqFt) {
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all required fields',
+        type: 'error',
+        userId: currentUser.id
+      })
+      return
+    }
+    
+    try {
+      console.log('🔥 Updating flat in Firebase...', selectedFlat.id)
+      
+      const updateData = {
+        flatNumber: flatForm.flatNumber,
+        floor: parseInt(flatForm.floor),
+        areaSqFt: parseInt(flatForm.areaSqFt),
+        bedrooms: parseInt(flatForm.bedrooms) || 0,
+        bathrooms: parseInt(flatForm.bathrooms) || 0,
+        status: flatForm.status,
+        groundRent: parseFloat(flatForm.groundRent) || 0,
+        notes: flatForm.notes
+      }
+      
+      await updateFlat(selectedFlat.id, updateData)
+      console.log('🔥 Flat updated successfully in Firebase')
+      
+      setFlats(prev => prev.map(f => 
+        f.id === selectedFlat.id 
+          ? {
+              ...f,
+              ...updateData,
+              updatedAt: new Date()
+            }
+          : f
+      ))
+      
+      setShowEditFlat(false)
+      setSelectedFlat(null)
+      
+      addNotification({
+        title: 'Success',
+        message: 'Flat updated successfully in Firebase!',
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('🚨 Error updating flat:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update flat in Firebase',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
   }
 
   const handleDeleteFlat = async (flatId: string) => {
@@ -342,22 +403,12 @@ const FlatsDataTableFixed: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header - NO ICONS */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900 font-inter">Flats Management</h2>
-          <p className="text-sm text-gray-600 font-inter">Manage building units and their details</p>
-        </div>
-        
+      {/* Header */}
+      <div className="flex items-center justify-end">
         {/* Top Right Controls */}
         <div className="flex items-center gap-4">
-          {/* Add Flat Button - NO ICONS */}
-          <button
-            onClick={() => setShowCreateFlat(true)}
-            className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-colors font-inter"
-          >
-            Add Flat
-          </button>
+          {/* Add Flat Button */}
+          <Button onClick={() => setShowCreateFlat(true)}>Add Flat</Button>
         </div>
       </div>
 
@@ -404,117 +455,291 @@ const FlatsDataTableFixed: React.FC = () => {
       />
 
       {/* Create Flat Modal */}
-      {showCreateFlat && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Add New Flat</h3>
-            
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number *</label>
-                  <input
-                    type="text"
-                    value={flatForm.flatNumber}
-                    onChange={(e) => setFlatForm({...flatForm, flatNumber: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Floor *</label>
-                  <input
-                    type="number"
-                    value={flatForm.floor}
-                    onChange={(e) => setFlatForm({...flatForm, floor: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Area (sq ft) *</label>
-                  <input
-                    type="number"
-                    value={flatForm.areaSqFt}
-                    onChange={(e) => setFlatForm({...flatForm, areaSqFt: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                  <select
-                    value={flatForm.status}
-                    onChange={(e) => setFlatForm({...flatForm, status: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value="vacant">Vacant</option>
-                    <option value="occupied">Occupied</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="reserved">Reserved</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bedrooms</label>
-                  <input
-                    type="number"
-                    value={flatForm.bedrooms}
-                    onChange={(e) => setFlatForm({...flatForm, bedrooms: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bathrooms</label>
-                  <input
-                    type="number"
-                    value={flatForm.bathrooms}
-                    onChange={(e) => setFlatForm({...flatForm, bathrooms: e.target.value})}
-                    className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  />
-                </div>
-              </div>
-
+{showCreateFlat && (
+        <Modal
+          isOpen={showCreateFlat}
+          onClose={() => setShowCreateFlat(false)}
+          title="Add New Flat"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Ground Rent (£)</label>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number *</label>
+                <input
+                  type="text"
+                  value={flatForm.flatNumber}
+                  onChange={(e) => setFlatForm({...flatForm, flatNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Floor *</label>
                 <input
                   type="number"
-                  step="0.01"
-                  value={flatForm.groundRent}
-                  onChange={(e) => setFlatForm({...flatForm, groundRent: e.target.value})}
+                  value={flatForm.floor}
+                  onChange={(e) => setFlatForm({...flatForm, floor: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
+            </div>
 
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
-                <textarea
-                  value={flatForm.notes}
-                  onChange={(e) => setFlatForm({...flatForm, notes: e.target.value})}
-                  rows={3}
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Area (sq ft) *</label>
+                <input
+                  type="number"
+                  value={flatForm.areaSqFt}
+                  onChange={(e) => setFlatForm({...flatForm, areaSqFt: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <select
+                  value={flatForm.status}
+                  onChange={(e) => setFlatForm({...flatForm, status: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value="vacant">Vacant</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="reserved">Reserved</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bedrooms</label>
+                <input
+                  type="number"
+                  value={flatForm.bedrooms}
+                  onChange={(e) => setFlatForm({...flatForm, bedrooms: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bathrooms</label>
+                <input
+                  type="number"
+                  value={flatForm.bathrooms}
+                  onChange={(e) => setFlatForm({...flatForm, bathrooms: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Ground Rent (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={flatForm.groundRent}
+                onChange={(e) => setFlatForm({...flatForm, groundRent: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={flatForm.notes}
+                onChange={(e) => setFlatForm({...flatForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowCreateFlat(false)}>Cancel</Button>
+              <Button onClick={handleCreateFlat}>Add Flat</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
+
+      {/* View Flat Modal */}
+      {showViewFlat && selectedFlat && (
+        <Modal
+          isOpen={showViewFlat}
+          onClose={() => setShowViewFlat(false)}
+          title="Flat Details"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+                <p className="text-sm text-neutral-900 font-inter">
+                  {selectedBuilding?.name || 'Unknown Building'}
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusColor(selectedFlat.status || 'unknown')}`}>
+                  {selectedFlat.status || 'Unknown'}
+                </span>
               </div>
             </div>
             
-            <div className="flex justify-end space-x-3 mt-6">
-              <button
-                onClick={() => setShowCreateFlat(false)}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateFlat}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors font-inter"
-              >
-                Add Flat
-              </button>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedFlat.flatNumber}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Floor</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedFlat.floor}</p>
+              </div>
             </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Area</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedFlat.areaSqFt} sq ft</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bedrooms/Bathrooms</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedFlat.bedrooms || 0} bed, {selectedFlat.bathrooms || 0} bath</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Current Rent</label>
+                <p className="text-sm text-neutral-900 font-inter">{formatCurrency(selectedFlat.currentRent || 0)}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Ground Rent</label>
+                <p className="text-sm text-neutral-900 font-inter">{formatCurrency(selectedFlat.groundRent || 0)}</p>
+              </div>
+            </div>
+            
+            {selectedFlat.notes && (
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedFlat.notes}</p>
+              </div>
+            )}
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowViewFlat(false)}>Close</Button>
+            </ModalFooter>
           </div>
-        </div>
+        </Modal>
+      )}
+
+      {/* Edit Flat Modal */}
+      {showEditFlat && selectedFlat && (
+        <Modal
+          isOpen={showEditFlat}
+          onClose={() => setShowEditFlat(false)}
+          title="Edit Flat"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
+              <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
+                {selectedBuilding?.name || 'No building selected'}
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number *</label>
+                <input
+                  type="text"
+                  value={flatForm.flatNumber}
+                  onChange={(e) => setFlatForm({...flatForm, flatNumber: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Floor *</label>
+                <input
+                  type="number"
+                  value={flatForm.floor}
+                  onChange={(e) => setFlatForm({...flatForm, floor: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Area (sq ft) *</label>
+                <input
+                  type="number"
+                  value={flatForm.areaSqFt}
+                  onChange={(e) => setFlatForm({...flatForm, areaSqFt: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <select
+                  value={flatForm.status}
+                  onChange={(e) => setFlatForm({...flatForm, status: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value="vacant">Vacant</option>
+                  <option value="occupied">Occupied</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="reserved">Reserved</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bedrooms</label>
+                <input
+                  type="number"
+                  value={flatForm.bedrooms}
+                  onChange={(e) => setFlatForm({...flatForm, bedrooms: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bathrooms</label>
+                <input
+                  type="number"
+                  value={flatForm.bathrooms}
+                  onChange={(e) => setFlatForm({...flatForm, bathrooms: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Ground Rent (£)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={flatForm.groundRent}
+                onChange={(e) => setFlatForm({...flatForm, groundRent: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={flatForm.notes}
+                onChange={(e) => setFlatForm({...flatForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowEditFlat(false)}>Cancel</Button>
+              <Button onClick={handleUpdateFlat}>Update Flat</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
       )}
     </div>
   )

@@ -78,11 +78,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-neutral-900">Security & Access Control</h2>
-          <p className="text-gray-600 mt-1">Configure security policies, domain whitelisting, and access controls.</p>
-        </div>
+      <div className="flex items-center justify-end">
         {hasChanges && (
           <button
             onClick={handleSave}
