@@ -717,6 +717,7 @@ export interface BuildingEvent {
   startDate: Date;
   endDate: Date;
   ticketId?: string; // Linked ticket
+  priority?: string; // Priority from linked ticket (if applicable)
   assignedTo: string[]; // User IDs
   status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
   createdAt: Date;

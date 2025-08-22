@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useBuilding } from '../contexts/BuildingContext'
@@ -21,8 +22,10 @@ import { BuildingEvent } from '../types'
 import { eventService } from '../services/eventService'
 import Modal, { ModalFooter } from '../components/UI/Modal'
 import Button from '../components/UI/Button'
+import EventTable from '../components/EventTable'
 
 const Events = () => {
+  const navigate = useNavigate()
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
@@ -96,6 +99,12 @@ const Events = () => {
     const matchesStatus = filterStatus === 'all' || event.status === filterStatus
     
     return matchesSearch && matchesStatus
+  }).sort((a, b) => {
+    // Sort chronologically - earliest first
+    // Dates should already be converted by eventService, but add safety conversion
+    const aDate = a.startDate instanceof Date ? a.startDate : new Date(a.startDate)
+    const bDate = b.startDate instanceof Date ? b.startDate : new Date(b.startDate)
+    return aDate.getTime() - bDate.getTime()
   })
 
   const getStatusColor = (status: string) => {
@@ -524,7 +533,10 @@ const Events = () => {
     }
   }
 
-
+  const handleTicketEventClick = (ticketId: string) => {
+    // Navigate to tickets page with ticket detail modal
+    navigate(`/tickets?ticketId=${ticketId}`)
+  }
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -534,7 +546,7 @@ const Events = () => {
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Events</h1>
             <p className="text-gray-600 mt-1">
-              Manage scheduled work and building events
+              Chronological view of building events and scheduled work
             </p>
           </div>
         </div>
@@ -583,38 +595,63 @@ const Events = () => {
         title="Schedule New Event"
         description="Create a new event for the selected building"
         size="lg"
+        showCloseButton={true}
+        closeOnBackdropClick={true}
+        closeOnEscape={true}
+        footer={
+          <div className="flex items-center justify-end space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowCreateForm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="create-event-form"
+              disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                'Create Event'
+              )}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleCreateEvent} className="space-y-4">
+        <form id="create-event-form" onSubmit={handleCreateEvent} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Event Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={newEvent.title}
               onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter event title"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
               value={newEvent.description}
               onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={2}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={3}
               placeholder="Enter event description"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               <MapPin className="h-4 w-4 inline mr-1" />
               Location <span className="text-red-500">*</span>
             </label>
@@ -622,7 +659,7 @@ const Events = () => {
               type="text"
               value={newEvent.location}
               onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter event location"
               required
             />
@@ -630,7 +667,7 @@ const Events = () => {
 
           {/* Date Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               <Calendar className="h-4 w-4 inline mr-1" />
               Date <span className="text-red-500">*</span>
             </label>
@@ -639,15 +676,15 @@ const Events = () => {
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
           </div>
 
           {/* Time Selection */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 <Clock className="h-4 w-4 inline mr-1" />
                 Start Time <span className="text-red-500">*</span>
               </label>
@@ -655,12 +692,12 @@ const Events = () => {
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 <Clock className="h-4 w-4 inline mr-1" />
                 End Time <span className="text-red-500">*</span>
               </label>
@@ -668,7 +705,7 @@ const Events = () => {
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
@@ -676,43 +713,21 @@ const Events = () => {
 
           {/* Form Error Display */}
           {formError && (
-            <div className="bg-red-50 border border-red-200 p-3 rounded-md">
+            <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
               <div className="flex items-center text-sm text-red-700">
-                <AlertTriangle className="h-4 w-4 mr-2" />
+                <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
                 {formError}
               </div>
             </div>
           )}
 
           {/* Timezone Info */}
-          <div className="bg-blue-50 border border-blue-200 p-2 rounded-md">
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
             <div className="flex items-center text-xs text-blue-700">
-              <AlertTriangle className="h-3 w-3 mr-1" />
+              <AlertTriangle className="h-3 w-3 mr-2 flex-shrink-0" />
               All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
             </div>
           </div>
-
-          <ModalFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowCreateForm(false)}
-              className="px-4"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
-              className="px-6"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                'Submit'
-              )}
-            </Button>
-          </ModalFooter>
         </form>
       </Modal>
 
@@ -726,38 +741,66 @@ const Events = () => {
         title="Edit Event"
         description="Update the event details"
         size="lg"
+        showCloseButton={true}
+        closeOnBackdropClick={true}
+        closeOnEscape={true}
+        footer={
+          <div className="flex items-center justify-end space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowEditForm(false)
+                setEditingEvent(null)
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="edit-event-form"
+              disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
+            >
+              {loading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              ) : (
+                'Update Event'
+              )}
+            </Button>
+          </div>
+        }
       >
-        <form onSubmit={handleUpdateEvent} className="space-y-4">
+        <form id="edit-event-form" onSubmit={handleUpdateEvent} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Event Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={newEvent.title}
               onChange={(e) => setNewEvent(prev => ({ ...prev, title: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter event title"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
               value={newEvent.description}
               onChange={(e) => setNewEvent(prev => ({ ...prev, description: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={2}
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              rows={3}
               placeholder="Enter event description"
               required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               <MapPin className="h-4 w-4 inline mr-1" />
               Location <span className="text-red-500">*</span>
             </label>
@@ -765,7 +808,7 @@ const Events = () => {
               type="text"
               value={newEvent.location}
               onChange={(e) => setNewEvent(prev => ({ ...prev, location: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter event location"
               required
             />
@@ -773,7 +816,7 @@ const Events = () => {
 
           {/* Date Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-neutral-700 mb-2">
               <Calendar className="h-4 w-4 inline mr-1" />
               Date <span className="text-red-500">*</span>
             </label>
@@ -782,15 +825,15 @@ const Events = () => {
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
             />
           </div>
 
           {/* Time Selection */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 <Clock className="h-4 w-4 inline mr-1" />
                 Start Time <span className="text-red-500">*</span>
               </label>
@@ -798,12 +841,12 @@ const Events = () => {
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
                 <Clock className="h-4 w-4 inline mr-1" />
                 End Time <span className="text-red-500">*</span>
               </label>
@@ -811,118 +854,38 @@ const Events = () => {
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
               />
             </div>
           </div>
 
           {/* Timezone Info */}
-          <div className="bg-blue-50 border border-blue-200 p-2 rounded-md">
+          <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
             <div className="flex items-center text-xs text-blue-700">
-              <AlertTriangle className="h-3 w-3 mr-1" />
+              <AlertTriangle className="h-3 w-3 mr-2 flex-shrink-0" />
               All times are in your local timezone ({Intl.DateTimeFormat().resolvedOptions().timeZone})
             </div>
           </div>
-
-          <ModalFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setShowEditForm(false)
-                setEditingEvent(null)
-              }}
-              className="px-4"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
-              className="px-6"
-            >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                'Update Event'
-              )}
-            </Button>
-          </ModalFooter>
         </form>
       </Modal>
 
-      {/* Events List */}
-      <div className="space-y-3">
-        {filteredEvents.map((event) => (
-          <div key={event.id} className="bg-white rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900 truncate">{event.title}</h3>
-                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(event.status)}`}>
-                    {getStatusIcon(event.status)}
-                    <span className="ml-1 capitalize">{event.status}</span>
-                  </span>
-                </div>
-                
-                <p className="text-gray-600 mb-3 text-sm">{event.description}</p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-                  <div className="flex items-center space-x-2">
-                    <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-600 truncate">{event.location}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-600">{formatTimeRange(event.startDate, event.endDate)}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                    <span className="text-gray-600">{event.assignedTo.length} assigned</span>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
-                {/* Edit button */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleEditEvent(event)
-                  }}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  title="Edit Event"
-                >
-                  Edit
-                </button>
-                
-                {/* Workflow action buttons */}
-                {getWorkflowActions(event.status).map((action) => (
-                  <Button
-                    key={action.action}
-                    variant={action.color === 'btn-primary' ? 'primary' : 'outline'}
-                    size="sm"
-                    className="px-3"
-                    onClick={() => handleStatusUpdate(event.id, action.action)}
-                  >
-                    {action.label}
-                  </Button>
-                ))}
-              </div>
-            </div>
+      {/* Events Table */}
+      {loading ? (
+        <div className="bg-white rounded-lg shadow p-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <span className="ml-3 text-neutral-600">Loading events...</span>
           </div>
-        ))}
-      </div>
-
-      {filteredEvents.length === 0 && (
-        <div className="text-center py-12">
-          <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-medium text-neutral-900 mb-2">No events found</h3>
-          <p className="text-gray-600">Try adjusting your search or schedule a new event</p>
         </div>
+      ) : (
+        <EventTable
+          events={filteredEvents}
+          onEditEvent={handleEditEvent}
+          onTicketEventClick={handleTicketEventClick}
+          onStatusUpdate={handleStatusUpdate}
+          getWorkflowActions={getWorkflowActions}
+        />
       )}
       </div>
     </div>

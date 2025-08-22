@@ -8,13 +8,21 @@ interface TicketCommentsProps {
   comments: TicketComment[];
   onAddComment: (content: string) => void;
   canComment: boolean;
+  isCheckingPermissions?: boolean;
+  hideCommentIcon?: boolean;
+  postButtonTitle?: string;
+  hideCommentAsDescription?: boolean;
 }
 
 export const TicketComments: React.FC<TicketCommentsProps> = ({
   ticketId,
   comments,
   onAddComment,
-  canComment
+  canComment,
+  isCheckingPermissions = false,
+  hideCommentIcon = false,
+  postButtonTitle = 'Post Comment',
+  hideCommentAsDescription = false
 }) => {
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,7 +78,7 @@ export const TicketComments: React.FC<TicketCommentsProps> = ({
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <MessageCircle className="w-5 h-5 text-gray-600" />
+        {!hideCommentIcon && <MessageCircle className="w-5 h-5 text-gray-600" />}
         <h3 className="text-lg font-semibold text-neutral-900">
           Comments ({comments.length})
         </h3>
@@ -120,34 +128,39 @@ export const TicketComments: React.FC<TicketCommentsProps> = ({
       </div>
 
       {/* Add Comment Form */}
-      {canComment ? (
+      {isCheckingPermissions ? (
+        <div className="border-t border-neutral-200 pt-4">
+          <div className="bg-neutral-50 rounded-md p-4 text-center animate-pulse">
+            <p className="text-gray-600">
+              Checking comment permissions...
+            </p>
+          </div>
+        </div>
+      ) : canComment ? (
         <form onSubmit={handleSubmit} className="border-t border-neutral-200 pt-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <User className="w-4 h-4 text-primary-600" />
-            </div>
-            <div className="flex-1">
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Add a comment..."
-                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
-                rows={3}
-                disabled={isSubmitting}
-              />
-              <div className="flex justify-between items-center mt-2">
+          <div className="flex flex-col">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Add a comment..."
+              className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              rows={3}
+              disabled={isSubmitting}
+            />
+            <div className="flex justify-between items-center mt-2">
+              {!hideCommentAsDescription && (
                 <span className="text-sm text-neutral-500">
                   {currentUser?.role === 'manager' ? 'Commenting as Building Manager' : 'Commenting as Resident'}
                 </span>
-                <button
-                  type="submit"
-                  disabled={!newComment.trim() || isSubmitting}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send className="w-4 h-4" />
-                  {isSubmitting ? 'Posting...' : 'Post Comment'}
-                </button>
-              </div>
+              )}
+              <button
+                type="submit"
+                disabled={!newComment.trim() || isSubmitting}
+                className={`inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${hideCommentAsDescription ? 'ml-auto' : ''}`}
+              >
+                {!hideCommentIcon && <Send className="w-4 h-4" />}
+                {isSubmitting ? 'Posting...' : postButtonTitle}
+              </button>
             </div>
           </div>
         </form>

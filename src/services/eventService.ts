@@ -14,6 +14,17 @@ import {
 import { db } from '../firebase/config'
 import { BuildingEvent } from '../types'
 
+// Convert Firebase Timestamp to Date
+const convertFirestoreData = (data: any): BuildingEvent => {
+  return {
+    ...data,
+    startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
+    endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
+    createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+    updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)
+  }
+}
+
 const EVENTS_COLLECTION = 'buildingEvents'
 
 export const eventService = {
@@ -25,10 +36,10 @@ export const eventService = {
         orderBy('startDate', 'desc')
       )
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map(doc => convertFirestoreData({
         id: doc.id,
         ...doc.data()
-      })) as BuildingEvent[]
+      }))
     } catch (error) {
       console.error('Error fetching events:', error)
       throw new Error('Failed to fetch events')
@@ -42,10 +53,10 @@ export const eventService = {
       const docSnap = await getDoc(docRef)
       
       if (docSnap.exists()) {
-        return {
+        return convertFirestoreData({
           id: docSnap.id,
           ...docSnap.data()
-        } as BuildingEvent
+        })
       }
       return null
     } catch (error) {
@@ -63,10 +74,11 @@ export const eventService = {
         orderBy('startDate', 'desc')
       )
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map(doc => convertFirestoreData({
         id: doc.id,
         ...doc.data()
-      })) as BuildingEvent[]
+      }))
+
     } catch (error) {
       console.error('Error fetching events by ticket ID:', error)
       throw new Error('Failed to fetch events for ticket')
@@ -82,10 +94,10 @@ export const eventService = {
         orderBy('startDate', 'desc')
       )
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map(doc => convertFirestoreData({
         id: doc.id,
         ...doc.data()
-      })) as BuildingEvent[]
+      }))
     } catch (error) {
       console.error('Error fetching events by user ID:', error)
       throw new Error('Failed to fetch events for user')
@@ -152,10 +164,11 @@ export const eventService = {
         orderBy('startDate', 'asc')
       )
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map(doc => convertFirestoreData({
         id: doc.id,
         ...doc.data()
-      })) as BuildingEvent[]
+      }))
+
     } catch (error) {
       console.error('Error fetching upcoming events:', error)
       throw new Error('Failed to fetch upcoming events')
@@ -172,10 +185,10 @@ export const eventService = {
         orderBy('startDate', 'asc')
       )
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(doc => ({
+      return querySnapshot.docs.map(doc => convertFirestoreData({
         id: doc.id,
         ...doc.data()
-      })) as BuildingEvent[]
+      }))
     } catch (error) {
       console.error('Error fetching events by date range:', error)
       throw new Error('Failed to fetch events by date range')

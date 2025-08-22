@@ -331,95 +331,120 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
 
       {/* Buildings Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-neutral-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                Building
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                Details
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                Financial Year
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {filteredBuildings.map((building) => (
-              <tr key={building.id} className="hover:bg-neutral-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-neutral-900">{building.name}</div>
-                    <div className="flex items-center gap-1 mt-1">
-                      <MapPin className="h-3 w-3 text-neutral-400" />
-                      <span className="text-xs text-neutral-500">{building.address}</span>
-                    </div>
-                    <div className="text-xs text-neutral-400 mt-1">Code: {building.code}</div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getBuildingTypeColor(building.buildingType || 'residential')}`}>
-                    {building.buildingType || 'Residential'}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Activity className="h-3 w-3" />
-                      <span>{building.floors || 0} floors</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Home className="h-3 w-3" />
-                      <span>{building.units || 0} units</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-gray-600">
-                      <Users className="h-3 w-3" />
-                      <span>Capacity: {building.capacity || 0}</span>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-neutral-400" />
-                    <span className="text-sm text-neutral-900">{formatDate(building.financialYearStart)}</span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex items-center gap-2">
-                    <button 
-                      onClick={() => handleViewBuilding(building)}
-                      className="text-success-600 hover:text-green-900 transition-colors"
-                      title="View Building"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleEditBuilding(building)}
-                      className="text-primary-600 hover:text-blue-900 transition-colors"
-                      title="Edit Building"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button 
-                      onClick={() => handleDeleteBuilding(building.id, building.name)}
-                      className="text-red-600 hover:text-red-900 transition-colors"
-                      title="Delete Building"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
+        {/* Mobile responsive wrapper */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-neutral-200" role="table" aria-label="Buildings list">
+            <thead className="bg-neutral-100 border-b border-neutral-200">
+              <tr>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                  scope="col"
+                >
+                  Building
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                  scope="col"
+                >
+                  Type
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                  scope="col"
+                >
+                  Details
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                  scope="col"
+                >
+                  Financial Year
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                  scope="col"
+                >
+                  Actions
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="bg-white divide-y divide-neutral-200">
+              {filteredBuildings.map((building) => (
+                <tr 
+                  key={building.id} 
+                  className="hover:bg-neutral-50 transition-colors duration-200"
+                >
+                  <td className="px-6 py-4">
+                    <div className="max-w-xs">
+                      <div className="text-sm font-medium text-neutral-900 font-inter mb-1">
+                        {building.name}
+                      </div>
+                      <div className="flex items-center gap-1 mt-1">
+                        <MapPin className="h-4 w-4 text-neutral-400 flex-shrink-0" />
+                        <span className="text-xs text-neutral-500 font-inter truncate max-w-[200px]" title={building.address}>
+                          {building.address}
+                        </span>
+                      </div>
+                      <div className="text-xs text-neutral-400 font-inter mt-1">Code: {building.code}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium font-inter ${getBuildingTypeColor(building.buildingType || 'residential')}`}>
+                      {building.buildingType || 'Residential'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs text-gray-600 font-inter">
+                        <Activity className="h-4 w-4 flex-shrink-0" />
+                        <span>{building.floors || 0} floors</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 font-inter">
+                        <Home className="h-4 w-4 flex-shrink-0" />
+                        <span>{building.units || 0} units</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-600 font-inter">
+                        <Users className="h-4 w-4 flex-shrink-0" />
+                        <span>Capacity: {building.capacity || 0}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4 text-neutral-400" />
+                      <span className="text-sm text-neutral-900 font-inter">{formatDate(building.financialYearStart)}</span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => handleViewBuilding(building)}
+                        className="text-success-600 hover:text-green-900 transition-colors"
+                        title="View Building"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleEditBuilding(building)}
+                        className="text-primary-600 hover:text-blue-900 transition-colors"
+                        title="Edit Building"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteBuilding(building.id, building.name)}
+                        className="text-red-600 hover:text-red-900 transition-colors"
+                        title="Delete Building"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {filteredBuildings.length === 0 && (
           <div className="text-center py-12">

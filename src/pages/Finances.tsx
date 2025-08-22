@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useBuilding } from '../contexts/BuildingContext';
@@ -15,6 +15,9 @@ import {
   InvoiceStatus
 } from '../types';
 import { budgetService } from '../services/budgetService';
+
+type SortField = 'flatNumber' | 'residentName' | 'totalAmountDue' | 'outstandingAmount' | 'dueDate' | 'status'
+type SortDirection = 'asc' | 'desc'
 // Note: Financial summary now uses real Firebase data instead of mock data
 import { 
   getServiceChargeDemands,
@@ -40,7 +43,9 @@ import {
   BarChart3,
   CreditCard,
   Send,
-  ChevronDown
+  ChevronDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter } from '../components/UI'
 
@@ -66,6 +71,10 @@ const Finances: React.FC = () => {
   // Core state
   const [activeTab, setActiveTab] = useState<'budget' | 'demands' | 'invoices' | 'reports'>('budget')
   const [loading, setLoading] = useState(false)
+  
+  // Sorting state
+  const [sortField, setSortField] = useState<SortField | null>(null)
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
   
   // Financial data
   const [budget, setBudget] = useState<Budget | null>(null)
@@ -178,6 +187,97 @@ const Finances: React.FC = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedServiceCharges = useMemo(() => {
+    if (!sortField) return serviceCharges
+
+    const sorted = [...serviceCharges].sort((a, b) => {
+      let aValue: any
+      let bValue: any
+
+      switch (sortField) {
+        case 'flatNumber':
+          aValue = a.flatNumber?.toLowerCase() || ''
+          bValue = b.flatNumber?.toLowerCase() || ''
+          break
+        case 'residentName':
+          aValue = a.residentName?.toLowerCase() || ''
+          bValue = b.residentName?.toLowerCase() || ''
+          break
+        case 'totalAmountDue':
+          aValue = a.totalAmountDue || 0
+          bValue = b.totalAmountDue || 0
+          break
+        case 'outstandingAmount':
+          aValue = a.outstandingAmount || 0
+          bValue = b.outstandingAmount || 0
+          break
+        case 'dueDate':
+          aValue = new Date(a.dueDate).getTime()
+          bValue = new Date(b.dueDate).getTime()
+          break
+        case 'status':
+          aValue = a.status || ''
+          bValue = b.status || ''
+          break
+        default:
+          return 0
+      }
+
+      if (aValue < bValue) {
+        return sortDirection === 'asc' ? -1 : 1
+      }
+      if (aValue > bValue) {
+        return sortDirection === 'asc' ? 1 : -1
+      }
+      return 0
+    })
+
+    return sorted
+  }, [serviceCharges, sortField, sortDirection])
+
+  const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => {
+    const isActive = sortField === field
+    const isAsc = isActive && sortDirection === 'asc'
+    const isDesc = isActive && sortDirection === 'desc'
+
+    return (
+      <th 
+        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter cursor-pointer hover:bg-neutral-200 transition-colors duration-200 select-none"
+        onClick={() => handleSort(field)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleSort(field)
+          }
+        }}
+        tabIndex={0}
+        role="button"
+        aria-label={`Sort by ${field} ${isActive ? (isAsc ? 'descending' : 'ascending') : 'ascending'}`}
+      >
+        <div className="flex items-center justify-between">
+          <span>{children}</span>
+          <div className="flex flex-col ml-2">
+            <ArrowUp 
+              className={`h-3 w-3 ${isAsc ? 'text-primary-600' : 'text-neutral-300'}`} 
+            />
+            <ArrowDown 
+              className={`h-3 w-3 -mt-1 ${isDesc ? 'text-primary-600' : 'text-neutral-300'}`} 
+            />
+          </div>
+        </div>
+      </th>
+    )
   }
 
   const handleBudgetSubmit = async (e: React.FormEvent) => {
@@ -864,17 +964,17 @@ const Finances: React.FC = () => {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-neutral-50">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Flat</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Resident</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Amount Due</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Outstanding</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Due Date</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Status</th>
+                        <SortableHeader field="flatNumber">Flat</SortableHeader>
+                        <SortableHeader field="residentName">Resident</SortableHeader>
+                        <SortableHeader field="totalAmountDue">Amount Due</SortableHeader>
+                        <SortableHeader field="outstandingAmount">Outstanding</SortableHeader>
+                        <SortableHeader field="dueDate">Due Date</SortableHeader>
+                        <SortableHeader field="status">Status</SortableHeader>
                         <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {serviceCharges.map((demand) => (
+                      {sortedServiceCharges.map((demand) => (
                         <tr key={demand.id} className="hover:bg-neutral-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 font-inter">
                             {demand.flatNumber}

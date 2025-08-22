@@ -32,6 +32,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const { addNotification } = useNotifications();
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [canComment, setCanComment] = useState(false);
+  const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
+  const [isLoadingModalContent, setIsLoadingModalContent] = useState(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [showSchedulePicker, setShowSchedulePicker] = useState(false);
   const [showReschedulePicker, setShowReschedulePicker] = useState(false);
@@ -51,10 +53,20 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   }, [ticket]);
 
   useEffect(() => {
-    if (isOpen && ticket) {
-      loadComments();
-      checkCommentPermissions();
-      loadUserNames();
+    if (isOpen && ticket && currentUser) {
+      setIsLoadingModalContent(true);
+      setIsCheckingPermissions(true);
+      Promise.all([
+        loadComments(),
+        checkCommentPermissions(),
+        loadUserNames()
+      ]).finally(() => {
+        setIsCheckingPermissions(false);
+        setIsLoadingModalContent(false);
+      });
+    } else if (isOpen) {
+      // If modal is open but we don't have the required data, still show loading
+      setIsLoadingModalContent(true);
     }
   }, [isOpen, ticket, currentUser]);
 
@@ -105,6 +117,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     if (!currentUser) return;
 
     try {
+      console.log('🔄 Starting comment addition process...');
       const newComment = await TicketCommentService.addComment(
         ticket.id,
         content,
@@ -112,8 +125,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         currentUser.name || 'Unknown User',
         currentUser.role as 'resident' | 'manager'
       );
+      console.log('✅ Comment service call completed successfully');
 
       setComments(prev => [...prev, newComment]);
+      console.log('✅ Local comments state updated');
       
       addNotification({
         userId: currentUser.id,
@@ -121,14 +136,22 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         message: 'Your comment has been posted successfully.',
         type: 'success'
       });
+      console.log('✅ Success notification added');
 
       // Update the ticket's comment count if onUpdate is provided
       if (onUpdate) {
-        const updatedTicket = { ...ticket, comments: [...ticket.comments, newComment] };
-        onUpdate(updatedTicket);
+        try {
+          const updatedTicket = { ...ticket, comments: [...ticket.comments, newComment] };
+          onUpdate(updatedTicket);
+          console.log('✅ Parent component notified via onUpdate');
+        } catch (updateError) {
+          console.error('⚠️ Error in onUpdate callback:', updateError);
+          // Don't throw this error as it's not critical for comment posting
+        }
       }
+      console.log('✅ Comment addition process completed successfully');
     } catch (error) {
-      console.error('Failed to add comment:', error);
+      console.error('❌ Failed to add comment:', error);
       addNotification({
         userId: currentUser?.id || '',
         title: 'Error',
@@ -151,12 +174,13 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   };
 
   const getPriorityColor = (priority: string) => {
-    switch (priority) {
+    switch (priority.toLowerCase()) {
       case 'low':
-        return 'bg-success-100 text-success-800';
+        return 'bg-green-100 text-green-800';
       case 'medium':
-        return 'bg-yellow-100 text-yellow-800';
+        return 'bg-amber-100 text-amber-800';
       case 'high':
+        return 'bg-orange-100 text-orange-800';
       case 'critical':
         return 'bg-red-100 text-red-800';
       default: return 'bg-neutral-100 text-gray-800';
@@ -178,10 +202,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     switch (currentStatus) {
       case 'New':
         // Manager reviews: Request quotes, Schedule directly (skip quoting), or Cancel
-        return ['Quoting', 'Scheduled', 'Cancelled'];
+        return ['Quoting', 'Scheduled'];
       case 'Quoting':
         // Quote received and approved: Schedule work or Cancel
-        return ['Scheduled', 'Cancelled'];
+        return ['Scheduled'];
       case 'Scheduled':
         // Work scheduled and completed: Mark complete
         return ['Complete'];
@@ -525,58 +549,108 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const canUpdateStatus = currentUser?.role === 'manager' || currentUser?.role === 'admin';
   const nextStatusOptions = getNextStatusOptions(localTicket.status);
 
-  // Render sticky footer with stage transition buttons
+  // All possible workflow stages in order (excluding 'New' since it's not actionable)
+  const getAllWorkflowStages = (): TicketStatus[] => {
+    return ['Quoting', 'Scheduled', 'Complete', 'Closed'];
+  };
+  
+  // Get all workflow stages including Cancel
+  const getAllWorkflowStagesWithCancel = (): TicketStatus[] => {
+    return ['New', 'Quoting', 'Scheduled', 'Complete', 'Closed', 'Cancelled'];
+  };
+  
+  // Check if a status is available as next step
+  const isStatusAvailable = (status: TicketStatus): boolean => {
+    return nextStatusOptions.includes(status);
+  };
+  
+  // Render workflow footer with all stages
   const renderStickyFooter = () => {
-    if (!canUpdateStatus || nextStatusOptions.length === 0) return null;
+    if (!canUpdateStatus) return null;
+
+    const allStages = getAllWorkflowStages();
+    
+    // Map status to user-friendly button text
+    const getButtonText = (status: TicketStatus) => {
+      switch (status) {
+        case 'New': return 'New';
+        case 'Quoting': return 'Quote';
+        case 'Scheduled': return 'Schedule';
+        case 'Complete': return 'Complete';
+        case 'Closed': return 'Close';
+        case 'Cancelled': return 'Cancel';
+        default: return status;
+      }
+    };
+    
+    const getButtonColor = (status: TicketStatus, isAvailable: boolean, isCurrent: boolean) => {
+      if (isCurrent) {
+        return 'bg-primary-600 text-white';
+      }
+      if (!isAvailable) {
+        return 'bg-gray-300 text-gray-500 cursor-not-allowed';
+      }
+      // Cancel is always red, everything else is primary
+      if (status === 'Cancelled') {
+        return 'bg-red-600 hover:bg-red-700 text-white';
+      }
+      return 'bg-primary-600 hover:bg-primary-700 text-white';
+    };
+
+    // Debug function to log button state
+    const logButtonState = (status: TicketStatus) => {
+      const isAvailable = isStatusAvailable(status);
+      const isCurrent = localTicket.status === status;
+      console.log(`Button ${status}:`, {
+        currentTicketStatus: localTicket.status,
+        isAvailable,
+        isCurrent,
+        nextStatusOptions,
+        color: getButtonColor(status, isAvailable, isCurrent)
+      });
+    };
 
     return (
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-neutral-900">Move to Next Stage</h4>
-          <p className="text-xs text-neutral-500">Current: {localTicket.status}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {nextStatusOptions.map((status) => {
-            // Map status to user-friendly button text
-            const getButtonText = (status: TicketStatus) => {
-              switch (status) {
-                case 'Quoting': return 'Request Quote';
-                case 'Scheduled': 
-                  return localTicket.status === 'New' ? 'Schedule Work (Skip Quoting)' : 'Schedule Work';
-                case 'Complete': return 'Mark Complete';
-                case 'Closed': return 'Close Ticket';
-                case 'Cancelled': return 'Cancel';
-                default: return status;
-              }
-            };
-            
-            const getButtonColor = (status: TicketStatus) => {
-              switch (status) {
-                case 'Quoting': return 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500';
-                case 'Scheduled': return 'bg-cyan-600 hover:bg-cyan-700 focus:ring-cyan-500';
-                case 'Complete': return 'bg-green-600 hover:bg-green-700 focus:ring-green-500';
-                case 'Closed': return 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500';
-                case 'Cancelled': return 'bg-red-600 hover:bg-red-700 focus:ring-red-500';
-                default: return 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500';
-              }
-            };
+      <div className="space-y-3 text-center">
+        <h4 className="text-sm font-semibold text-neutral-900">Workflow</h4>
+        <div className="flex flex-wrap gap-2 justify-center">
+          {/* Main workflow stages */}
+          {allStages.map((status) => {
+            const isAvailable = isStatusAvailable(status);
+            const isCurrent = localTicket.status === status;
             
             return (
               <button
                 key={status}
-                onClick={() => handleStatusUpdate(status)}
-                disabled={isUpdatingStatus}
-                className={`inline-flex items-center px-4 py-2 text-sm font-medium text-white border border-transparent rounded-md focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor(status)}`}
+                onClick={isAvailable ? () => handleStatusUpdate(status) : undefined}
+                disabled={!isAvailable || isUpdatingStatus}
+                className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor(status, isAvailable, isCurrent)}`}
               >
-                {isUpdatingStatus ? (
+                {isUpdatingStatus && isAvailable ? (
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 ) : (
-                  <ChevronRight className="w-4 h-4 mr-2" />
+                  isAvailable && !isCurrent && <ChevronRight className="w-4 h-4 mr-2" />
                 )}
                 {getButtonText(status)}
               </button>
             );
           })}
+          
+          {/* Cancel button - always enabled except for already cancelled/closed tickets */}
+          {localTicket.status !== 'Cancelled' && localTicket.status !== 'Closed' && (
+            <button
+              onClick={() => handleStatusUpdate('Cancelled')}
+              disabled={isUpdatingStatus}
+              className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor('Cancelled', true, localTicket.status === 'Cancelled')}`}
+            >
+              {isUpdatingStatus ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <ChevronRight className="w-4 h-4 mr-2" />
+              )}
+              Cancel
+            </button>
+          )}
         </div>
       </div>
     );
@@ -609,46 +683,63 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     return completedActivity?.timestamp || localTicket.completedDate;
   };
 
+  // Custom header with status and priority badges
+  const customHeader = (
+    <div className="flex items-center justify-between w-full">
+      <h2 className="text-xl font-semibold text-neutral-900 truncate flex-1 mr-4">
+        {localTicket.title}
+      </h2>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(localTicket.status)}`}>
+          {localTicket.status}
+        </span>
+        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(localTicket.urgency)}`}>
+          {localTicket.urgency}
+        </span>
+      </div>
+    </div>
+  );
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={localTicket.title}
+      title={customHeader}
       footer={renderStickyFooter()}
       size="xl"
     >
-      <div className="space-y-6">
-        {/* Status and Priority Display */}
-        <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(localTicket.status)}`}>
-            {localTicket.status}
-          </span>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPriorityColor(localTicket.urgency)}`}>
-            {localTicket.urgency} priority
-          </span>
+      {isLoadingModalContent ? (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary-600" />
+            <p className="text-sm text-neutral-600">Loading ticket details...</p>
+          </div>
         </div>
+      ) : (
+        <div className="space-y-6">
         {/* Ticket Information Card */}
         <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-neutral-900 mb-4">Ticket Details</h3>
-          <p className="text-neutral-700 mb-4">
+          {/* Main description - emphasized */}
+          <p className="text-neutral-900 text-base leading-relaxed mb-4">
             {localTicket.description}
           </p>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center gap-2 text-sm text-neutral-600">
-              <MapPin className="w-4 h-4" />
-              <span>{localTicket.location}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-neutral-600">
-              <Clock className="w-4 h-4" />
-              <span>Created {formatDate(localTicket.createdAt)}</span>
-            </div>
-            <div className="flex items-center gap-2 text-sm text-neutral-600">
+          {/* Footer info - inline */}
+          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 pt-3 border-t border-neutral-100">
+            <div className="flex items-center gap-2">
               <User className="w-4 h-4" />
               <span>Requested by {getFirstName(localTicket.requestedBy)}</span>
             </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4" />
+              <span>{localTicket.location}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              <span>Created {formatDate(localTicket.createdAt)}</span>
+            </div>
             {localTicket.assignedTo && (
-              <div className="flex items-center gap-2 text-sm text-neutral-600">
+              <div className="flex items-center gap-2">
                 <User className="w-4 h-4" />
                 <span>Assigned to {getFirstName(localTicket.assignedTo)}</span>
               </div>
@@ -656,130 +747,264 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Status-specific Information Card */}
-        {(getActualScheduledDate() || getActualCompletedDate()) && (
+        {/* Status-specific Information Card - Only show for Completed tickets */}
+        {getActualCompletedDate() && (
           <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Schedule Information</h3>
-            {getActualScheduledDate() && (
-              <div className="flex items-center gap-2 text-sm text-neutral-600 mb-2">
-                <Calendar className="w-4 h-4" />
-                <span>Scheduled for {formatDate(getActualScheduledDate())}</span>
-              </div>
-            )}
-
-            {getActualCompletedDate() && (
-              <div className="flex items-center gap-2 text-sm text-success-600">
-                <Calendar className="w-4 h-4" />
-                <span>Completed on {formatDate(getActualCompletedDate())}</span>
-              </div>
-            )}
+            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Work Completed</h3>
+            <div className="flex items-center gap-2 text-sm text-success-600">
+              <Calendar className="w-4 h-4" />
+              <span>Completed on {formatDate(getActualCompletedDate())}</span>
+            </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Activity Log Card */}
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-            <h4 className="text-md font-semibold text-neutral-900 mb-4">Activity Log</h4>
-            <div className="space-y-3 max-h-64 overflow-y-auto">
-              {localTicket.activityLog.map((activity) => (
-                <div key={activity.id} className="border-l-2 border-primary-200 pl-4 pb-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <FileText className="w-4 h-4 text-primary-600" />
-                    <span className="font-medium text-neutral-900">{activity.action}</span>
-                  </div>
-                  <p className="text-sm text-neutral-600 mb-1">
-                    {activity.description === 'Ticket created by user' ? 
-                      `Ticket created by ${getFirstName(activity.performedBy)}` : 
-                      activity.description}
-                  </p>
-                  <div className="flex items-center gap-4 text-xs text-neutral-500">
-                    <span>by {getFirstName(activity.performedBy)}</span>
-                    <span>{formatDate(activity.timestamp)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-
-          {/* Quote Management for Quoting Tickets */}
-          {canUpdateStatus && localTicket.status === 'Quoting' && (
-            <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-              <h4 className="text-md font-semibold text-neutral-900 mb-4">Quote Management</h4>
+          {/* Ticket Management - Contextual based on status */}
+          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm relative">
+            <h4 className="text-md font-semibold text-neutral-900 mb-4">Ticket Management</h4>
+            
+            {/* New Ticket */}
+            {localTicket.status === 'New' && (
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <div>
-                    <p className="text-sm font-medium text-yellow-800">Waiting for Quotes</p>
-                    <p className="text-xs text-yellow-600">
-                      {localTicket.quoteRequests?.length || 0} supplier(s) contacted
+                    <p className="text-sm font-medium text-blue-800">New Ticket</p>
+                    <p className="text-xs text-blue-600">
+                      This ticket needs to be reviewed and processed
                     </p>
                   </div>
-                  <Award className="h-5 w-5 text-yellow-600" />
+                  <FileText className="h-5 w-5 text-blue-600" />
                 </div>
                 
                 <div className="space-y-2">
                   <p className="text-sm text-neutral-600">
-                    Manage supplier quotes and track responses.  
-                  </p>
-                  <div className="flex flex-wrap gap-2">
+                    Get{' '}
                     <button
-                      onClick={() => setShowQuoteManagement(true)}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors duration-200"
+                      onClick={() => handleStatusUpdate('Quoting')}
+                      className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
                     >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Manage Quotes
+                      Quotes
                     </button>
-                    
-                    {localTicket.quotes && localTicket.quotes.length > 0 && (
-                      <button
-                        onClick={() => setShowQuoteComparison(true)}
-                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors duration-200"
-                      >
-                        <Award className="w-4 h-4 mr-2" />
-                        Compare & Select ({localTicket.quotes.length})
-                      </button>
-                    )}
-                  </div>
+                    {' '}or{' '}
+                    <button
+                      onClick={() => handleStatusUpdate('Scheduled')}
+                      className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
+                    >
+                      Schedule
+                    </button>
+                    {' '}with a preferred supplier.
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Reschedule Option for Scheduled Tickets */}
-          {canUpdateStatus && localTicket.status === 'Scheduled' && (
-            <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-              <h4 className="text-md font-semibold text-neutral-900 mb-4">Reschedule Work</h4>
-              <div className="space-y-3">
-                <p className="text-sm text-neutral-600">
-                  Need to reschedule the work? This will add an entry to the activity log.
-                </p>
-                <button
-                  onClick={() => setShowReschedulePicker(true)}
-                  disabled={isUpdatingStatus}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                >
-                  {isUpdatingStatus ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Calendar className="w-4 h-4 mr-2" />
+            )}
+            
+            {/* Quoting Ticket */}
+            {localTicket.status === 'Quoting' && (
+              <>
+                {/* Content Area */}
+                <div className="space-y-3 pb-16"> {/* Add bottom padding for buttons */}
+                  <p className="text-sm text-neutral-600">
+                    Request{' '}
+                    <button
+                      onClick={() => setShowQuoteManagement(true)}
+                      className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
+                    >
+                      quotes
+                    </button>
+                    , track responses and select supplier to engage.
+                  </p>
+                  
+                  {/* Quote List with scrolling */}
+                  {localTicket.quotes && localTicket.quotes.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium text-neutral-700">Received Quotes ({localTicket.quotes.length}):</h5>
+                      <div className="space-y-2 overflow-y-auto max-h-48">
+                        {localTicket.quotes.map((quote, index) => (
+                          <div key={quote.id || index} className="flex items-center justify-between p-2 bg-neutral-50 rounded border flex-shrink-0">
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-neutral-900">
+                                {quote.supplierName || quote.supplier?.name || `Supplier ${index + 1}`}
+                              </p>
+                            </div>
+                            <div className="text-sm font-semibold text-neutral-900">
+                              £{typeof quote.amount === 'number' ? quote.amount.toLocaleString() : quote.amount}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                  Reschedule Work
-                </button>
+                </div>
+                
+                {/* Sticky Action Buttons at bottom of tile */}
+                <div className="absolute bottom-6 right-6 flex gap-2">
+                  <button
+                    onClick={() => setShowQuoteManagement(true)}
+                    className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
+                  >
+                    Manage
+                  </button>
+                  
+                  {localTicket.quotes && localTicket.quotes.length > 0 && (
+                    <button
+                      onClick={() => setShowQuoteComparison(true)}
+                      className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
+                    >
+                      Select
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+            
+            {/* Scheduled Ticket */}
+            {localTicket.status === 'Scheduled' && (
+              <>
+                {/* Content Area */}
+                <div className="space-y-3 pb-16"> {/* Add bottom padding for button */}
+                  <div className="flex items-center justify-between p-3 bg-cyan-50 rounded-lg border border-cyan-200">
+                    <div>
+                      <p className="text-sm font-medium text-cyan-800">Work Scheduled</p>
+                      <p className="text-xs text-cyan-600">
+                        {localTicket.scheduledDate ? formatDate(localTicket.scheduledDate) : 'Date not set'}
+                      </p>
+                    </div>
+                    <Calendar className="h-5 w-5 text-cyan-600" />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm text-neutral-600">
+                      Work has been scheduled.{' '}
+                      <button
+                        onClick={() => setShowReschedulePicker(true)}
+                        className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
+                      >
+                        Reschedule
+                      </button>
+                      {' '}here.
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Sticky Reschedule Button at bottom of tile */}
+                <div className="absolute bottom-6 right-6">
+                  <button
+                    onClick={() => setShowReschedulePicker(true)}
+                    disabled={isUpdatingStatus}
+                    className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400 transition-colors duration-200"
+                  >
+                    {isUpdatingStatus ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Rescheduling...
+                      </>
+                    ) : (
+                      'Reschedule'
+                    )}
+                  </button>
+                </div>
+              </>
+            )}
+            
+            {/* Complete Ticket */}
+            {localTicket.status === 'Complete' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div>
+                    <p className="text-sm font-medium text-green-800">Work Completed</p>
+                    <p className="text-xs text-green-600">
+                      {localTicket.completedDate ? formatDate(localTicket.completedDate) : 'Recently completed'}
+                    </p>
+                  </div>
+                  <FileText className="h-5 w-5 text-green-600" />
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-600">
+                    The work has been completed. Close this ticket when you're ready.
+                  </p>
+                  {canUpdateStatus && (
+                    <button
+                      onClick={() => handleStatusUpdate('Closed')}
+                      disabled={isUpdatingStatus}
+                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400 transition-colors duration-200"
+                    >
+                      {isUpdatingStatus ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 mr-2" />
+                      )}
+                      Close Ticket
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            
+            {/* Closed or Cancelled Ticket */}
+            {(localTicket.status === 'Closed' || localTicket.status === 'Cancelled') && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{localTicket.status} Ticket</p>
+                    <p className="text-xs text-gray-600">
+                      No further actions needed
+                    </p>
+                  </div>
+                  <FileText className="h-5 w-5 text-gray-600" />
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-600">
+                    {localTicket.status === 'Closed' ? 
+                      'This ticket has been completed and closed.' : 
+                      'This ticket has been cancelled and no further action is required.'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          {/* Comments Section */}
+          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
+            <TicketComments
+              ticketId={ticket.id}
+              comments={comments}
+              onAddComment={handleAddComment}
+              canComment={canComment}
+              isCheckingPermissions={isCheckingPermissions}
+              hideCommentIcon={true}
+              postButtonTitle="Post"
+              hideCommentAsDescription={true}
+            />
+          </div>
         </div>
 
-        {/* Comments Section - Wrapped in Card */}
+        {/* Activity Log - Full Width at Bottom */}
         <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-          <TicketComments
-            ticketId={ticket.id}
-            comments={comments}
-            onAddComment={handleAddComment}
-            canComment={canComment}
-          />
+          <h4 className="text-md font-semibold text-neutral-900 mb-4">Activity Log</h4>
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {localTicket.activityLog.map((activity) => (
+              <div key={activity.id} className="border-l-2 border-primary-200 pl-4 py-2 flex items-center justify-between hover:bg-neutral-25 transition-colors duration-150">
+                <div className="flex items-center gap-2 flex-1">
+                  <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                  <span className="font-medium text-neutral-900 text-sm">{activity.action}</span>
+                  <span className="text-sm text-neutral-600 truncate">
+                    {activity.description === 'Ticket created by user' ? 
+                      `Ticket created by ${getFirstName(activity.performedBy)}` : 
+                      activity.description}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-neutral-500 flex-shrink-0">
+                  <span>by {getFirstName(activity.performedBy)}</span>
+                  <span>{formatDate(activity.timestamp)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Schedule Date Picker Modal */}
       {showSchedulePicker && (
@@ -853,7 +1078,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               <button
                 onClick={handleRescheduleWithDate}
                 disabled={!selectedRescheduleDate || isUpdatingStatus}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-600 border border-transparent rounded-md hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400"
               >
                 {isUpdatingStatus ? (
                   <>

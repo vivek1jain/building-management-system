@@ -8,6 +8,8 @@ import { ticketService } from '../services/ticketService'
 import * as workOrderService from '../services/workOrderService'
 import { TicketDetailModal } from '../components/TicketDetailModal'
 import { useCreateTicket } from '../contexts/CreateTicketContext'
+import TicketTable from '../components/TicketTable'
+import WorkOrderTable from '../components/WorkOrderTable'
 import { 
   Building as BuildingType, 
   Ticket, 
@@ -48,7 +50,7 @@ const TicketsWorkOrders: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   // const [priorityFilter, setPriorityFilter] = useState<string>('all') // Removed as unused
-  const [selectedWorkflowStage, setSelectedWorkflowStage] = useState<string | null>(null)
+  const [selectedWorkflowStage, setSelectedWorkflowStage] = useState<string | null>('new')
   
   // Modal states
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
@@ -317,22 +319,14 @@ const TicketsWorkOrders: React.FC = () => {
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900 font-inter">Ticketing</h1>
             <p className="text-gray-600 mt-1 font-inter">
               Manage tickets and work orders following the complete workflow
             </p>
           </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={openCreateTicketModal}
-            className="btn-primary flex items-center font-inter"
-          >
-            New Ticket
-          </button>
         </div>
-      </div>
 
       {/* Tab Navigation */}
       <div className="border-b border-neutral-200">
@@ -358,6 +352,16 @@ const TicketsWorkOrders: React.FC = () => {
             Workflow View ({tickets.length + workOrders.length})
           </button>
           <button
+            onClick={() => setActiveTab('work-orders')}
+            className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+              activeTab === 'work-orders'
+                ? 'border-blue-500 text-primary-600'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+            }`}
+          >
+            Work Orders ({tickets.filter(ticket => ticket.status === 'Scheduled').length})
+          </button>
+          <button
             onClick={() => setActiveTab('tickets')}
             className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
               activeTab === 'tickets'
@@ -367,43 +371,70 @@ const TicketsWorkOrders: React.FC = () => {
           >
             All Tickets ({tickets.length})
           </button>
-          <button
-            onClick={() => setActiveTab('work-orders')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
-              activeTab === 'work-orders'
-                ? 'border-blue-500 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-            }`}
-          >
-            Work Orders ({workOrders.length})
-          </button>
         </nav>
       </div>
 
       {/* Workflow View */}
       {activeTab === 'workflow' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-8 gap-4">
+          {/* Search and Filters */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Search workflow items..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+            <div className="relative flex items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+              >
+                <option value="all">All Status</option>
+                <option value="New">New</option>
+                <option value="Quoting">Quoting</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Complete">Complete</option>
+                <option value="Closed">Closed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+            </div>
+            <button
+              onClick={openCreateTicketModal}
+              className="btn-primary flex items-center font-inter"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Ticket
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4">
             {workflowStages.map((stage, index) => (
               <button
                 key={stage.id}
                 onClick={() => setSelectedWorkflowStage(selectedWorkflowStage === stage.id ? null : stage.id)}
-                className={`w-full border-2 rounded-lg p-4 transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col h-full ${
+                className={`w-full border-2 rounded-lg p-3 lg:p-4 transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col h-full min-h-[120px] ${
                   selectedWorkflowStage === stage.id 
                     ? 'ring-2 ring-blue-500 ' + stage.color 
                     : stage.color
                 } hover:scale-105`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-neutral-900 font-inter">{stage.title}</h3>
-                  <span className="bg-white px-2 py-1 rounded-full text-sm font-semibold text-neutral-700 font-inter">
+                  <h3 className="font-medium text-neutral-900 font-inter text-sm lg:text-base">{stage.title}</h3>
+                  <span className="bg-white px-2 py-1 rounded-full text-xs lg:text-sm font-semibold text-neutral-700 font-inter">
                     {stage.count}
                   </span>
                 </div>
-                <p className="text-sm text-gray-600 font-inter text-left flex-1">{stage.description}</p>
-                <div className="mt-4 w-full flex justify-end items-center" style={{ minHeight: '20px' }}>
+                <p className="text-xs lg:text-sm text-gray-600 font-inter text-left flex-1">{stage.description}</p>
+                <div className="mt-2 lg:mt-4 w-full flex justify-center lg:justify-end items-center" style={{ minHeight: '20px' }}>
                   {index < workflowStages.length - 1 && (
-                    <ArrowRight className="h-5 w-5 text-neutral-400" />
+                    <ArrowRight className="h-4 w-4 lg:h-5 lg:w-5 text-neutral-400" />
                   )}
                 </div>
               </button>
@@ -411,83 +442,97 @@ const TicketsWorkOrders: React.FC = () => {
           </div>
 
           {/* Filtered Stage View */}
-          {selectedWorkflowStage && (
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-neutral-200">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter">
-                    {workflowStages.find(s => s.id === selectedWorkflowStage)?.title} Items
-                  </h3>
-                  <button
-                    onClick={() => setSelectedWorkflowStage(null)}
-                    className="text-neutral-400 hover:text-gray-600"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  {/* Filter tickets and work orders by selected stage */}
-                  {[
-                    ...getTicketsForStage(selectedWorkflowStage),
-                    ...getWorkOrdersForStage(selectedWorkflowStage)
-                  ].map((item) => (
-                    <div 
-                      key={item.id} 
-                      className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-neutral-50 cursor-pointer transition-colors duration-200" 
-                      onClick={() => {
-                        // Only handle ticket clicks, not work order clicks for now
-                        if ('urgency' in item) {
-                          handleTicketClick(item as Ticket)
-                        }
-                      }}
-                    >
-                      <div className="flex-shrink-0">
-                        {'urgency' in item ? (
-                          <FileText className="h-5 w-5 text-blue-500" />
-                        ) : (
-                          <Wrench className="h-5 w-5 text-success-500" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-neutral-900 font-inter">
-                          {item.title}
-                        </p>
-                        <p className="text-sm text-neutral-500 font-inter">
-                          {'urgency' in item ? 'Ticket' : 'Work Order'} • {formatTimeAgo(item.updatedAt)}
-                        </p>
-                        <p className="text-sm text-gray-600 font-inter mt-1">
-                          {item.description}
+          {selectedWorkflowStage && (() => {
+            const stageTickets = getTicketsForStage(selectedWorkflowStage)
+            const stageWorkOrders = getWorkOrdersForStage(selectedWorkflowStage)
+            
+            return (
+              <div className="space-y-4">
+                {/* Direct table rendering without header */}
+                {(() => {
+                  // If there are only tickets, use the ticket table
+                  if (stageTickets.length > 0 && stageWorkOrders.length === 0) {
+                    return (
+                      <TicketTable
+                        tickets={stageTickets}
+                        onTicketClick={handleTicketClick}
+                      />
+                    )
+                  }
+                  
+                  // If there are only work orders, use the work order table
+                  if (stageWorkOrders.length > 0 && stageTickets.length === 0) {
+                    return (
+                      <WorkOrderTable
+                        workOrders={stageWorkOrders}
+                      />
+                    )
+                  }
+                  
+                  // If there are both or neither, use the original card layout
+                  const allItems = [...stageTickets, ...stageWorkOrders]
+                  
+                  if (allItems.length === 0) {
+                    return (
+                      <div className="bg-white rounded-lg shadow p-8 text-center">
+                        <p className="text-neutral-500 font-inter">
+                          No items in this workflow stage
                         </p>
                       </div>
-                      <div className="flex flex-col items-end space-y-2">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(item.status)}`}>
-                          {item.status}
-                        </span>
-                        {'urgency' in item && (
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getPriorityColor(item.urgency)}`}>
-                            {item.urgency}
-                          </span>
-                        )}
+                    )
+                  }
+                  
+                  return (
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                      <div className="divide-y divide-neutral-200">
+                        {allItems.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className="flex items-start space-x-3 p-6 hover:bg-neutral-50 cursor-pointer transition-colors duration-200" 
+                            onClick={() => {
+                              // Only handle ticket clicks, not work order clicks for now
+                              if ('urgency' in item) {
+                                handleTicketClick(item as Ticket)
+                              }
+                            }}
+                          >
+                            <div className="flex-shrink-0">
+                              {'urgency' in item ? (
+                                <FileText className="h-5 w-5 text-blue-500" />
+                              ) : (
+                                <Wrench className="h-5 w-5 text-success-500" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-neutral-900 font-inter">
+                                {item.title}
+                              </p>
+                              <p className="text-sm text-neutral-500 font-inter">
+                                {'urgency' in item ? 'Ticket' : 'Work Order'} • {formatTimeAgo(item.updatedAt)}
+                              </p>
+                              <p className="text-sm text-gray-600 font-inter mt-1">
+                                {item.description}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end space-y-2">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(item.status)}`}>
+                                {item.status}
+                              </span>
+                              {'urgency' in item && (
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getPriorityColor(item.urgency)}`}>
+                                  {item.urgency}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                  {/* Show message if no items in this stage */}
-                  {[
-                    ...getTicketsForStage(selectedWorkflowStage),
-                    ...getWorkOrdersForStage(selectedWorkflowStage)
-                  ].length === 0 && (
-                    <div className="text-center py-8">
-                      <p className="text-neutral-500 font-inter">
-                        No items in this workflow stage
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  )
+                })()}
               </div>
-            </div>
-          )}
+            )
+          })()}
 
         </div>
       )}
@@ -496,8 +541,8 @@ const TicketsWorkOrders: React.FC = () => {
       {activeTab === 'my-tickets' && (
         <div className="space-y-4">
           {/* Search and Filters */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
@@ -507,19 +552,29 @@ const TicketsWorkOrders: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+            <div className="relative flex items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+              >
+                <option value="all">All Status</option>
+                <option value="New">New</option>
+                <option value="Quoting">Quoting</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Complete">Complete</option>
+                <option value="Closed">Closed</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+            </div>
+            <button
+              onClick={openCreateTicketModal}
+              className="btn-primary flex items-center font-inter"
             >
-              <option value="all">All Status</option>
-              <option value="New">New</option>
-              <option value="Quoting">Quoting</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Complete">Complete</option>
-              <option value="Closed">Closed</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+              <Plus className="h-4 w-4 mr-2" />
+              New Ticket
+            </button>
           </div>
           
           {/* Info Banner for Managers */}
@@ -538,71 +593,18 @@ const TicketsWorkOrders: React.FC = () => {
           )}
 
           {/* My Tickets List */}
-          <div className="space-y-4">
-            {getMyTickets()
-              .filter(ticket => {
-                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
-                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
-                return matchesSearch && matchesStatus
-              })
-              .map((ticket) => (
-                <div
-                  key={ticket.id}
-                  onClick={() => handleTicketClick(ticket)}
-                  className="block bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200 p-6 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-medium text-neutral-900 font-inter">{ticket.title}</h3>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(ticket.status)}`}>
-                          {ticket.status}
-                        </span>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getPriorityColor(ticket.urgency)}`}>
-                          {ticket.urgency}
-                        </span>
-                        {/* Show badge for tickets needing approval */}
-                        {currentUser?.role === 'manager' && ticket.requestedBy !== currentUser.id && ticket.status === 'New' && (
-                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 font-inter">
-                            Needs Approval
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-gray-600 mb-3 font-inter">{ticket.description}</p>
-                      <div className="flex items-center space-x-4 text-sm text-neutral-500 font-inter">
-                        <div className="flex items-center">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {ticket.location}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {formatTimeAgo(ticket.createdAt)}
-                        </div>
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 mr-1" />
-                          {(ticket.comments || []).length} comment{(ticket.comments || []).length !== 1 ? 's' : ''}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-            {/* Empty state */}
-            {getMyTickets().length === 0 && (
-              <div className="text-center py-12">
-                <FileText className="mx-auto h-12 w-12 text-neutral-400" />
-                <h3 className="mt-2 text-sm font-medium text-neutral-900 font-inter">No tickets found</h3>
-                <p className="mt-1 text-sm text-neutral-500 font-inter">
-                  {currentUser?.role === 'manager' 
-                    ? "You haven't created any tickets and there are no new tickets needing approval."
-                    : "You haven't created any tickets yet."
-                  }
-                </p>
-              </div>
-            )}
-          </div>
+          <TicketTable
+            tickets={getMyTickets().filter(ticket => {
+              const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+              const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+              return matchesSearch && matchesStatus
+            })}
+            onTicketClick={handleTicketClick}
+            showApprovalBadge={true}
+            currentUserId={currentUser?.id}
+            userRole={currentUser?.role}
+          />
         </div>
       )}
       
@@ -610,8 +612,8 @@ const TicketsWorkOrders: React.FC = () => {
       {activeTab === 'tickets' && (
         <div className="space-y-4">
           {/* Search and Filters */}
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
@@ -621,18 +623,28 @@ const TicketsWorkOrders: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
               />
             </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+            <div className="relative flex items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+              >
+                <option value="all">All Active Status</option>
+                <option value="New">New</option>
+                <option value="Quoting">Quoting</option>
+                <option value="Scheduled">Scheduled</option>
+                <option value="Complete">Complete</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+            </div>
+            <button
+              onClick={openCreateTicketModal}
+              className="btn-primary flex items-center font-inter"
             >
-              <option value="all">All Active Status</option>
-              <option value="New">New</option>
-              <option value="Quoting">Quoting</option>
-              <option value="Scheduled">Scheduled</option>
-              <option value="Complete">Complete</option>
-              <option value="Cancelled">Cancelled</option>
-            </select>
+              <Plus className="h-4 w-4 mr-2" />
+              New Ticket
+            </button>
           </div>
           
           {/* Info Banner */}
@@ -649,95 +661,65 @@ const TicketsWorkOrders: React.FC = () => {
           </div>
 
           {/* All Active Tickets List */}
-          <div className="space-y-4">
-            {getActiveTickets()
-              .filter(ticket => {
-                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
-                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
-                return matchesSearch && matchesStatus
-              })
-              .map((ticket) => (
-                <div
-                  key={ticket.id}
-                  onClick={() => handleTicketClick(ticket)}
-                  className="block bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200 p-6 cursor-pointer"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <h3 className="text-lg font-medium text-neutral-900 font-inter">{ticket.title}</h3>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(ticket.status)}`}>
-                          {ticket.status}
-                        </span>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getPriorityColor(ticket.urgency)}`}>
-                          {ticket.urgency}
-                        </span>
-                      </div>
-                      <p className="text-gray-600 mb-3 font-inter">{ticket.description}</p>
-                      <div className="flex items-center space-x-4 text-sm text-neutral-500 font-inter">
-                        <div className="flex items-center">
-                          <MapPin className="h-4 w-4 mr-1" />
-                          {ticket.location}
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-4 w-4 mr-1" />
-                          {formatTimeAgo(ticket.createdAt)}
-                        </div>
-                        <div className="flex items-center">
-                          <User className="h-4 w-4 mr-1" />
-                          {(ticket.comments || []).length} comment{(ticket.comments || []).length !== 1 ? 's' : ''}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-          </div>
+          <TicketTable
+            tickets={getActiveTickets().filter(ticket => {
+              const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+              const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+              return matchesSearch && matchesStatus
+            })}
+            onTicketClick={handleTicketClick}
+          />
         </div>
       )}
 
       {/* Work Orders Tab */}
       {activeTab === 'work-orders' && (
         <div className="space-y-4">
-          {/* Work Orders List */}
-          <div className="space-y-4">
-            {workOrders.map((workOrder) => (
-              <div
-                key={workOrder.id}
-                className="bg-white rounded-lg shadow hover:shadow-md transition-shadow duration-200 p-6"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-medium text-neutral-900 font-inter">{workOrder.title}</h3>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getStatusColor(workOrder.status)}`}>
-                        {workOrder.status}
-                      </span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${getPriorityColor(workOrder.priority)}`}>
-                        {workOrder.priority}
-                      </span>
-                    </div>
-                    <p className="text-gray-600 mb-3 font-inter">{workOrder.description}</p>
-                    <div className="flex items-center space-x-4 text-sm text-neutral-500 font-inter">
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-1" />
-                        {workOrder.assignedToUid || 'Unassigned'}
-                      </div>
-                      <div className="flex items-center">
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        £{workOrder.cost || 0}
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        {workOrder.scheduledDate ? new Date(workOrder.scheduledDate).toLocaleDateString() : 'Not scheduled'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          {/* Search and Filters */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Search scheduled tickets..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+            <button
+              onClick={openCreateTicketModal}
+              className="btn-primary flex items-center font-inter"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Ticket
+            </button>
           </div>
+          
+          {/* Info Banner */}
+          <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-4">
+            <div className="flex items-start space-x-3">
+              <Wrench className="h-5 w-5 text-cyan-600 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-medium text-cyan-900 font-inter">Scheduled Work Orders</h4>
+                <p className="text-sm text-cyan-700 font-inter">
+                  Showing only tickets with "Scheduled" status - work that has been approved and scheduled for completion.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Scheduled Tickets List */}
+          <TicketTable
+            tickets={tickets.filter(ticket => {
+              const isScheduled = ticket.status === 'Scheduled'
+              const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                 ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+              return isScheduled && matchesSearch
+            })}
+            onTicketClick={handleTicketClick}
+          />
         </div>
       )}
       
