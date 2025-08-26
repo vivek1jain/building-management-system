@@ -37,36 +37,27 @@ export async function testPermissionSystem() {
   console.log('\n🧪 TESTING PERMISSION SYSTEM\n');
   console.log('='.repeat(50));
 
-  // Load mock tickets for testing (optional, falls back to test data if unavailable)
-  let testTickets = [];
-  try {
-    const { mockTickets } = await import('../services/mockData');
-    testTickets = mockTickets.slice(0, 3);
-    console.log('✅ Using mock tickets from mockData');
-  } catch (error) {
-    console.warn('⚠️ Mock data not available, using fallback test tickets');
-    // Fallback test tickets for permission testing
-    testTickets = [
-      {
-        id: 'test-ticket-1',
-        title: 'Test Ticket 1',
-        buildingId: 'building-1',
-        requestedBy: 'test-resident-1'
-      },
-      {
-        id: 'test-ticket-2',
-        title: 'Test Ticket 2',
-        buildingId: 'building-2',
-        requestedBy: 'test-resident-2'
-      },
-      {
-        id: 'test-ticket-3',
-        title: 'Test Ticket 3',
-        buildingId: 'building-1',
-        requestedBy: 'test-manager-1'
-      }
-    ];
-  }
+  // Test tickets for permission testing
+  const testTickets = [
+    {
+      id: 'test-ticket-1',
+      title: 'Test Ticket 1',
+      buildingId: 'building-1',
+      requestedBy: 'test-resident-1'
+    },
+    {
+      id: 'test-ticket-2',
+      title: 'Test Ticket 2',
+      buildingId: 'building-2',
+      requestedBy: 'test-resident-2'
+    },
+    {
+      id: 'test-ticket-3',
+      title: 'Test Ticket 3',
+      buildingId: 'building-1',
+      requestedBy: 'test-manager-1'
+    }
+  ];
 
   // Test each user against each ticket
   testUsers.forEach(user => {

@@ -6,7 +6,7 @@ import {
   Truck, 
   Package
 } from 'lucide-react'
-import { Card, CardHeader, CardContent } from '../components/UI'
+import { Card, CardHeader, CardContent, TabLoadingSkeleton } from '../components/UI'
 import PeopleDataTable from '../components/BuildingData/PeopleDataTable'
 import FlatsDataTable from '../components/BuildingData/FlatsDataTableFixed'
 import SuppliersDataTable from '../components/BuildingData/SuppliersDataTable'
@@ -21,6 +21,7 @@ interface TabConfig {
 
 const BuildingDataManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('people')
+  const [loading, setLoading] = useState<boolean>(false)
 
   const tabs: TabConfig[] = [
     {
@@ -90,7 +91,11 @@ const BuildingDataManagement: React.FC = () => {
 
         {/* Tab Content */}
         <div className="space-y-6">
-          <ActiveComponent />
+          {loading ? (
+            <TabLoadingSkeleton />
+          ) : (
+            <ActiveComponent />
+          )}
         </div>
       </div>
     </div>

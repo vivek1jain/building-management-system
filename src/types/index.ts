@@ -515,6 +515,11 @@ export interface ServiceChargeDemand {
   remindersConfig: ReminderConfig;
   remindersSent: number;
   lastReminderSent?: Date;
+  
+  // Cancellation tracking
+  cancelledAt?: Date;
+  cancelledBy?: string;
+  cancelReason?: string;
 }
 
 export interface ChargeBreakdownItem {

@@ -17,7 +17,6 @@ import {
   Search
 } from 'lucide-react'
 import { Supplier, QuoteForm } from '../types'
-import { addSampleSuppliers } from '../utils/sampleData'
 
 const Suppliers = () => {
   const { currentUser } = useAuth()
@@ -134,30 +133,6 @@ const Suppliers = () => {
     }
   }
 
-  const handleAddSampleData = async () => {
-    console.log('Add Sample Data button clicked')
-    try {
-      console.log('Adding sample suppliers...')
-      await addSampleSuppliers()
-      console.log('Sample suppliers added, now loading suppliers...')
-      await loadSuppliers()
-      console.log('Suppliers loaded successfully')
-      addNotification({
-        title: 'Sample Data Added',
-        message: 'Sample suppliers have been added successfully.',
-        type: 'success',
-        userId: currentUser?.id || ''
-      })
-    } catch (error) {
-      console.error('Error in handleAddSampleData:', error)
-      addNotification({
-        title: 'Error',
-        message: 'Failed to add sample data.',
-        type: 'error',
-        userId: currentUser?.id || ''
-      })
-    }
-  }
 
   const renderStars = (rating: number) => {
     return Array.from({ length: 5 }, (_, i) => (
@@ -307,13 +282,6 @@ const Suppliers = () => {
           </p>
         </div>
         <div className="flex items-center space-x-3">
-          <button
-            onClick={handleAddSampleData}
-            className="btn-secondary flex items-center space-x-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Add Sample Data</span>
-          </button>
           <button
             onClick={handleRequestQuotes}
             disabled={selectedSuppliers.length === 0}

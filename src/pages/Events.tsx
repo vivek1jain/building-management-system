@@ -43,7 +43,8 @@ const Events = () => {
   // Events state management
   const [allEvents, setAllEvents] = useState<BuildingEvent[]>([])
   const [events, setEvents] = useState<BuildingEvent[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start with loading = true
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false)
   
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>('all')
@@ -136,6 +137,7 @@ const Events = () => {
           
           setAllEvents(eventsData);
           setLoading(false);
+          setInitialLoadComplete(true);
         }, (error) => {
           console.error('❌ Real-time listener error:', error);
           // Fallback to regular loading if real-time fails
@@ -221,6 +223,7 @@ const Events = () => {
         buildingIds: [...new Set(eventsData.map(e => e.buildingId))]
       })
       setAllEvents(eventsData)
+      setInitialLoadComplete(true)
     } catch (error) {
       console.error('❌ Error loading events:', error)
       addNotification({
@@ -231,6 +234,7 @@ const Events = () => {
       })
     } finally {
       setLoading(false)
+      setInitialLoadComplete(true)
     }
   }
 

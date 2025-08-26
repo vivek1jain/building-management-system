@@ -10,7 +10,7 @@ import { TicketDetailModal } from '../components/TicketDetailModal'
 import { useCreateTicket } from '../contexts/CreateTicketContext'
 import TicketTable from '../components/TicketTable'
 import WorkOrderTable from '../components/WorkOrderTable'
-import { Dropdown, DropdownOption } from '../components/UI'
+import { Dropdown, DropdownOption, PageLoading, SectionLoading, ListItemSkeleton } from '../components/UI'
 import { 
   Building as BuildingType, 
   Ticket, 
@@ -45,7 +45,8 @@ const Tickets: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'tickets' | 'work-orders' | 'workflow'>('workflow')
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
-  const [loading, setLoading] = useState(true)
+  const [ticketsLoading, setTicketsLoading] = useState(true)
+  const [workOrdersLoading, setWorkOrdersLoading] = useState(true)
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('')
@@ -95,7 +96,8 @@ const Tickets: React.FC = () => {
     if (!selectedBuildingId) return
     
     try {
-      setLoading(true)
+      setTicketsLoading(true)
+      setWorkOrdersLoading(true)
       
       // Load tickets filtered by building
       const unsubscribe = ticketService.subscribeToTickets((ticketsData: Ticket[]) => {
@@ -112,17 +114,19 @@ const Tickets: React.FC = () => {
         console.log('Filtered tickets for building', selectedBuildingId, ':', buildingTickets.length, 'tickets')
         console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id: t.id, buildingId: t.buildingId })))
         setTickets(buildingTickets)
-        setLoading(false) // Set loading to false when data arrives
+        setTicketsLoading(false) // Set loading to false when data arrives
       })
 
       // Load work orders filtered by building
       try {
         const workOrdersData = await workOrderService.getWorkOrdersByBuilding(selectedBuildingId)
         setWorkOrders(workOrdersData)
+        setWorkOrdersLoading(false)
       } catch (error) {
         console.error('Error loading work orders:', error)
         // Set empty array if service fails - no mock data
         setWorkOrders([])
+        setWorkOrdersLoading(false)
       }
       
       return unsubscribe
@@ -134,7 +138,8 @@ const Tickets: React.FC = () => {
         message: 'Failed to load data',
         type: 'error'
       })
-      setLoading(false)
+      setTicketsLoading(false)
+      setWorkOrdersLoading(false)
     }
   }
 
@@ -310,12 +315,8 @@ const Tickets: React.FC = () => {
     }
   ]
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-      </div>
-    )
+  if (ticketsLoading || workOrdersLoading) {
+    return <PageLoading message="Loading tickets and work orders..." />
   }
 
   return (

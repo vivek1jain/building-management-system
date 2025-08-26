@@ -28,6 +28,24 @@ export {
   type DropdownProps, 
   type DropdownOption 
 } from './Dropdown'
+export {
+  Spinner,
+  PageLoading,
+  SectionLoading,
+  InlineLoading,
+  Skeleton,
+  CardSkeleton,
+  TableRowSkeleton,
+  WidgetSkeleton,
+  ListItemSkeleton,
+  TabLoadingSkeleton,
+  type SpinnerProps,
+  type SpinnerSize,
+  type PageLoadingProps,
+  type SectionLoadingProps,
+  type InlineLoadingProps,
+  type SkeletonProps
+} from './Loading'
 
 // Re-export utility functions
 export { cn } from '../../utils/cn'

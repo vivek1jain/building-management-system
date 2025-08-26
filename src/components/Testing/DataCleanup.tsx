@@ -12,7 +12,8 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { Button, Card, CardContent } from '../UI';
-import { TestDataService } from '../../services/testDataService';
+import { db } from '../../firebase/config';
+import { collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, Notification } from '../../types';
 
 interface DataCleanupProps {
@@ -84,7 +85,18 @@ const DataCleanup: React.FC<DataCleanupProps> = ({ currentUser, addNotification 
   const loadStats = async () => {
     setLoadingStats(true);
     try {
-      const counts = await TestDataService.getCollectionCounts();
+      const collections = ['tickets', 'expenses', 'events', 'income'];
+      const counts = { tickets: 0, expenses: 0, events: 0, income: 0 };
+      
+      for (const collectionName of collections) {
+        try {
+          const querySnapshot = await getDocs(collection(db, collectionName));
+          counts[collectionName as keyof CollectionStats] = querySnapshot.size;
+        } catch (error) {
+          console.warn(`Failed to count ${collectionName}:`, error);
+        }
+      }
+      
       setStats(counts);
     } catch (error) {
       console.error('Failed to load collection stats:', error);
@@ -109,45 +121,24 @@ const DataCleanup: React.FC<DataCleanupProps> = ({ currentUser, addNotification 
     updateOperationState(operationId, { isLoading: true });
 
     try {
-      let result: { success: boolean; deletedCount: number; error?: string };
-
-      switch (operationId) {
-        case 'tickets':
-          result = await TestDataService.deleteAllTickets();
-          break;
-        case 'expenses':
-          result = await TestDataService.deleteAllExpenses();
-          break;
-        case 'events':
-          result = await TestDataService.deleteAllEvents();
-          break;
-        case 'income':
-          result = await TestDataService.deleteAllIncome();
-          break;
-        default:
-          throw new Error('Unknown operation');
-      }
+      const querySnapshot = await getDocs(collection(db, operationId));
+      const deletedCount = querySnapshot.size;
+      
+      // Delete all documents in the collection
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
 
       updateOperationState(operationId, { 
         isLoading: false,
-        lastResult: { success: result.success, count: result.deletedCount, error: result.error }
+        lastResult: { success: true, count: deletedCount }
       });
 
-      if (result.success) {
-        addNotification({
-          userId: currentUser?.id || '',
-          title: 'Cleanup Completed',
-          message: `Successfully deleted ${result.deletedCount} ${operationId} record${result.deletedCount !== 1 ? 's' : ''}`,
-          type: 'success'
-        });
-      } else {
-        addNotification({
-          userId: currentUser?.id || '',
-          title: 'Cleanup Failed',
-          message: result.error || `Failed to delete ${operationId}`,
-          type: 'error'
-        });
-      }
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Cleanup Completed',
+        message: `Successfully deleted ${deletedCount} ${operationId} record${deletedCount !== 1 ? 's' : ''}`,
+        type: 'success'
+      });
 
       // Refresh stats after cleanup
       await loadStats();
@@ -170,35 +161,42 @@ const DataCleanup: React.FC<DataCleanupProps> = ({ currentUser, addNotification 
 
   const handleCleanupAll = async () => {
     setIsLoadingAll(true);
+    const collections = ['tickets', 'expenses', 'events', 'income'];
+    let totalDeleted = 0;
+    const results: Record<string, number> = {};
 
     try {
-      const result = await TestDataService.deleteAllTestData();
-      
-      if (result.success) {
-        const totalDeleted = Object.values(result.results).reduce((sum, count) => sum + count, 0);
-        addNotification({
-          userId: currentUser?.id || '',
-          title: 'Complete Cleanup Successful',
-          message: `Successfully deleted ${totalDeleted} total records across all collections`,
-          type: 'success'
-        });
-      } else {
-        addNotification({
-          userId: currentUser?.id || '',
-          title: 'Cleanup Completed with Errors',
-          message: `Some collections could not be cleaned: ${result.errors.join(', ')}`,
-          type: 'warning'
-        });
+      for (const collectionName of collections) {
+        try {
+          const querySnapshot = await getDocs(collection(db, collectionName));
+          const count = querySnapshot.size;
+          
+          const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+          await Promise.all(deletePromises);
+          
+          results[collectionName] = count;
+          totalDeleted += count;
+          
+          updateOperationState(collectionName, {
+            lastResult: { success: true, count }
+          });
+        } catch (error) {
+          console.error(`Failed to delete ${collectionName}:`, error);
+          results[collectionName] = 0;
+          updateOperationState(collectionName, {
+            lastResult: { success: false, count: 0, error: error instanceof Error ? error.message : 'Unknown error' }
+          });
+        }
       }
-
-      // Update individual operation results
-      Object.entries(result.results).forEach(([operationId, count]) => {
-        updateOperationState(operationId, {
-          lastResult: { success: true, count }
-        });
+      
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Complete Cleanup Completed',
+        message: `Successfully deleted ${totalDeleted} total records across all collections`,
+        type: 'success'
       });
 
-      // Refresh stats after cleanup
+      // Refresh stats
       await loadStats();
 
     } catch (error) {
@@ -206,7 +204,7 @@ const DataCleanup: React.FC<DataCleanupProps> = ({ currentUser, addNotification 
       addNotification({
         userId: currentUser?.id || '',
         title: 'Cleanup Failed',
-        message: `Failed to cleanup all data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        message: `Error during complete cleanup: ${error instanceof Error ? error.message : 'Unknown error'}`,
         type: 'error'
       });
     } finally {

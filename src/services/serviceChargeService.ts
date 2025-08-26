@@ -416,34 +416,6 @@ export const getBuildingFinancialSummary = async (buildingId: string, quarter: s
     const netCashFlow = totalIncome - totalExpenditure
     const netPosition = netCashFlow
 
-    // If no real data found, return enhanced mock data
-    if (totalIncome === 0 && totalExpenditure === 0 && demands.length === 0) {
-      console.info('No real data found, returning mock financial summary')
-      return {
-        buildingId,
-        period: quarter,
-        totalIncome: 45000,
-        totalExpenditure: 32000,
-        netCashFlow: 13000,
-        netPosition: 13000,
-        outstandingAmount: 8500,
-        incomeBreakdown: {
-          serviceCharges: 35000,
-          groundRent: 10000
-        },
-        expenditureBreakdown: {
-          maintenance: 18000,
-          insurance: 8000,
-          management: 6000
-        },
-        maintenanceBreakdown: {
-          proactive: 12000,
-          reactive: 6000
-        },
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
-    }
 
     // Return real data
     return {
@@ -573,28 +545,83 @@ export const getBuildingFinancialSummary = async (buildingId: string, quarter: s
 
 // Helper functions for quarter calculations
 function getQuarterStartDate(quarter: string): Date {
-  const [q, year] = quarter.split(' ')
-  const quarterNum = parseInt(q.substring(1))
-  const yearNum = parseInt(year)
-  const month = (quarterNum - 1) * 3
-  return new Date(yearNum, month, 1)
+  try {
+    let quarterNum: number
+    let yearNum: number
+    
+    // Handle both formats: "Q1 2024" and "2024-Q1"
+    if (quarter.includes(' ')) {
+      // Format: "Q1 2024"
+      const [q, year] = quarter.split(' ')
+      if (!q || !year) {
+        console.warn('Invalid quarter format (space-separated), using default start date:', quarter)
+        return new Date(2024, 0, 1)
+      }
+      quarterNum = parseInt(q.substring(1))
+      yearNum = parseInt(year)
+    } else if (quarter.includes('-Q')) {
+      // Format: "2024-Q1"
+      const [year, q] = quarter.split('-Q')
+      if (!q || !year) {
+        console.warn('Invalid quarter format (dash-separated), using default start date:', quarter)
+        return new Date(2024, 0, 1)
+      }
+      quarterNum = parseInt(q)
+      yearNum = parseInt(year)
+    } else {
+      console.warn('Unrecognized quarter format, using default start date:', quarter)
+      return new Date(2024, 0, 1)
+    }
+    
+    if (isNaN(quarterNum) || isNaN(yearNum) || quarterNum < 1 || quarterNum > 4) {
+      console.warn('Invalid quarter number or year, using default start date:', { quarterNum, yearNum, originalQuarter: quarter })
+      return new Date(2024, 0, 1)
+    }
+    
+    const month = (quarterNum - 1) * 3
+    const startDate = new Date(yearNum, month, 1)
+    
+    console.log(`Quarter ${quarter} parsed to start date:`, startDate.toLocaleDateString('en-GB'))
+    return startDate
+  } catch (error) {
+    console.error('Error parsing quarter start date:', error, 'Quarter:', quarter)
+    return new Date(2024, 0, 1) // Safe fallback
+  }
 }
 
 function getQuarterEndDate(quarter: string): Date {
   try {
     console.log('Parsing quarter string:', quarter)
-    const [q, year] = quarter.split(' ')
     
-    if (!q || !year) {
-      console.warn('Invalid quarter format, using default date:', quarter)
-      return new Date(2024, 11, 31) // Default to end of 2024
+    let quarterNum: number
+    let yearNum: number
+    
+    // Handle both formats: "Q1 2024" and "2024-Q1"
+    if (quarter.includes(' ')) {
+      // Format: "Q1 2024"
+      const [q, year] = quarter.split(' ')
+      if (!q || !year) {
+        console.warn('Invalid quarter format (space-separated), using default date:', quarter)
+        return new Date(2024, 11, 31)
+      }
+      quarterNum = parseInt(q.substring(1))
+      yearNum = parseInt(year)
+    } else if (quarter.includes('-Q')) {
+      // Format: "2024-Q1"
+      const [year, q] = quarter.split('-Q')
+      if (!q || !year) {
+        console.warn('Invalid quarter format (dash-separated), using default date:', quarter)
+        return new Date(2024, 11, 31)
+      }
+      quarterNum = parseInt(q)
+      yearNum = parseInt(year)
+    } else {
+      console.warn('Unrecognized quarter format, using default date:', quarter)
+      return new Date(2024, 11, 31)
     }
     
-    const quarterNum = parseInt(q.substring(1))
-    const yearNum = parseInt(year)
-    
     if (isNaN(quarterNum) || isNaN(yearNum) || quarterNum < 1 || quarterNum > 4) {
-      console.warn('Invalid quarter number or year, using default:', { quarterNum, yearNum })
+      console.warn('Invalid quarter number or year, using default:', { quarterNum, yearNum, originalQuarter: quarter })
       return new Date(2024, 11, 31) // Default to end of 2024
     }
     
@@ -606,6 +633,7 @@ function getQuarterEndDate(quarter: string): Date {
       return new Date(2024, 11, 31)
     }
     
+    console.log(`Quarter ${quarter} parsed to end date:`, endDate.toLocaleDateString('en-GB'))
     return endDate
   } catch (error) {
     console.error('Error parsing quarter date:', error, 'Quarter:', quarter)

@@ -52,7 +52,7 @@ import {
   CheckCircle,
   ExternalLink
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption } from '../components/UI'
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption, PageLoading, SectionLoading, TabLoadingSkeleton, TableRowSkeleton, WidgetSkeleton } from '../components/UI'
 import { ServiceChargePeriodDropdown } from '../components/ServiceCharges/ServiceChargePeriodDropdown'
 
 // UK-specific budget categories
@@ -97,6 +97,7 @@ const Finances: React.FC = () => {
   const [selectedDemand, setSelectedDemand] = useState<ServiceChargeDemand | null>(null)
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentDate, setPaymentDate] = useState<Date>(new Date())
+  const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set())
   
   // UI state
   const [showBudgetSetup, setShowBudgetSetup] = useState(false)
@@ -220,53 +221,124 @@ const Finances: React.FC = () => {
     }
   }
 
-  const sortedServiceCharges = useMemo(() => {
-    if (!sortField) return serviceCharges
-
-    const sorted = [...serviceCharges].sort((a, b) => {
-      let aValue: any
-      let bValue: any
-
-      switch (sortField) {
-        case 'flatNumber':
-          aValue = a.flatNumber?.toLowerCase() || ''
-          bValue = b.flatNumber?.toLowerCase() || ''
-          break
-        case 'residentName':
-          aValue = a.residentName?.toLowerCase() || ''
-          bValue = b.residentName?.toLowerCase() || ''
-          break
-        case 'totalAmountDue':
-          aValue = a.totalAmountDue || 0
-          bValue = b.totalAmountDue || 0
-          break
-        case 'outstandingAmount':
-          aValue = a.outstandingAmount || 0
-          bValue = b.outstandingAmount || 0
-          break
-        case 'dueDate':
-          aValue = new Date(a.dueDate).getTime()
-          bValue = new Date(b.dueDate).getTime()
-          break
-        case 'status':
-          aValue = a.status || ''
-          bValue = b.status || ''
-          break
-        default:
-          return 0
+  // Group service charges by financial quarter/period
+  const groupedServiceCharges = useMemo(() => {
+    const groups: Record<string, ServiceChargeDemand[]> = {}
+    
+    serviceCharges.forEach(charge => {
+      const period = charge.financialQuarterDisplayString || 'Unknown Period'
+      if (!groups[period]) {
+        groups[period] = []
       }
-
-      if (aValue < bValue) {
-        return sortDirection === 'asc' ? -1 : 1
-      }
-      if (aValue > bValue) {
-        return sortDirection === 'asc' ? 1 : -1
-      }
-      return 0
+      groups[period].push(charge)
     })
+    
+    // Sort each group internally
+    Object.keys(groups).forEach(period => {
+      groups[period].sort((a, b) => {
+        if (sortField) {
+          let aValue: any
+          let bValue: any
 
-    return sorted
+          switch (sortField) {
+            case 'flatNumber':
+              aValue = a.flatNumber?.toLowerCase() || ''
+              bValue = b.flatNumber?.toLowerCase() || ''
+              break
+            case 'residentName':
+              aValue = a.residentName?.toLowerCase() || ''
+              bValue = b.residentName?.toLowerCase() || ''
+              break
+            case 'totalAmountDue':
+              aValue = a.totalAmountDue || 0
+              bValue = b.totalAmountDue || 0
+              break
+            case 'outstandingAmount':
+              aValue = a.outstandingAmount || 0
+              bValue = b.outstandingAmount || 0
+              break
+            case 'dueDate':
+              aValue = new Date(a.dueDate).getTime()
+              bValue = new Date(b.dueDate).getTime()
+              break
+            case 'status':
+              aValue = a.status || ''
+              bValue = b.status || ''
+              break
+            default:
+              return 0
+          }
+
+          if (aValue < bValue) {
+            return sortDirection === 'asc' ? -1 : 1
+          }
+          if (aValue > bValue) {
+            return sortDirection === 'asc' ? 1 : -1
+          }
+          return 0
+        }
+        // Default sort by flat number if no sort field specified
+        return (a.flatNumber || '').localeCompare(b.flatNumber || '')
+      })
+    })
+    
+    // Sort periods chronologically (most recent first)
+    const sortedPeriods = Object.keys(groups).sort((a, b) => {
+      // Try to parse periods to determine chronological order
+      // Handle both "Q1 2024" and "2024-Q1" formats
+      const parseQuarter = (period: string) => {
+        if (period.includes(' ')) {
+          const [q, year] = period.split(' ')
+          return {
+            year: parseInt(year) || 0,
+            quarter: parseInt(q.substring(1)) || 0
+          }
+        } else if (period.includes('-Q')) {
+          const [year, q] = period.split('-Q')
+          return {
+            year: parseInt(year) || 0,
+            quarter: parseInt(q) || 0
+          }
+        }
+        return { year: 0, quarter: 0 }
+      }
+      
+      const periodA = parseQuarter(a)
+      const periodB = parseQuarter(b)
+      
+      // Sort by year first (descending), then by quarter (descending)
+      if (periodB.year !== periodA.year) {
+        return periodB.year - periodA.year
+      }
+      return periodB.quarter - periodA.quarter
+    })
+    
+    const result: Record<string, ServiceChargeDemand[]> = {}
+    sortedPeriods.forEach(period => {
+      result[period] = groups[period]
+    })
+    
+    return result
   }, [serviceCharges, sortField, sortDirection])
+  
+  // Auto-expand periods on first load
+  useEffect(() => {
+    const periods = Object.keys(groupedServiceCharges)
+    if (periods.length > 0 && expandedPeriods.size === 0) {
+      // Expand the first (most recent) period by default
+      setExpandedPeriods(new Set([periods[0]]))
+    }
+  }, [groupedServiceCharges])
+  
+  const togglePeriodExpansion = (period: string) => {
+    const newExpanded = new Set(expandedPeriods)
+    if (newExpanded.has(period)) {
+      newExpanded.delete(period)
+    } else {
+      newExpanded.add(period)
+    }
+    setExpandedPeriods(newExpanded)
+  }
 
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => {
     const isActive = sortField === field
@@ -392,7 +464,7 @@ const Finances: React.FC = () => {
         addNotification({ 
           userId: currentUser?.id || '', 
           title: 'Success', 
-          message: 'Budget created successfully! Note: If Firebase permissions are not set up, this is saved as mock data.', 
+          message: 'Budget created successfully!', 
           type: 'success' 
         })
       }
@@ -404,13 +476,7 @@ const Finances: React.FC = () => {
       
       let errorMessage = 'Error saving budget'
       if (error instanceof Error) {
-        if (error.message.includes('permissions')) {
-          errorMessage = 'Firebase permissions error. Budget saved as mock data for development. Please deploy Firebase rules to fix this.'
-        } else if (error.message.includes('flats')) {
-          errorMessage = 'No flats found for this building. You may need to add flats first, but budget creation can still proceed.'
-        } else {
-          errorMessage = `Error saving budget: ${error.message}`
-        }
+        errorMessage = `Error saving budget: ${error.message}`
       }
       
       addNotification({ 
@@ -533,30 +599,15 @@ const Finances: React.FC = () => {
         })
         
       } catch (firebaseError) {
-        console.warn('Firebase flat creation failed, using mock data fallback:', firebaseError)
-        
-        // Fallback: Create mock flats data in memory
-        const mockFlats = sampleFlatsData.map((flatData, index) => ({
-          id: `mock-flat-${index + 1}`,
-          ...flatData,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        }))
-        
-        // Store in localStorage as fallback
-        const existingMockFlats = JSON.parse(localStorage.getItem('mockFlats') || '[]')
-        const updatedMockFlats = [...existingMockFlats, ...mockFlats]
-        localStorage.setItem('mockFlats', JSON.stringify(updatedMockFlats))
-        
-        // Update the flats state directly
-        setFlats(mockFlats)
+        console.error('Firebase flat creation failed:', firebaseError)
         
         addNotification({ 
           userId: currentUser?.id || '', 
-          title: 'Success', 
-          message: `Created ${mockFlats.length} sample flats (mock data) for testing service charges`, 
-          type: 'success' 
+          title: 'Error', 
+          message: `Failed to create sample flats: ${firebaseError instanceof Error ? firebaseError.message : 'Unknown error'}`, 
+          type: 'error' 
         })
+        return
       }
       
       // Reload financial data to include the new flats
@@ -590,6 +641,129 @@ const Finances: React.FC = () => {
     return percentage > 90 ? 'text-red-600' : percentage > 70 ? 'text-yellow-600' : 'text-success-600'
   }
 
+  // Show comprehensive dialog for existing demands
+  const showExistingDemandsDialog = (data: {
+    period: string
+    totalDemands: number
+    paidCount: number
+    partiallyPaidCount: number
+    outstandingCount: number
+    overdueCount: number
+    existingDemands: ServiceChargeDemand[]
+  }): Promise<'cancel' | 'send_reminders' | 'view_existing' | 'cancel_and_reissue' | 'create_duplicates'> => {
+    return new Promise((resolve) => {
+      const { period, totalDemands, paidCount, partiallyPaidCount, outstandingCount, overdueCount } = data
+      
+      let statusLines = []
+      if (paidCount > 0) statusLines.push(`✅ ${paidCount} Paid`)
+      if (partiallyPaidCount > 0) statusLines.push(`⚠️ ${partiallyPaidCount} Partially Paid`)
+      if (outstandingCount > 0) statusLines.push(`❌ ${outstandingCount} Outstanding`)
+      if (overdueCount > 0) statusLines.push(`🚨 ${overdueCount} Overdue`)
+      
+      const hasPayments = paidCount > 0 || partiallyPaidCount > 0
+      const warningNote = hasPayments ? '\n⚠️ WARNING: Canceling will affect demands with existing payments!' : ''
+      
+      const actionOptions = [
+        '1️⃣ Send Payment Reminders (to all outstanding)',
+        '2️⃣ View & Manage Existing Demands', 
+        `3️⃣ Cancel Current & Issue New Demands${hasPayments ? ' ⚠️' : ''}`,
+        '4️⃣ Create Duplicate Demands (not recommended)',
+        '5️⃣ Cancel'
+      ]
+      
+      const message = `⚠️ Service Charges Already Exist for ${period}\n\n` +
+        `Current Status (${totalDemands} demands):\n${statusLines.join('\n')}${warningNote}\n\n` +
+        `What would you like to do?\n${actionOptions.join('\n')}\n\n` +
+        `Enter 1, 2, 3, 4, or 5:`
+      
+      const userChoice = window.prompt(message)
+      
+      switch (userChoice?.trim()) {
+        case '1':
+          resolve('send_reminders')
+          break
+        case '2':
+          resolve('view_existing')
+          break
+        case '3':
+          resolve('cancel_and_reissue')
+          break
+        case '4':
+          resolve('create_duplicates')
+          break
+        case '5':
+        default:
+          resolve('cancel')
+          break
+      }
+    })
+  }
+
+  // Handle bulk reminders for outstanding demands
+  const handleBulkReminders = async (demands: ServiceChargeDemand[]) => {
+    const outstandingDemands = demands.filter(d => 
+      d.status === ServiceChargeDemandStatus.ISSUED || 
+      d.status === ServiceChargeDemandStatus.PARTIALLY_PAID
+    )
+    
+    if (outstandingDemands.length === 0) {
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Info',
+        message: 'No outstanding demands found to send reminders for.',
+        type: 'info'
+      })
+      return
+    }
+    
+    try {
+      setLoading(true)
+      let successCount = 0
+      let failureCount = 0
+      
+      // Send reminders in batches to avoid overwhelming the system
+      for (const demand of outstandingDemands) {
+        try {
+          await sendReminder(demand.id)
+          successCount++
+        } catch (error) {
+          console.error(`Failed to send reminder for ${demand.flatNumber}:`, error)
+          failureCount++
+        }
+      }
+      
+      if (successCount > 0) {
+        addNotification({
+          userId: currentUser?.id || '',
+          title: 'Success',
+          message: `Sent ${successCount} payment reminder${successCount === 1 ? '' : 's'} successfully${failureCount > 0 ? ` (${failureCount} failed)` : ''}.`,
+          type: successCount === outstandingDemands.length ? 'success' : 'warning'
+        })
+      } else {
+        addNotification({
+          userId: currentUser?.id || '',
+          title: 'Error',
+          message: 'Failed to send any reminders. Please try again or send them individually.',
+          type: 'error'
+        })
+      }
+      
+      // Refresh data to update reminder counts
+      await loadFinancialData()
+      
+    } catch (error) {
+      console.error('Error sending bulk reminders:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to send reminders. Please try again.',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Service Charges handlers
   const handleGenerateDemands = async () => {
     if (!selectedBuildingId) {
@@ -600,6 +774,132 @@ const Finances: React.FC = () => {
     if (!selectedPeriod) {
       addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Please select a period first', type: 'error' })
       return
+    }
+
+    // Check if demands already exist for this period
+    const existingDemandsForPeriod = serviceCharges.filter(
+      demand => demand.financialQuarterDisplayString === selectedPeriod
+    )
+    
+    if (existingDemandsForPeriod.length > 0) {
+      const paidCount = existingDemandsForPeriod.filter(d => d.status === ServiceChargeDemandStatus.PAID).length
+      const partiallyPaidCount = existingDemandsForPeriod.filter(d => d.status === ServiceChargeDemandStatus.PARTIALLY_PAID).length
+      const outstandingCount = existingDemandsForPeriod.length - paidCount - partiallyPaidCount
+      const overdueCount = existingDemandsForPeriod.filter(d => 
+        (d.status === ServiceChargeDemandStatus.ISSUED || d.status === ServiceChargeDemandStatus.PARTIALLY_PAID) &&
+        new Date(d.dueDate) < new Date()
+      ).length
+      
+      // Show comprehensive dialog
+      const action = await showExistingDemandsDialog({
+        period: selectedPeriod,
+        totalDemands: existingDemandsForPeriod.length,
+        paidCount,
+        partiallyPaidCount,
+        outstandingCount,
+        overdueCount,
+        existingDemands: existingDemandsForPeriod
+      })
+      
+      switch (action) {
+        case 'cancel':
+          // Scroll to existing demands table
+          const demandsSection = document.querySelector('[data-demands-section]')
+          if (demandsSection) {
+            demandsSection.scrollIntoView({ behavior: 'smooth' })
+          }
+          addNotification({ 
+            userId: currentUser?.id || '', 
+            title: 'Info', 
+            message: 'Use the table below to manage existing demands for this period.', 
+            type: 'info' 
+          })
+          return
+          
+        case 'send_reminders':
+          await handleBulkReminders(existingDemandsForPeriod)
+          return
+          
+        case 'view_existing':
+          // Scroll to and expand the relevant period
+          const newExpanded = new Set(expandedPeriods)
+          newExpanded.add(selectedPeriod)
+          setExpandedPeriods(newExpanded)
+          
+          const demandsSectionView = document.querySelector('[data-demands-section]')
+          if (demandsSectionView) {
+            demandsSectionView.scrollIntoView({ behavior: 'smooth' })
+          }
+          return
+          
+        case 'cancel_and_reissue':
+          // Confirm the action if there are existing payments
+          if (paidCount > 0 || partiallyPaidCount > 0) {
+            const confirmCancel = window.confirm(
+              `⚠️ WARNING: This will cancel ${existingDemandsForPeriod.length} existing demands including ${paidCount + partiallyPaidCount} with payments.\n\n` +
+              `Are you absolutely sure you want to proceed?\n\n` +
+              `This action cannot be undone and may cause payment reconciliation issues.`
+            )
+            
+            if (!confirmCancel) {
+              return
+            }
+          }
+          
+          // Cancel existing demands first
+          try {
+            setLoading(true)
+            
+            addNotification({
+              userId: currentUser?.id || '',
+              title: 'Info',
+              message: `Canceling ${existingDemandsForPeriod.length} existing demands...`,
+              type: 'info'
+            })
+            
+            // Cancel all existing demands for this period
+            const cancelPromises = existingDemandsForPeriod.map(demand => 
+              updateServiceChargeDemand(demand.id, {
+                status: ServiceChargeDemandStatus.CANCELLED,
+                cancelledAt: new Date(),
+                cancelledBy: currentUser?.id || '',
+                cancelReason: 'Cancelled to issue replacement demands'
+              })
+            )
+            
+            await Promise.all(cancelPromises)
+            
+            addNotification({
+              userId: currentUser?.id || '',
+              title: 'Success',
+              message: `Cancelled ${existingDemandsForPeriod.length} existing demands. Now issuing new demands...`,
+              type: 'success'
+            })
+            
+            // Refresh data to reflect cancellations
+            await loadFinancialData()
+            
+            // Continue to generate new demands (break out of the switch)
+          } catch (error) {
+            console.error('Error cancelling existing demands:', error)
+            addNotification({
+              userId: currentUser?.id || '',
+              title: 'Error',
+              message: `Failed to cancel existing demands: ${error instanceof Error ? error.message : 'Unknown error'}`,
+              type: 'error'
+            })
+            setLoading(false)
+            return
+          }
+          break
+          
+        case 'create_duplicates':
+          // Continue with creation - user explicitly chose to create duplicates
+          break
+          
+        default:
+          return
+      }
     }
 
     // Check if flats exist, if not, offer to create sample flats
@@ -655,25 +955,13 @@ const Finances: React.FC = () => {
         console.log('Refreshed service charges:', refreshedDemands)
         setServiceCharges(refreshedDemands)
       } catch (refreshError) {
-        console.warn('Failed to refresh service charges, using fallback:', refreshError)
-        // If Firebase fails, try to get from localStorage as fallback
-        const mockDemands = JSON.parse(localStorage.getItem('mockServiceCharges') || '[]')
-        const buildingMockDemands = mockDemands.filter((demand: any) => demand.buildingId === selectedBuildingId)
-        
-        console.log('All mock demands:', mockDemands)
-        console.log('Filtered mock demands for building', selectedBuildingId, ':', buildingMockDemands)
-        
-        if (buildingMockDemands.length > 0) {
-          setServiceCharges(buildingMockDemands)
-          console.log('Using filtered mock service charges from localStorage:', buildingMockDemands)
-        } else if (mockDemands.length > 0) {
-          // If no building-specific demands found, but we have demands, show all as fallback
-          console.log('No building-specific demands found, showing all mock demands as fallback')
-          setServiceCharges(mockDemands)
-        } else {
-          console.log('No mock service charges found at all')
-          setServiceCharges([])
-        }
+        console.error('Failed to refresh service charges:', refreshError)
+        addNotification({ 
+          userId: currentUser?.id || '', 
+          title: 'Warning', 
+          message: 'Service charges generated but failed to refresh data immediately. Please refresh the page.', 
+          type: 'warning' 
+        })
       }
       
     } catch (error) {
@@ -754,6 +1042,11 @@ const Finances: React.FC = () => {
     }
   }
 
+  // Show loading spinner while buildings or initial financial data are loading
+  if (buildingsLoading || (loading && !budget && serviceCharges.length === 0 && invoices.length === 0 && expenses.length === 0)) {
+    return <PageLoading message="Loading financial data..." />
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -765,34 +1058,6 @@ const Finances: React.FC = () => {
           </div>
         </div>
 
-        {/* Cash Flow Alert - moved to top */}
-        {financialSummary && financialSummary.forecastExpenses > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-sm font-medium text-primary-900 font-inter">Cash Flow Analysis</h3>
-                <div className="mt-2 text-sm text-primary-700 font-inter">
-                  <p className="mb-2">
-                    Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
-                    but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
-                    committed expenses from completed tickets awaiting invoices.
-                  </p>
-                  <p className={`font-medium ${
-                    financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
-                  }`}>
-                    {financialSummary.adjustedCashPosition >= 0 
-                      ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
-                      : `⚠️  You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
-                    }
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Tab Navigation */}
         <div className="border-b border-neutral-200">
@@ -901,29 +1166,10 @@ const Finances: React.FC = () => {
                     onChange={(value) => setSelectedPeriod(value)}
                     placeholder="Select period..."
                     className="min-w-[350px]"
+                    existingDemands={serviceCharges}
                   />
-<Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => {
-                      // Clear all mock data and restart
-                      localStorage.removeItem('mockFlats')
-                      localStorage.removeItem('mockServiceCharges')
-                      setFlats([])
-                      setServiceCharges([])
-                      console.log('Cleared all mock data - ready for fresh start')
-                      addNotification({ 
-                        userId: currentUser?.id || '', 
-                        title: 'Info', 
-                        message: 'Cleared all mock data. You can now create fresh sample flats and service charges.', 
-                        type: 'info' 
-                      })
-                    }}
-                  >
-                    Clear Data
-                  </Button>
-<Button onClick={handleGenerateDemands} disabled={loading || !selectedBuildingId} leftIcon={<Plus className="h-4 w-4" />}>
-                    Generate Demands
+                  <Button onClick={handleGenerateDemands} disabled={loading || !selectedBuildingId}>
+                    Issue Demands
                   </Button>
                 </div>
               </div>
@@ -954,105 +1200,345 @@ const Finances: React.FC = () => {
                 </div>
               </div>
 
-              {/* Demands Table */}
-              <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+              {/* Demands Accordion by Period */}
+              <div data-demands-section className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
                 <div className="px-6 py-4 border-b border-neutral-200">
                   <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-neutral-50">
-                      <tr>
-                        <SortableHeader field="flatNumber">Flat</SortableHeader>
-                        <SortableHeader field="residentName">Resident</SortableHeader>
-                        <SortableHeader field="totalAmountDue">Amount Due</SortableHeader>
-                        <SortableHeader field="outstandingAmount">Outstanding</SortableHeader>
-                        <SortableHeader field="dueDate">Due Date</SortableHeader>
-                        <SortableHeader field="status">Status</SortableHeader>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {sortedServiceCharges.map((demand) => (
-                        <tr key={demand.id} className="hover:bg-neutral-50">
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 font-inter">
-                            {demand.flatNumber}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {demand.residentName}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {formatCurrency(demand.totalAmountDue || 0)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {formatCurrency(demand.outstandingAmount || 0)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {new Date(demand.dueDate).toLocaleDateString('en-GB')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
-                              demand.status === ServiceChargeDemandStatus.PAID
-                                ? 'bg-success-100 text-success-800'
-                                : demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : demand.status === ServiceChargeDemandStatus.OVERDUE
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-neutral-100 text-gray-800'
-                            }`}>
-                              {(demand.status === ServiceChargeDemandStatus.ISSUED || demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID) && new Date(demand.dueDate) < new Date() ? 'Overdue' : demand.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleViewDemandDetails(demand)}
-                                className="text-primary-600 hover:text-blue-800 font-inter"
-                                title="View Details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </button>
-                              {demand.status !== 'Paid' && (
-                                <button
-                                  onClick={() => handleRecordPayment(demand)}
-                                  className="text-success-600 hover:text-success-800 font-inter"
-                                  title="Record Payment"
-                                >
-                                  <CreditCard className="h-4 w-4" />
-                                </button>
-                              )}
-                              {demand.status !== 'Paid' && (
-                                <button
-                                  onClick={() => handleSendReminder(demand)}
-                                  className="text-orange-600 hover:text-orange-800 font-inter"
-                                  title="Send Reminder"
-                                >
-                                  <Send className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {serviceCharges.length === 0 && (
-                    <div className="text-center py-12">
-                      <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
-                      <p className="text-gray-600 font-inter">Generate demands for the selected period to get started</p>
-                    </div>
+                  {Object.keys(groupedServiceCharges).length > 1 && (
+                    <p className="text-sm text-gray-600 font-inter mt-1">
+                      Grouped by period • Click to expand/collapse periods
+                    </p>
                   )}
                 </div>
+                
+                {Object.keys(groupedServiceCharges).length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
+                    <p className="text-gray-600 font-inter">Generate demands for the selected period to get started</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-neutral-200">
+                    {Object.entries(groupedServiceCharges).map(([period, demands], periodIndex) => {
+                      const isExpanded = expandedPeriods.has(period)
+                      const periodTotal = demands.reduce((sum, d) => sum + (d.totalAmountDue || 0), 0)
+                      const periodOutstanding = demands.reduce((sum, d) => sum + (d.outstandingAmount || 0), 0)
+                      const periodPaid = demands.filter(d => d.status === ServiceChargeDemandStatus.PAID).length
+                      const periodOverdue = demands.filter(d => 
+                        (d.status === ServiceChargeDemandStatus.ISSUED || d.status === ServiceChargeDemandStatus.PARTIALLY_PAID) &&
+                        new Date(d.dueDate) < new Date()
+                      ).length
+                      
+                      return (
+                        <div key={period} className="">
+                          {/* Period Header */}
+                          <div 
+                            className="px-6 py-4 bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors duration-200 flex items-center justify-between"
+                            onClick={() => togglePeriodExpansion(period)}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <ChevronDown 
+                                className={`h-5 w-5 text-neutral-500 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-0' : '-rotate-90'
+                                }`}
+                              />
+                              <div>
+                                <h4 className="text-lg font-semibold text-neutral-900 font-inter">{period}</h4>
+                                <div className="flex items-center space-x-4 mt-1">
+                                  <span className="text-sm text-neutral-600 font-inter">
+                                    {demands.length} demands • {formatCurrency(periodTotal)} total
+                                  </span>
+                                  {periodOutstanding > 0 && (
+                                    <span className="text-sm text-orange-600 font-inter">
+                                      {formatCurrency(periodOutstanding)} outstanding
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                              {periodPaid > 0 && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-800">
+                                  {periodPaid} paid
+                                </span>
+                              )}
+                              {periodOverdue > 0 && (
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                  {periodOverdue} overdue
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Period Content */}
+                          {isExpanded && (
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full divide-y divide-gray-200">
+                                {periodIndex === 0 && (
+                                  <thead className="bg-neutral-50">
+                                    <tr>
+                                      <SortableHeader field="flatNumber">Flat</SortableHeader>
+                                      <SortableHeader field="residentName">Resident</SortableHeader>
+                                      <SortableHeader field="totalAmountDue">Amount Due</SortableHeader>
+                                      <SortableHeader field="outstandingAmount">Outstanding</SortableHeader>
+                                      <SortableHeader field="dueDate">Due Date</SortableHeader>
+                                      <SortableHeader field="status">Status</SortableHeader>
+                                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Actions</th>
+                                    </tr>
+                                  </thead>
+                                )}
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                  {demands.map((demand) => (
+                                    <tr key={demand.id} className="hover:bg-neutral-50">
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 font-inter">
+                                        {demand.flatNumber}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                        {demand.residentName}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                        {formatCurrency(demand.totalAmountDue || 0)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                        {formatCurrency(demand.outstandingAmount || 0)}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                        {new Date(demand.dueDate).toLocaleDateString('en-GB')}
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
+                                          demand.status === ServiceChargeDemandStatus.PAID
+                                            ? 'bg-success-100 text-success-800'
+                                            : demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
+                                            ? 'bg-yellow-100 text-yellow-800'
+                                            : demand.status === ServiceChargeDemandStatus.OVERDUE
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-neutral-100 text-gray-800'
+                                        }`}>
+                                          {(demand.status === ServiceChargeDemandStatus.ISSUED || demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID) && new Date(demand.dueDate) < new Date() ? 'Overdue' : demand.status}
+                                        </span>
+                                      </td>
+                                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                        <div className="flex items-center space-x-2">
+                                          <button
+                                            onClick={() => handleViewDemandDetails(demand)}
+                                            className="text-primary-600 hover:text-blue-800 font-inter"
+                                            title="View Details"
+                                          >
+                                            <Eye className="h-4 w-4" />
+                                          </button>
+                                          {demand.status !== 'Paid' && (
+                                            <button
+                                              onClick={() => handleRecordPayment(demand)}
+                                              className="text-success-600 hover:text-success-800 font-inter"
+                                              title="Record Payment"
+                                            >
+                                              <CreditCard className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                          {demand.status !== 'Paid' && (
+                                            <button
+                                              onClick={() => handleSendReminder(demand)}
+                                              className="text-orange-600 hover:text-orange-800 font-inter"
+                                              title="Send Reminder"
+                                            >
+                                              <Send className="h-4 w-4" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {activeTab === 'invoices' && (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-neutral-900 font-inter">Invoices</h3>
-              <p className="text-gray-600 font-inter">Invoice management features will be available soon</p>
+            <div className="space-y-6">
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-neutral-900 font-inter">Invoices</h3>
+                <p className="text-gray-600 font-inter">Invoice management features will be available soon</p>
+              </div>
+              
+              {/* Development Proposal */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <FileText className="h-6 w-6 text-blue-600 mt-1" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-blue-900 mb-4">📋 Invoice Management System - Development Proposal</h3>
+                    <div className="bg-white rounded-lg p-6 border border-blue-200">
+                      <div className="prose prose-sm max-w-none text-gray-800 leading-relaxed">
+                        <div className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
+{`🎯 CORE INVOICE MANAGEMENT FEATURES
+
+1. Multi-Channel Invoice Input
+• Drag & Drop Zone: Large, prominent area for dragging PDF/image files directly into the app
+• File Upload: Traditional file picker supporting batch uploads (multiple files/folders)
+• Email Integration:
+  - Dedicated email address for the building (e.g., invoices-building123@yourapp.com)
+  - Email forwarding with automatic attachment extraction
+  - Email parsing to extract vendor info from sender/subject
+
+2. Intelligent File Processing & OCR
+• Automatic Data Extraction:
+  - Vendor name, invoice number, date, amount, line items
+  - Tax/VAT identification
+  - Due dates and payment terms
+• File Format Support: PDF, JPG, PNG, TIFF
+• Multi-page Document Handling: Split or keep as single invoice
+
+3. Smart File Naming & Organization
+Auto-generated naming convention:
+  YYYY-MM-DD_VendorName_InvoiceNumber_Amount.pdf
+  2024-03-15_AcmePlumbing_INV001234_£450.00.pdf
+
+• Manual Override: Allow editing of auto-generated names
+• Duplicate Detection: Flag potential duplicates based on vendor/amount/date
+• Version Control: Handle invoice revisions/corrections
+
+4. Advanced Search & Filtering
+• Full-text Search: Search within invoice content (OCR'd text)
+• Filter by:
+  - Date range, vendor, amount range
+  - Invoice status (pending, paid, overdue, disputed)
+  - Category/expense type
+  - Associated ticket/work order
+• Quick Filters: "This month", "Overdue", "High value (>£1000)"
+
+5. Expense Reconciliation Engine
+
+Automatic Matching:
+• Ticket-to-Invoice Matching:
+  - Match by vendor name and approximate amount
+  - Match by work description/location
+  - Date proximity (invoice within reasonable timeframe of ticket completion)
+• Smart Suggestions: "This invoice might relate to Ticket #TKT-123 (Boiler Repair - £445)"
+
+Manual Linking Interface:
+• Side-by-side View: Show invoice details alongside potential expense forecasts
+• Drag & Drop Linking: Drag invoice onto expense forecast to link them
+• Bulk Actions: Link multiple invoices to large work orders
+
+6. Invoice Status Workflow
+Received → Under Review → Approved → Scheduled for Payment → Paid → Archived
+                ↓
+           Disputed/Rejected → Vendor Communication
+
+7. Approval & Authorization System
+• Approval Thresholds: Auto-approve <£200, require approval >£1000
+• Multi-level Approval: Building Manager → Regional Manager → Finance Team
+• Approval History: Track who approved what and when
+
+🔧 TECHNICAL IMPLEMENTATION APPROACH
+
+File Storage Strategy:
+• Cloud Storage: AWS S3/Google Cloud for scalability
+• CDN Integration: Fast file access globally
+• Backup & Versioning: Automatic backups with version history
+
+OCR & AI Integration:
+• OCR Engine: Google Vision API or AWS Textract for text extraction
+• AI Enhancement:
+  - GPT-4 Vision for complex invoice layouts
+  - Custom training for common UK invoice formats
+  - Learning from user corrections
+
+Email Integration Options:
+1. Dedicated Email Service:
+   - Unique email per building
+   - Automatic forwarding rules
+   - Parse sender domain for vendor identification
+
+2. Email API Integration:
+   - Gmail/Outlook API access
+   - Rule-based processing
+   - Attachment extraction
+
+Database Schema Considerations:
+invoices:
+- id, building_id, vendor_id, invoice_number
+- amount, currency, tax_amount, net_amount
+- invoice_date, due_date, received_date
+- status, approval_status, payment_date
+- file_path, original_filename, ocr_text
+- linked_expense_id, linked_ticket_id
+
+invoice_line_items:
+- invoice_id, description, quantity, unit_price, total
+- category, expense_type
+
+vendor_mappings:
+- email_domain, vendor_name, default_category
+
+📱 USER EXPERIENCE DESIGN
+
+Dashboard Integration:
+• Invoice Alerts: "3 new invoices need review"
+• Overdue Warnings: "2 invoices overdue for payment"
+• Reconciliation Status: "5 expenses awaiting invoice match"
+
+Workflow Efficiency:
+• Batch Operations: Select multiple invoices for bulk approval/payment
+• Keyboard Shortcuts: Quick navigation and actions
+• Mobile Optimized: Review/approve invoices on mobile devices
+
+Vendor Management:
+• Vendor Profiles: Contact info, payment terms, tax details
+• Performance Tracking: Average payment time, dispute history
+• Communication Log: Track email exchanges about invoices
+
+🎯 PROPOSED MVP FEATURES (Phase 1)
+
+1. Basic Upload: Drag & drop + file picker
+2. OCR Processing: Extract key fields (vendor, amount, date)
+3. Manual Review Interface: Confirm/edit extracted data
+4. Simple Search: By vendor, date, amount
+5. Expense Linking: Manual linking to forecast expenses
+6. Status Tracking: Received → Approved → Paid
+
+🚀 ADVANCED FEATURES (Phase 2+)
+
+1. Email Integration: Automated email processing
+2. AI-Powered Matching: Automatic expense reconciliation
+3. Approval Workflows: Multi-level approval system
+4. Payment Integration: Connect to accounting systems
+5. Analytics: Vendor performance, spending patterns
+6. Mobile App: Invoice approval on-the-go
+
+🔄 INTEGRATION POINTS
+
+• Expenses Tab: Seamless linking to forecast expenses
+• Tickets System: Auto-suggest invoice-to-ticket relationships
+• Vendor Management: Central vendor database
+• Accounting Export: QuickBooks, Xero integration
+• Bank Reconciliation: Match payments to invoices
+
+💡 IMPLEMENTATION PRIORITY
+
+Recommended starting point: Basic upload and OCR functionality, then build out the reconciliation features with the existing expense forecasting system.`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <p className="text-sm text-blue-700 font-medium">
+                        💭 This comprehensive proposal outlines the complete invoice management system we can build to handle drag & drop uploads, email forwarding, OCR processing, expense reconciliation, and approval workflows.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 

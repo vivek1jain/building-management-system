@@ -22,25 +22,38 @@ import {
   RefreshCw,
   Home,
   ChevronDown,
-  FileText
+  FileText,
+  Receipt
 } from 'lucide-react'
 import { getAllBuildings } from '../services/buildingService'
 import { ticketService } from '../services/ticketService'
-import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel } from '../types'
-import { Button, Card, CardHeader, CardTitle, CardContent } from '../components/UI'
+import { budgetService } from '../services/budgetService'
+import { getServiceChargeDemands } from '../services/serviceChargeService'
+import { getInvoicesByBuilding } from '../services/invoiceService'
+import { expenseService } from '../services/expenseService'
+import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel, Budget, ServiceChargeDemand, Invoice, InvoiceStatus } from '../types'
+import { Button, Card, CardHeader, CardTitle, CardContent, PageLoading, WidgetSkeleton, SectionLoading, ListItemSkeleton } from '../components/UI'
 
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
-  const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData, setSelectedBuildingId } = useBuilding()
+  const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
   const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(false)
+  const [ticketsLoading, setTicketsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  
+  // Financial data state
+  const [budget, setBudget] = useState<Budget | null>(null)
+  const [serviceCharges, setServiceCharges] = useState<ServiceChargeDemand[]>([])
+  const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [expenses, setExpenses] = useState<any[]>([])
+  const [financialDataLoading, setFinancialDataLoading] = useState(false)
 
-  // Load tickets when selected building changes
+  // Load tickets and financial data when selected building changes
   useEffect(() => {
     if (selectedBuildingId) {
       loadTickets()
+      loadFinancialData()
     }
   }, [selectedBuildingId])
 
@@ -48,6 +61,7 @@ const Dashboard: React.FC = () => {
     if (!selectedBuildingId) return
     
     try {
+      setTicketsLoading(true)
       setRefreshing(true)
       console.log('🎫 Loading all tickets from Firebase...')
       const allTickets = await ticketService.getTickets()
@@ -61,6 +75,7 @@ const Dashboard: React.FC = () => {
       console.error('❌ Error loading tickets:', error)
       // Don't show notification for ticket loading errors as this is less critical
     } finally {
+      setTicketsLoading(false)
       setRefreshing(false)
     }
   }
@@ -70,6 +85,92 @@ const Dashboard: React.FC = () => {
     await loadTickets()
     setRefreshing(false)
   }
+  
+  const loadFinancialData = async () => {
+    if (!selectedBuildingId) return
+    
+    try {
+      setFinancialDataLoading(true)
+      const [budgetData, demandsData, invoicesData, expensesData] = await Promise.all([
+        budgetService.getBudgetsByBuilding(selectedBuildingId),
+        getServiceChargeDemands(selectedBuildingId),
+        getInvoicesByBuilding(selectedBuildingId),
+        expenseService.getExpensesByBuilding(selectedBuildingId)
+      ])
+      
+      setBudget(budgetData.length > 0 ? budgetData[0] : null)
+      setServiceCharges(demandsData)
+      setInvoices(invoicesData)
+      setExpenses(expensesData)
+    } catch (error) {
+      console.error('Error loading financial data for dashboard:', error)
+      // Don't show notification as this is less critical for dashboard
+    } finally {
+      setFinancialDataLoading(false)
+    }
+  }
+  
+  // Calculate financial summary
+  const getFinancialSummary = () => {
+    if (!selectedBuildingId) {
+      return {
+        totalIncome: 0,
+        totalExpenditure: 0,
+        netPosition: 0,
+        outstanding: 0,
+        forecastExpenses: 0,
+        adjustedCashPosition: 0
+      }
+    }
+
+    // Calculate totals from real budget data loaded from Firebase
+    let totalIncome = 0
+    let totalExpenditure = 0
+    
+    if (budget && budget.categories) {
+      budget.categories.forEach(category => {
+        if (category.type === 'income') {
+          totalIncome += category.actualAmount || 0
+        } else if (category.type === 'expenditure') {
+          totalExpenditure += category.actualAmount || 0
+        }
+      })
+    }
+    
+    const netPosition = totalIncome - totalExpenditure
+    
+    // Calculate outstanding amounts from real Firebase data
+    const outstandingServiceCharges = serviceCharges.reduce((sum, sc) => sum + (sc.outstandingAmount || 0), 0)
+    const outstandingInvoices = invoices.filter(inv => inv.status === InvoiceStatus.PENDING || inv.paymentStatus === 'overdue')
+                                      .reduce((sum, inv) => sum + (inv.amount || 0), 0)
+    const outstanding = outstandingServiceCharges + outstandingInvoices
+    
+    // Calculate forecast expenses (expenses in forecast status)
+    const forecastExpenses = expenses
+      .filter(expense => expense.status === 'forecast')
+      .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+    
+    // Calculate adjusted cash position (current cash position minus committed forecast expenses)
+    const adjustedCashPosition = netPosition - forecastExpenses
+    
+    return {
+      totalIncome,
+      totalExpenditure,
+      netPosition,
+      outstanding,
+      forecastExpenses,
+      adjustedCashPosition
+    }
+  }
+  
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-GB', {
+      style: 'currency',
+      currency: 'GBP'
+    }).format(amount)
+  }
+  
+  const financialSummary = getFinancialSummary()
 
   // Calculate metrics from real Firebase data
   const calculateMetrics = () => {
@@ -206,6 +307,11 @@ const Dashboard: React.FC = () => {
     )
   }
 
+  // Show loading spinner while buildings are loading
+  if (buildingsLoading) {
+    return <PageLoading message="Loading dashboard..." />
+  }
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -276,7 +382,13 @@ const Dashboard: React.FC = () => {
                 </div>
               </CardHeader>
               <div className="divide-y divide-gray-200">
-                {urgentItems.length === 0 ? (
+                {ticketsLoading ? (
+                  <div className="py-4">
+                    {Array.from({ length: 3 }).map((_, index) => (
+                      <ListItemSkeleton key={index} className="px-6" />
+                    ))}
+                  </div>
+                ) : urgentItems.length === 0 ? (
                   <div className="text-center py-8">
                     <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
                     <h3 className="mt-2 text-sm font-medium">No urgent items</h3>
@@ -285,7 +397,7 @@ const Dashboard: React.FC = () => {
                 ) : (
 <div className="divide-y divide-gray-200">
                     {urgentItems.slice(0, 5).map((item) => (
-                      <div key={`${item.type}-${item.id}`} className="py-4 flex items-center justify-between">
+                      <div key={`${item.type}-${item.id}`} className="py-4 flex items-center justify-between px-6">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 mr-3">
                             {getTypeIcon(item.type)}
@@ -387,6 +499,42 @@ const Dashboard: React.FC = () => {
 </Link>
               </div>
             </Card>
+            
+            {/* Cash Flow Analysis Widget */}
+            {selectedBuildingId && financialSummary && financialSummary.forecastExpenses > 0 && (
+              <Card padding="none" shadow="sm" className="bg-blue-50 border border-blue-200">
+                <div className="p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-sm font-medium text-primary-900 font-inter">Cash Flow Analysis</h3>
+                      <div className="mt-2 text-sm text-primary-700 font-inter">
+                        <p className="mb-2">
+                          Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
+                          but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
+                          committed expenses from completed tickets awaiting invoices.
+                        </p>
+                        <p className={`font-medium ${
+                          financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
+                        }`}>
+                          {financialSummary.adjustedCashPosition >= 0 
+                            ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
+                            : `⚠️ You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
+                          }
+                        </p>
+                      </div>
+                      <div className="mt-3">
+                        <Link to="/finances" className="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                          View Full Financial Details →
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            )}
           </div>
         </div>
 
@@ -398,33 +546,41 @@ const Dashboard: React.FC = () => {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {tickets
-                  .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                  .slice(0, 5)
-                  .map((item) => (
-                    <div key={item.id} className="flex items-start space-x-3">
-                      <div className="flex-shrink-0">
-<FileText className="h-5 w-5 text-blue-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-<p className="text-sm font-medium text-neutral-900">
-                          {item.title}
+                {ticketsLoading ? (
+                  Array.from({ length: 5 }).map((_, index) => (
+                    <ListItemSkeleton key={index} />
+                  ))
+                ) : (
+                  <>
+                    {tickets
+                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                      .slice(0, 5)
+                      .map((item) => (
+                        <div key={item.id} className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <FileText className="h-5 w-5 text-blue-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-neutral-900">
+                              {item.title}
+                            </p>
+                            <p className="text-sm text-neutral-500">
+                              Ticket • {formatTimeAgo(item.updatedAt)}
+                            </p>
+                          </div>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                            {item.status}
+                          </span>
+                        </div>
+                      ))}
+                    {tickets.length === 0 && !ticketsLoading && (
+                      <div className="text-center py-8">
+                        <p className="text-neutral-500">
+                          No recent activity to show
                         </p>
-                        <p className="text-sm text-neutral-500">
-                          Ticket • {formatTimeAgo(item.updatedAt)}
-                        </p>
                       </div>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
-                        {item.status}
-                      </span>
-                    </div>
-                  ))}
-                {tickets.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-neutral-500">
-                      No recent activity to show
-                    </p>
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

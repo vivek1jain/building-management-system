@@ -1,7 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BarChart3, FileText, TrendingUp, PieChart } from 'lucide-react';
+import { SectionLoading } from '../components/UI';
 
 const Reports: React.FC = () => {
+  const [generatingReport, setGeneratingReport] = useState<string | null>(null);
+
+  const handleGenerateReport = async (reportType: string) => {
+    setGeneratingReport(reportType);
+    // Simulate report generation
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    setGeneratingReport(null);
+    // Here you would typically trigger the actual report generation
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -26,17 +37,30 @@ const Reports: React.FC = () => {
                 <p className="text-sm text-gray-600 font-inter">Budget vs. actual analysis and variance reports</p>
               </div>
             </div>
-            <div className="space-y-2">
-              <button className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter">
-                Budget vs. Actual Report
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter">
-                Budget Variance Analysis
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter">
-                Quarterly Budget Summary
-              </button>
-            </div>
+            {generatingReport?.startsWith('budget') ? (
+              <SectionLoading message="Generating budget report..." size="md" />
+            ) : (
+              <div className="space-y-2">
+                <button 
+                  onClick={() => handleGenerateReport('budget-vs-actual')}
+                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter"
+                >
+                  Budget vs. Actual Report
+                </button>
+                <button 
+                  onClick={() => handleGenerateReport('budget-variance')}
+                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter"
+                >
+                  Budget Variance Analysis
+                </button>
+                <button 
+                  onClick={() => handleGenerateReport('budget-quarterly')}
+                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter"
+                >
+                  Quarterly Budget Summary
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Financial Statements */}
@@ -50,17 +74,30 @@ const Reports: React.FC = () => {
                 <p className="text-sm text-gray-600 font-inter">Income statements and cash flow reports</p>
               </div>
             </div>
-            <div className="space-y-2">
-              <button className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter">
-                Income Statement
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter">
-                Cash Flow Statement
-              </button>
-              <button className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter">
-                Balance Sheet Summary
-              </button>
-            </div>
+            {generatingReport?.startsWith('financial') ? (
+              <SectionLoading message="Generating financial statement..." size="md" />
+            ) : (
+              <div className="space-y-2">
+                <button 
+                  onClick={() => handleGenerateReport('financial-income')}
+                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter"
+                >
+                  Income Statement
+                </button>
+                <button 
+                  onClick={() => handleGenerateReport('financial-cashflow')}
+                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter"
+                >
+                  Cash Flow Statement
+                </button>
+                <button 
+                  onClick={() => handleGenerateReport('financial-balance')}
+                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-50 rounded-md font-inter"
+                >
+                  Balance Sheet Summary
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Service Charge Reports */}

@@ -16,7 +16,7 @@ import { FinancialSetup } from '../components/Settings/FinancialSetup';
 import { SecuritySettings } from '../components/Settings/SecuritySettings';
 import { AppearanceSettings } from '../components/Settings/AppearanceSettings';
 import { TestingSettings } from '../components/Settings/TestingSettings';
-import { Button, Card, CardContent } from '../components/UI';
+import { Button, Card, CardContent, TabLoadingSkeleton } from '../components/UI';
 
 // Settings-specific interfaces
 interface SettingsBuilding {
@@ -51,8 +51,17 @@ const Settings: React.FC = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   
-  // State for active tab
+  // State for active tab and loading
   const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial' | 'security' | 'appearance' | 'testing'>('buildings');
+  const [loading, setLoading] = useState(false);
+  
+  const handleTabChange = async (tab: typeof activeTab) => {
+    setLoading(true);
+    setActiveTab(tab);
+    // Simulate loading delay for settings
+    await new Promise(resolve => setTimeout(resolve, 500));
+    setLoading(false);
+  };
   
   // Building Management State
   const [buildings, setBuildings] = useState<SettingsBuilding[]>([
@@ -103,7 +112,7 @@ const Settings: React.FC = () => {
         <div className="border-b border-neutral-200">
           <nav className="-mb-px flex space-x-8">
             <button
-              onClick={() => setActiveTab('buildings')}
+              onClick={() => handleTabChange('buildings')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'buildings'
                   ? 'border-blue-500 text-primary-600'
@@ -114,7 +123,7 @@ const Settings: React.FC = () => {
               Building Management
             </button>
             <button
-              onClick={() => setActiveTab('users')}
+              onClick={() => handleTabChange('users')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'users'
                   ? 'border-blue-500 text-primary-600'
@@ -125,7 +134,7 @@ const Settings: React.FC = () => {
               User Management
             </button>
             <button
-              onClick={() => setActiveTab('financial')}
+              onClick={() => handleTabChange('financial')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'financial'
                   ? 'border-blue-500 text-primary-600'
@@ -136,7 +145,7 @@ const Settings: React.FC = () => {
               Financial Setup
             </button>
             <button
-              onClick={() => setActiveTab('security')}
+              onClick={() => handleTabChange('security')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'security'
                   ? 'border-blue-500 text-primary-600'
@@ -147,7 +156,7 @@ const Settings: React.FC = () => {
               Security & Access
             </button>
             <button
-              onClick={() => setActiveTab('appearance')}
+              onClick={() => handleTabChange('appearance')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'appearance'
                   ? 'border-blue-500 text-primary-600'
@@ -158,7 +167,7 @@ const Settings: React.FC = () => {
               Appearance
             </button>
             <button
-              onClick={() => setActiveTab('testing')}
+              onClick={() => handleTabChange('testing')}
               className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'testing'
                   ? 'border-blue-500 text-primary-600'
@@ -173,61 +182,67 @@ const Settings: React.FC = () => {
 
         {/* Tab Content */}
         <div className="space-y-6">
-          {/* Building Management Tab */}
-          {activeTab === 'buildings' && (
-            <BuildingManagement 
-              buildings={buildings} 
-              setBuildings={setBuildings}
-              addNotification={addNotification}
-              currentUser={currentUser}
-            />
-          )}
+          {loading ? (
+            <TabLoadingSkeleton />
+          ) : (
+            <>
+              {/* Building Management Tab */}
+              {activeTab === 'buildings' && (
+                <BuildingManagement 
+                  buildings={buildings} 
+                  setBuildings={setBuildings}
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
 
-          {/* User Management Tab */}
-          {activeTab === 'users' && (
-            <UserManagement 
-              users={users} 
-              setUsers={setUsers}
-              buildings={buildings}
-              addNotification={addNotification}
-              currentUser={currentUser}
-            />
-          )}
+              {/* User Management Tab */}
+              {activeTab === 'users' && (
+                <UserManagement 
+                  users={users} 
+                  setUsers={setUsers}
+                  buildings={buildings}
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
 
-          {/* Financial Setup Tab */}
-          {activeTab === 'financial' && (
-            <FinancialSetup 
-              financialYear={financialYear}
-              setFinancialYear={setFinancialYear}
-              addNotification={addNotification}
-              currentUser={currentUser}
-            />
-          )}
+              {/* Financial Setup Tab */}
+              {activeTab === 'financial' && (
+                <FinancialSetup 
+                  financialYear={financialYear}
+                  setFinancialYear={setFinancialYear}
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
 
-          {/* Security & Access Tab */}
-          {activeTab === 'security' && (
-            <SecuritySettings 
-              securitySettings={securitySettings}
-              setSecuritySettings={setSecuritySettings}
-              addNotification={addNotification}
-              currentUser={currentUser}
-            />
-          )}
+              {/* Security & Access Tab */}
+              {activeTab === 'security' && (
+                <SecuritySettings 
+                  securitySettings={securitySettings}
+                  setSecuritySettings={setSecuritySettings}
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
 
-          {/* Appearance Tab */}
-          {activeTab === 'appearance' && (
-            <AppearanceSettings 
-              addNotification={addNotification}
-              currentUser={currentUser}
-            />
-          )}
+              {/* Appearance Tab */}
+              {activeTab === 'appearance' && (
+                <AppearanceSettings 
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
 
-          {/* Testing Tab */}
-          {activeTab === 'testing' && (
-            <TestingSettings 
-              addNotification={addNotification}
-              currentUser={currentUser}
-            />
+              {/* Testing Tab */}
+              {activeTab === 'testing' && (
+                <TestingSettings 
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
