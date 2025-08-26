@@ -15,6 +15,7 @@ import { BuildingEvent, Ticket } from '../../types'
 import Modal, { ModalFooter } from '../UI/Modal'
 import Button from '../UI/Button'
 import { Dropdown, DropdownOption } from '../UI'
+import { getUserDisplayName, getFirstName } from '../../services/userLookupService'
 
 interface Supplier {
   id: string
@@ -51,6 +52,7 @@ const ScheduleModal = ({
   const [notes, setNotes] = useState('')
   const [loading, setLoading] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [requestedByName, setRequestedByName] = useState<string>('Loading...')
   
   // Direct scheduling fields
   const [selectedSupplier, setSelectedSupplier] = useState<string>('')
@@ -78,12 +80,33 @@ const ScheduleModal = ({
     }
   }
 
+  // Load user display name when modal opens  
+  React.useEffect(() => {
+    const loadUserName = async () => {
+      if (isOpen && ticket.requestedBy) {
+        try {
+          const displayName = await getUserDisplayName(ticket.requestedBy)
+          setRequestedByName(getFirstName(displayName))
+        } catch (error) {
+          console.error('Failed to load user name:', error)
+          setRequestedByName(getFirstName(ticket.requestedBy))
+        }
+      }
+    }
+    loadUserName()
+  }, [isOpen, ticket.requestedBy])
+
   // Load suppliers when modal opens
   React.useEffect(() => {
     if (isOpen && allowDirectScheduling) {
       loadSuppliers()
     }
-  }, [isOpen, allowDirectScheduling])
+    
+    // Pre-populate expected cost when modal opens
+    if (isOpen && preSelectedCost) {
+      setExpectedCost(preSelectedCost)
+    }
+  }, [isOpen, allowDirectScheduling, preSelectedCost])
 
   if (!isOpen) return null
 
@@ -172,6 +195,21 @@ const ScheduleModal = ({
     return today.toISOString().split('T')[0]
   }
 
+  // Format date for display (e.g., "28 Aug 2025")
+  const formatDateForDisplay = (dateString: string): string => {
+    if (!dateString) return ''
+    try {
+      const date = new Date(dateString + 'T00:00:00') // Ensure consistent parsing
+      return date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      })
+    } catch (error) {
+      return dateString
+    }
+  }
+
   // Time slot options
   const timeOptions: DropdownOption[] = [
     { value: '08:00', label: '08:00 AM', icon: <Clock className="h-4 w-4" /> },
@@ -198,20 +236,90 @@ const ScheduleModal = ({
   // Convert suppliers to dropdown options
   const supplierOptions: DropdownOption[] = suppliers.map((supplier) => ({
     value: supplier.id,
-    label: supplier.companyName || supplier.name,
+    label: supplier.companyName || 'Unknown Supplier',
     description: `${supplier.email} • ${supplier.phone}`,
     icon: <User className="h-4 w-4" />
   }))
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Schedule Work"
-      description="Plan work for this ticket"
-      size="md"
-    >
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <>
+      {/* Custom styles to ensure date picker consistency */}
+      <style>
+        {`
+          /* Override default date picker styles */
+          input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 0;
+            position: absolute;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+          }
+          
+          input[type="date"]::-webkit-inner-spin-button,
+          input[type="date"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+          }
+          
+          input[type="date"]::-webkit-datetime-edit {
+            opacity: 0;
+          }
+          
+          input[type="date"]:focus {
+            outline: none !important;
+            box-shadow: 0 0 0 2px rgb(59 130 246 / 0.5) !important;
+          }
+          
+          /* Remove any residual background colors */
+          input[type="date"]:hover,
+          input[type="date"]:active,
+          input[type="date"]:focus {
+            background-color: white !important;
+            color: transparent !important;
+          }
+          
+          /* Ensure consistent font sizing and heights */
+          .schedule-modal input,
+          .schedule-modal button {
+            font-size: 0.875rem !important;
+            line-height: 1.25rem !important;
+            height: 42px !important;
+            min-height: 42px !important;
+            max-height: 42px !important;
+          }
+          
+          /* Override dropdown button styling to match inputs */
+          .schedule-modal button[role="combobox"],
+          .schedule-modal button[aria-haspopup="listbox"] {
+            padding: 8px 12px !important;
+            height: 42px !important;
+            min-height: 42px !important;
+            max-height: 42px !important;
+            box-sizing: border-box !important;
+          }
+          
+          /* Remove number input steppers */
+          input[type="number"]::-webkit-outer-spin-button,
+          input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none !important;
+            margin: 0 !important;
+          }
+          
+          input[type="number"] {
+            -moz-appearance: textfield !important;
+          }
+        `}
+      </style>
+      
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Schedule Work"
+        description="Plan work for this ticket"
+        size="md"
+      >
+      <form onSubmit={handleSubmit} className="schedule-modal space-y-4">
         {/* Ticket Info */}
         <div className="bg-neutral-50 p-4 rounded-lg">
           <h3 className="font-medium text-neutral-900 mb-2">{ticket.title}</h3>
@@ -221,7 +329,7 @@ const ScheduleModal = ({
           </div>
           <div className="flex items-center text-sm text-gray-600">
             <User className="h-4 w-4 mr-1" />
-            Requested by: {ticket.requestedBy}
+            Requested by: {requestedByName}
           </div>
         </div>
 
@@ -232,14 +340,31 @@ const ScheduleModal = ({
               <Calendar className="h-4 w-4 inline mr-1" />
               Date
             </label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              min={getMinDate()}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              required
-            />
+            <div className="relative">
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                min={getMinDate()}
+                className="w-full h-[42px] px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-transparent bg-white hover:bg-white active:bg-white"
+                style={{
+                  colorScheme: 'light',
+                  WebkitAppearance: 'none',
+                  MozAppearance: 'none'
+                }}
+                required
+              />
+              {/* Custom date display overlay */}
+              <div className="absolute inset-0 px-3 py-2 pointer-events-none flex items-center text-sm text-neutral-900 font-normal">
+                {selectedDate ? formatDateForDisplay(selectedDate) : (
+                  <span className="text-neutral-500">Select date...</span>
+                )}
+              </div>
+              {/* Calendar icon */}
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                <Calendar className="h-4 w-4 text-neutral-400" />
+              </div>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -266,8 +391,8 @@ const ScheduleModal = ({
                 Schedule with Supplier
               </h4>
               
-              {/* Supplier Selection and Expected Cost */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* Supplier Selection and Expected Cost - Vertical Stack */}
+              <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-neutral-700 mb-2">
                     <User className="h-4 w-4 inline mr-1" />
@@ -297,7 +422,7 @@ const ScheduleModal = ({
                       onChange={(e) => setExpectedCost(parseFloat(e.target.value) || 0)}
                       min="0"
                       step="0.01"
-                      className="w-full pl-8 pr-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-full h-[42px] pl-8 pr-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       placeholder="0.00"
                       required={allowDirectScheduling}
                     />
@@ -349,6 +474,7 @@ const ScheduleModal = ({
         </ModalFooter>
       </form>
     </Modal>
+  </>
   )
 }
 

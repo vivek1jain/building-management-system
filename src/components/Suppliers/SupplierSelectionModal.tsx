@@ -13,19 +13,22 @@ import { useNotifications } from '../../contexts/NotificationContext'
 import Modal, { ModalFooter } from '../UI/Modal'
 import Button from '../UI/Button'
 import DataTable, { Column } from '../UI/DataTable'
+import { Dropdown, DropdownOption } from '../UI'
 
 interface SupplierSelectionModalProps {
   isOpen: boolean
   onClose: () => void
   ticketId: string
   onQuotesRequested: () => void
+  excludeSupplierIds?: string[] // IDs of suppliers already contacted
 }
 
 const SupplierSelectionModal = ({ 
   isOpen, 
   onClose, 
   ticketId, 
-  onQuotesRequested 
+  onQuotesRequested,
+  excludeSupplierIds = []
 }: SupplierSelectionModalProps) => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
@@ -63,7 +66,7 @@ const SupplierSelectionModal = ({
 
   const filteredSuppliers = useMemo(() => {
     return suppliers.filter(supplier => {
-      const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
       
@@ -197,7 +200,14 @@ const SupplierSelectionModal = ({
       sortable: true,
       render: (value, supplier) => (
         <div>
-          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.name}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.companyName || 'Unknown Supplier'}</div>
+            {excludeSupplierIds.includes(supplier.id) && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                Already contacted
+              </span>
+            )}
+          </div>
           {supplier.companyName && (
             <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
           )}
@@ -248,7 +258,7 @@ const SupplierSelectionModal = ({
         </div>
       )
     }
-  ], [selectedSuppliers])
+  ], [selectedSuppliers, excludeSupplierIds])
 
   if (!isOpen) return null
 
@@ -260,70 +270,70 @@ const SupplierSelectionModal = ({
       description="Select suppliers to request quotes for this ticket"
       size="xl"
     >
-      {/* Filters */}
-      <div className="mb-6 space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-            <input
-              type="text"
-              placeholder="Search suppliers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+      <div className="flex flex-col h-full">
+        {/* Filters */}
+        <div className="mb-6 space-y-4 flex-shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+              <input
+                type="text"
+                placeholder="Search suppliers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+            <Dropdown
+              value={filterSpecialty}
+              onChange={setFilterSpecialty}
+              options={specialties.map(specialty => ({
+                value: specialty,
+                label: specialty === 'All' ? 'All Specialties' : specialty
+              }))}
+              placeholder="Filter by specialty"
+              className="min-w-[200px]"
+              size="md"
             />
           </div>
-          <div className="relative flex items-center gap-2">
-            <select
-              value={filterSpecialty}
-              onChange={(e) => setFilterSpecialty(e.target.value)}
-              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-            >
-              {specialties.map(specialty => (
-                <option key={specialty} value={specialty}>
-                  {specialty === 'All' ? 'All Specialties' : specialty}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+        </div>
+
+        {/* Suppliers Table */}
+        <div className="mb-6 min-h-0 flex-1">
+          <div className="h-full overflow-auto">
+            <DataTable
+              data={filteredSuppliers}
+              columns={columns}
+              loading={loading}
+              searchable={false}
+              paginated={true}
+              pageSize={8}
+              emptyMessage="No suppliers found. Try adjusting your search or filter criteria."
+            />
           </div>
         </div>
-      </div>
 
-      {/* Suppliers Table */}
-      <div className="mb-6">
-        <DataTable
-          data={filteredSuppliers}
-          columns={columns}
-          loading={loading}
-          searchable={false}
-          paginated={true}
-          pageSize={10}
-          emptyMessage="No suppliers found. Try adjusting your search or filter criteria."
-          className="max-h-96"
-        />
+        {/* Footer */}
+        <ModalFooter className="flex-shrink-0">
+          <div className="text-sm text-gray-600">
+            {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
+          </div>
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleRequestQuotes}
+              disabled={selectedSuppliers.length === 0 || requesting}
+            >
+              {requesting ? 'Sending...' : 'Request Quote'}
+            </Button>
+          </div>
+        </ModalFooter>
       </div>
-
-      {/* Footer */}
-      <ModalFooter>
-        <div className="text-sm text-gray-600">
-          {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
-        </div>
-        <div className="flex gap-3">
-          <Button
-            variant="outline"
-            onClick={onClose}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleRequestQuotes}
-            disabled={selectedSuppliers.length === 0 || requesting}
-          >
-            {requesting ? 'Sending...' : 'Request Quote'}
-          </Button>
-        </div>
-      </ModalFooter>
     </Modal>
   )
 }

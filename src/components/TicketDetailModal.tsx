@@ -544,10 +544,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         await ticketService.addActivityLogEntry(
           ticket.id,
           'Supplier Assigned',
-          `Work scheduled with ${supplierInfo.supplier.name} at expected cost: $${supplierInfo.expectedCost}`,
+          `Work scheduled with ${supplierInfo.supplier.companyName || 'Unknown Supplier'} at expected cost: $${supplierInfo.expectedCost}`,
           currentUser.id,
           { 
-            supplierName: supplierInfo.supplier.name,
+            supplierName: supplierInfo.supplier.companyName || 'Unknown Supplier',
             expectedCost: supplierInfo.expectedCost
           }
         );
@@ -599,7 +599,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       }
 
       const message = supplierInfo 
-        ? `Work scheduled with ${supplierInfo.supplier.name} for ${event.startDate.toLocaleDateString()}`
+        ? `Work scheduled with ${supplierInfo.supplier.companyName || 'Unknown Supplier'} for ${event.startDate.toLocaleDateString()}`
         : `Work scheduled for ${event.startDate.toLocaleDateString()}`;
       
       addNotification({
@@ -644,7 +644,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       }
 
       const message = supplierInfo 
-        ? `Work rescheduled with ${supplierInfo.supplier.name} for ${event.startDate.toLocaleDateString()}`
+        ? `Work rescheduled with ${supplierInfo.supplier.companyName || 'Unknown Supplier'} for ${event.startDate.toLocaleDateString()}`
         : `Work rescheduled to ${event.startDate.toLocaleDateString()}`;
         
       addNotification({

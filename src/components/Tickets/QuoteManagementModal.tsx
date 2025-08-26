@@ -27,6 +27,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import Modal, { ModalFooter } from '../UI/Modal'
 import Button from '../UI/Button'
+import SupplierSelectionModal from '../Suppliers/SupplierSelectionModal'
 
 interface QuoteManagementModalProps {
   isOpen: boolean
@@ -64,7 +65,6 @@ const QuoteManagementModal = ({
     amount: '',
     description: ''
   })
-  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
   const [selectedWinnerQuoteId, setSelectedWinnerQuoteId] = useState<string | null>(null)
   const [selectingWinner, setSelectingWinner] = useState(false)
 
@@ -72,7 +72,6 @@ const QuoteManagementModal = ({
     if (isOpen) {
       loadSuppliers()
       setQuoteRequests(initialQuoteRequests)
-      setSelectedSuppliers([]) // Reset selection when modal opens
     }
   }, [isOpen, initialQuoteRequests])
 
@@ -158,7 +157,8 @@ const QuoteManagementModal = ({
       await ticketService.updateQuoteRequest(ticketId, quoteForm.supplierId, {
         amount: amount,
         description: quoteForm.description,
-        validUntil: quoteForm.validUntil
+        terms: '', // Add default empty terms since it's required by the service method
+        validUntil: quoteForm.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default to 30 days from now if not specified
       }, currentUser.id)
 
       // Update the quote request status
@@ -190,53 +190,6 @@ const QuoteManagementModal = ({
     }
   }
 
-  const handleAddMoreSuppliers = async (newSupplierIds: string[]) => {
-    if (!currentUser) return
-
-    setLoading(true)
-    try {
-      // Use ticket service to properly update the ticket with new quote requests
-      await ticketService.requestQuotesFromSuppliers(ticketId, newSupplierIds, currentUser.id)
-
-      // Add new quote requests to our local state
-      const newRequests = newSupplierIds.map(supplierId => {
-        const supplier = getSupplier(supplierId)
-        return {
-          id: `${ticketId}-${supplierId}`,
-          supplierId,
-          supplierName: supplier?.name || 'Unknown',
-          supplierEmail: supplier?.email || '',
-          specialties: supplier?.specialties || [],
-          sentAt: new Date(),
-          status: QuoteRequestStatus.PENDING,
-          quoteAmount: null,
-          notes: null
-        } as QuoteRequest
-      })
-
-      setQuoteRequests([...quoteRequests, ...newRequests])
-      setShowAddSuppliers(false)
-
-      addNotification({
-        title: 'Quote Requests Sent',
-        message: `Quote requests sent to ${newSupplierIds.length} additional supplier(s)`,
-        type: 'success',
-        userId: currentUser.id
-      })
-
-      onQuotesUpdated()
-    } catch (error) {
-      console.error('Error requesting quotes from suppliers:', error)
-      addNotification({
-        title: 'Error',
-        message: 'Failed to send additional quote requests',
-        type: 'error',
-        userId: currentUser.id
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleSelectWinner = async () => {
     if (!selectedWinnerQuoteId) {
@@ -394,14 +347,12 @@ const QuoteManagementModal = ({
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900">Supplier Quotes</h3>
-            {availableSuppliers.length > 0 && (
-              <Button
-                variant="primary"
-                onClick={() => setShowAddSuppliers(true)}
-              >
-                Add Suppliers
-              </Button>
-            )}
+            <Button
+              variant="primary"
+              onClick={() => setShowAddSuppliers(true)}
+            >
+              Add Suppliers
+            </Button>
           </div>
 
           <div className="grid gap-4">
@@ -445,7 +396,6 @@ const QuoteManagementModal = ({
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
                           <h4 className="font-semibold text-neutral-900 truncate">{request.supplierName}</h4>
-                          <p className="text-sm text-neutral-600 truncate">{supplier?.companyName}</p>
                           <p className="text-xs text-neutral-500 mt-1">
                             Date Received: {(() => {
                               try {
@@ -468,39 +418,37 @@ const QuoteManagementModal = ({
                           )}
                         </div>
                         
-                        {/* Right-aligned Status and Action Buttons - adjusted for selection indicator */}
-                        <div className="flex flex-col items-end space-y-2 pr-10">
+                        {/* Right-aligned Status and Action Buttons - side by side layout */}
+                        <div className="flex items-center space-x-3 pr-10">
                           <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)} border`}>
                             {getStatusIcon(request.status)}
                             <span className="ml-1">{request.status}</span>
                           </div>
-                          <div className="flex gap-2">
-                            {request.quoteAmount ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleEditQuote(request)
-                                }}
-                                className="text-xs"
-                              >
-                                Edit
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleAddQuote(request.supplierId)
-                                }}
-                                className="text-xs"
-                              >
-                                Add Quote
-                              </Button>
-                            )}
-                          </div>
+                          {request.quoteAmount ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditQuote(request)
+                              }}
+                              className="text-xs"
+                            >
+                              Edit
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleAddQuote(request.supplierId)
+                              }}
+                              className="text-xs"
+                            >
+                              Add Quote
+                            </Button>
+                          )}
                         </div>
                       </div>
 
@@ -508,7 +456,7 @@ const QuoteManagementModal = ({
                   {isEditing && (
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
                       <h5 className="font-medium text-blue-900">
-                        {request.quoteAmount ? 'Edit Quote' : 'Enter Quote Details'}
+                        Quote Details
                       </h5>
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -529,7 +477,7 @@ const QuoteManagementModal = ({
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Valid Until (optional)
+                            Valid Until
                           </label>
                           <input
                             type="date"
@@ -543,50 +491,52 @@ const QuoteManagementModal = ({
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Description / Notes
-                        </label>
-                        <textarea
-                          value={quoteForm.description}
-                          onChange={(e) => setQuoteForm({...quoteForm, description: e.target.value})}
-                          rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Quote details, timeline, or special conditions..."
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Quote Document (optional)
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="file"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0]
-                              setQuoteForm({...quoteForm, quoteFile: file})
-                            }}
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Description / Notes
+                          </label>
+                          <textarea
+                            value={quoteForm.description}
+                            onChange={(e) => setQuoteForm({...quoteForm, description: e.target.value})}
+                            rows={2}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="Quote details, timeline, or special conditions..."
                           />
-                          <div className="absolute right-2 top-2 pointer-events-none">
-                            <Paperclip className="h-4 w-4 text-gray-400" />
-                          </div>
                         </div>
-                        {quoteForm.quoteFile && (
-                          <div className="mt-2 flex items-center text-sm text-gray-600">
-                            <FileText className="h-4 w-4 mr-2" />
-                            <span>{quoteForm.quoteFile.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => setQuoteForm({...quoteForm, quoteFile: undefined})}
-                              className="ml-2 text-red-500 hover:text-red-700"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Quote Document
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="file"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                setQuoteForm({...quoteForm, quoteFile: file})
+                              }}
+                              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            />
+                            <div className="absolute right-2 top-2 pointer-events-none">
+                              <Paperclip className="h-4 w-4 text-gray-400" />
+                            </div>
                           </div>
-                        )}
+                          {quoteForm.quoteFile && (
+                            <div className="mt-2 flex items-center text-sm text-gray-600">
+                              <FileText className="h-4 w-4 mr-2" />
+                              <span>{quoteForm.quoteFile.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => setQuoteForm({...quoteForm, quoteFile: undefined})}
+                                className="ml-2 text-red-500 hover:text-red-700"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       <div className="flex justify-end space-x-2">
@@ -622,95 +572,17 @@ const QuoteManagementModal = ({
         </div>
 
 
-        {/* Add Suppliers Modal would go here */}
-        {showAddSuppliers && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1500]">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-96 overflow-y-auto">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Add More Suppliers</h3>
-              
-              {availableSuppliers.length > 0 ? (
-                <div className="grid gap-3 max-h-64 overflow-y-auto mb-4">
-                  {availableSuppliers.map((supplier) => (
-                    <label
-                      key={supplier.id}
-                      className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedSuppliers.includes(supplier.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedSuppliers([...selectedSuppliers, supplier.id])
-                          } else {
-                            setSelectedSuppliers(selectedSuppliers.filter(id => id !== supplier.id))
-                          }
-                        }}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="font-medium text-gray-900">{supplier.name}</span>
-                          {supplier.rating && (
-                            <div className="flex items-center space-x-1">
-                              <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                              <span className="text-sm text-gray-600">{supplier.rating}</span>
-                            </div>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600">{supplier.companyName}</p>
-                        <div className="flex flex-wrap gap-1 mt-1">
-                          {supplier.specialties.slice(0, 3).map((specialty) => (
-                            <span
-                              key={specialty}
-                              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800"
-                            >
-                              {specialty}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 mb-4">
-                  <Users className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm text-gray-600">All available suppliers have already been contacted for quotes.</p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-600">
-                  {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
-                </div>
-                <div className="flex space-x-3">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setShowAddSuppliers(false)
-                      setSelectedSuppliers([]) // Reset selection when canceling
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (selectedSuppliers.length > 0) {
-                        handleAddMoreSuppliers(selectedSuppliers)
-                        setSelectedSuppliers([]) // Reset selection after sending
-                      }
-                    }}
-                    disabled={selectedSuppliers.length === 0 || loading}
-                    className="flex items-center"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    {loading ? 'Sending...' : `Send Requests (${selectedSuppliers.length})`}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Add Suppliers Modal - Using SupplierSelectionModal */}
+        <SupplierSelectionModal
+          isOpen={showAddSuppliers}
+          onClose={() => setShowAddSuppliers(false)}
+          ticketId={ticketId}
+          excludeSupplierIds={quoteRequests.map(req => req.supplierId)}
+          onQuotesRequested={() => {
+            setShowAddSuppliers(false)
+            onQuotesUpdated()
+          }}
+        />
 
         {/* No Requests */}
         {quoteRequests.length === 0 && (

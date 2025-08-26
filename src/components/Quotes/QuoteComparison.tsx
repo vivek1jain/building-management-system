@@ -209,7 +209,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
                     <User className="h-5 w-5 text-primary-600" />
                   </div>
                   <div>
-                    <h3 className="font-medium text-neutral-900">{supplier?.name || 'Unknown'}</h3>
+                    <h3 className="font-medium text-neutral-900">{supplier?.companyName || 'Unknown Supplier'}</h3>
                     <p className="text-sm text-gray-600">{supplier?.companyName}</p>
                   </div>
                 </div>

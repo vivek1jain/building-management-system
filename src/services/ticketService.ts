@@ -350,7 +350,7 @@ export const ticketService = {
         return {
           id: `${ticketId}-${supplierId}`,
           supplierId,
-          supplierName: supplier?.companyName || supplier?.name || 'Unknown Supplier',
+          supplierName: supplier?.companyName || 'Unknown Supplier',
           supplierEmail: supplier?.email || '',
           specialties: supplier?.specialties || [],
           sentAt: new Date(),

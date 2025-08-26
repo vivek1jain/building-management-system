@@ -186,7 +186,7 @@ const Invoices: React.FC = () => {
 
   const getSupplierName = (vendorId: string) => {
     const supplier = suppliers.find(s => s.id === vendorId)
-    return supplier ? supplier.name : 'Unknown'
+    return supplier ? supplier.companyName || 'Unknown Supplier' : 'Unknown Supplier'
   }
 
   const getBuildingName = (buildingId: string) => {
@@ -407,7 +407,7 @@ const Invoices: React.FC = () => {
                   <option value="">Select Vendor</option>
                   {suppliers.map((supplier) => (
                     <option key={supplier.id} value={supplier.id}>
-                      {supplier.name} - {supplier.companyName}
+                      {supplier.companyName || 'Unknown Supplier'}
                     </option>
                   ))}
                 </select>

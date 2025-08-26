@@ -146,7 +146,7 @@ class SupplierService {
             ticketId,
             supplierId: request.supplierId,
             supplierEmail: supplier.email,
-            supplierName: supplier.name,
+            supplierName: supplier.companyName,
             ticketTitle: ticket.title,
             ticketDescription: ticket.description,
             ticketLocation: ticket.location,

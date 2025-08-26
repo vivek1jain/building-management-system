@@ -64,9 +64,9 @@ export const addSampleSuppliers = async () => {
   for (const supplier of sampleSuppliers) {
     try {
       await supplierService.createSupplier(supplier)
-      console.log(`Added supplier: ${supplier.name}`)
+      console.log(`Added supplier: ${supplier.companyName}`)
     } catch (error) {
-      console.error(`Error adding supplier ${supplier.name}:`, error)
+      console.error(`Error adding supplier ${supplier.companyName}:`, error)
     }
   }
 } 

@@ -40,7 +40,7 @@ export const quoteRequestService = {
         return {
           id: `${ticketId}-${supplierId}-${Date.now()}`,
           supplierId,
-          supplierName: supplier?.name || 'Unknown Supplier',
+          supplierName: supplier?.companyName || 'Unknown Supplier',
           supplierEmail: supplier?.email || '',
           specialties: supplier?.specialties || [],
           sentAt: new Date(),

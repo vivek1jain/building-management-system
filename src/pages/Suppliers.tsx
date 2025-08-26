@@ -57,7 +57,7 @@ const Suppliers = () => {
   const specialties = ['All', 'Plumbing', 'HVAC', 'Electrical', 'General Maintenance', 'Cleaning', 'Landscaping', 'Emergency Repairs', 'Lighting', 'Security Systems']
 
   const filteredSuppliers = suppliers.filter(supplier => {
-    const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
     
@@ -378,7 +378,7 @@ const Suppliers = () => {
                   <User className="h-6 w-6 text-primary-600" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-neutral-900">{supplier.name}</h3>
+                  <h3 className="font-medium text-neutral-900">{supplier.companyName || 'Unknown Supplier'}</h3>
                   <p className="text-sm text-gray-600">{supplier.companyName}</p>
                 </div>
               </div>

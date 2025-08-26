@@ -204,7 +204,7 @@ const SuppliersDataTable: React.FC = () => {
     console.log('Edit supplier clicked:', supplier)
     setSelectedSupplier(supplier)
     setSupplierForm({
-      name: supplier.name,
+      name: supplier.companyName || 'Unknown Supplier',
       email: supplier.email,
       phone: supplier.phone || '',
       companyName: supplier.companyName,
@@ -397,7 +397,7 @@ const SuppliersDataTable: React.FC = () => {
       // Building-scoped filtering: only show suppliers for the selected building
       const matchesBuilding = !selectedBuildingId || supplier.buildingId === selectedBuildingId
       
-      const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
       
@@ -417,7 +417,7 @@ const SuppliersDataTable: React.FC = () => {
       sortable: true,
       render: (value, supplier) => (
         <div>
-          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.name}</div>
+          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.companyName || 'Unknown Supplier'}</div>
           {supplier.companyName && (
             <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
           )}
