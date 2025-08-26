@@ -7,13 +7,9 @@ import { getAllBuildings } from '../../services/buildingService'
 import { supplierService } from '../../services/supplierService'
 import { Supplier, Building } from '../../types'
 import BuildingSelector from './BuildingSelector'
-import BulkImportExport from './BulkImportExport'
-import { exportSuppliersToCSV } from '../../utils/csvExport'
-import { importSuppliersFromCSV, ImportValidationResult } from '../../utils/csvImport'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
-import { tokens } from '../../styles/tokens'
 
 const SuppliersDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -208,7 +204,7 @@ const SuppliersDataTable: React.FC = () => {
       email: supplier.email,
       phone: supplier.phone || '',
       companyName: supplier.companyName,
-      specialty: supplier.specialties[0] || '',
+      specialty: (supplier.specialties || [])[0] || '',
       rating: supplier.rating || 0,
       notes: '',
       buildingId: (supplier as any).buildingId || selectedBuildingId || ''
@@ -327,19 +323,6 @@ const SuppliersDataTable: React.FC = () => {
     }
   }
 
-  // Bulk import/export handlers
-  const handleExportSuppliers = (buildingId: string, buildingName?: string) => {
-    const buildingSuppliers = suppliers.filter(s => s.buildingId === buildingId && s.isActive)
-    exportSuppliersToCSV(buildingSuppliers, buildingName)
-  }
-
-  const handleImportSuppliers = (csvText: string, buildingId: string): ImportValidationResult<any> => {
-    return importSuppliersFromCSV(csvText, buildingId)
-  }
-
-  const handleImportConfirm = (validSuppliers: (Supplier & { buildingId: string })[]) => {
-    setSuppliers(prev => [...prev, ...validSuppliers])
-  }
 
   const renderStars = (rating: number) => {
     const stars = []
@@ -397,12 +380,12 @@ const SuppliersDataTable: React.FC = () => {
       // Building-scoped filtering: only show suppliers for the selected building
       const matchesBuilding = !selectedBuildingId || supplier.buildingId === selectedBuildingId
       
-      const matchesSearch = supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+      const matchesSearch = (supplier.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            supplier.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (supplier.specialties || []).some(s => s.toLowerCase().includes(searchTerm.toLowerCase())))
       
       const matchesSpecialty = selectedSpecialty === 'all' || 
-                              supplier.specialties.some(s => s.toLowerCase() === selectedSpecialty.toLowerCase())
+                              (supplier.specialties || []).some(s => s.toLowerCase() === selectedSpecialty.toLowerCase())
       
       return isActive && matchesBuilding && matchesSearch && matchesSpecialty
     })
@@ -449,7 +432,7 @@ const SuppliersDataTable: React.FC = () => {
       sortable: false,
       render: (value, supplier) => (
         <div className="flex flex-wrap gap-1">
-          {supplier.specialties.map((specialty, index) => (
+          {(supplier.specialties || []).map((specialty, index) => (
             <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
               {specialty}
             </span>
@@ -529,17 +512,6 @@ const SuppliersDataTable: React.FC = () => {
           onChange={(value) => setSelectedSpecialty(value)}
           placeholder="Filter by specialty"
           className="min-w-[200px]"
-        />
-        
-        {/* Bulk Import/Export */}
-        <BulkImportExport
-          dataType="suppliers"
-          buildings={[]}
-          selectedBuildingId={selectedBuildingId}
-          onExport={handleExportSuppliers}
-          onImport={handleImportSuppliers}
-          onImportConfirm={handleImportConfirm}
-          className="ml-auto"
         />
       </div>
 
@@ -685,7 +657,7 @@ const SuppliersDataTable: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialties</label>
                 <div className="flex flex-wrap gap-1">
-                  {selectedSupplier.specialties.map((specialty, index) => (
+                  {(selectedSupplier.specialties || []).map((specialty, index) => (
                     <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
                       {specialty}
                     </span>

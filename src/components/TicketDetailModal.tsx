@@ -630,17 +630,78 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
     setIsUpdatingStatus(true);
     try {
-      // Update the local ticket object
-      const updatedTicket = {
-        ...localTicket,
-        scheduledDate: event.startDate,
-        updatedAt: new Date()
-      };
+      console.log('🔄 Starting reschedule process:', {
+        ticketId: ticket.id,
+        oldDate: localTicket.scheduledDate,
+        newDate: event.startDate,
+        supplierInfo: supplierInfo ? { supplier: supplierInfo.supplier.companyName } : null
+      });
 
-      setLocalTicket(updatedTicket);
+      // 1. Update the ticket in Firestore with new scheduled date and activity log
+      await ticketService.rescheduleTicket(ticket.id, event.startDate, currentUser.id);
+      console.log('✅ Ticket rescheduled in Firestore');
+      
+      // 2. Update the associated event in Firestore
+      await ticketEventService.updateEventForRescheduledTicket(ticket.id, event.startDate);
+      console.log('✅ Event updated in Firestore');
+      
+      // 3. Add additional activity log entry if supplier info is provided
+      if (supplierInfo) {
+        await ticketService.addActivityLogEntry(
+          ticket.id,
+          'Supplier Rescheduled',
+          `Work rescheduled with ${supplierInfo.supplier.companyName || 'Unknown Supplier'} at expected cost: $${supplierInfo.expectedCost}`,
+          currentUser.id,
+          { 
+            supplierName: supplierInfo.supplier.companyName || 'Unknown Supplier',
+            expectedCost: supplierInfo.expectedCost,
+            newScheduledDate: event.startDate.toISOString()
+          }
+        );
+        console.log('✅ Supplier reschedule activity logged');
+      }
 
-      if (onUpdate) {
-        onUpdate(updatedTicket);
+      // 4. Fetch the updated ticket data from Firebase to get the latest changes
+      try {
+        console.log('📥 Fetching updated ticket data after rescheduling:', ticket.id);
+        const updatedTicketData = await ticketService.getTicketById(ticket.id);
+        console.log('📋 Updated ticket data received after rescheduling:', {
+          id: updatedTicketData?.id,
+          scheduledDate: updatedTicketData?.scheduledDate,
+          activityLogLength: updatedTicketData?.activityLog?.length || 0
+        });
+        
+        if (updatedTicketData) {
+          console.log('✅ Setting localTicket with updated data after rescheduling');
+          setLocalTicket(updatedTicketData);
+          if (onUpdate) {
+            console.log('✅ Calling onUpdate with updated data after rescheduling');
+            onUpdate(updatedTicketData);
+          }
+        } else {
+          // Fallback: Update with basic info if fetch fails
+          const fallbackTicket = {
+            ...localTicket,
+            scheduledDate: event.startDate,
+            updatedAt: new Date()
+          };
+          setLocalTicket(fallbackTicket);
+          if (onUpdate) {
+            onUpdate(fallbackTicket);
+          }
+        }
+      } catch (fetchError) {
+        console.error('❌ Failed to fetch updated ticket data after rescheduling:', fetchError);
+        // Fallback: Update with basic info if fetch fails
+        const fallbackTicket = {
+          ...localTicket,
+          scheduledDate: event.startDate,
+          updatedAt: new Date()
+        };
+        setLocalTicket(fallbackTicket);
+        if (onUpdate) {
+          onUpdate(fallbackTicket);
+        }
       }
 
       const message = supplierInfo 
@@ -656,12 +717,21 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
       // Close the reschedule modal
       setShowRescheduleModal(false);
+      console.log('✅ Reschedule process completed successfully');
     } catch (error) {
-      console.error('Failed to reschedule work:', error);
+      console.error('❌ Failed to reschedule work:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        ticketId: ticket.id,
+        newDate: event.startDate,
+        userId: currentUser.id
+      });
+      
       addNotification({
         userId: currentUser.id,
         title: 'Error',
-        message: 'Failed to reschedule work. Please try again.',
+        message: `Failed to reschedule work: ${error instanceof Error ? error.message : 'Unknown error'}`,
         type: 'error'
       });
     } finally {
