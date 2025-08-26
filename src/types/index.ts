@@ -404,16 +404,29 @@ export interface WorkOrder {
   flatId?: string;
   flatNumber?: string | null;
   assetId?: string;
-  supplierId?: string;
+  
+  // Supplier and pricing information
+  supplierId?: string; // Primary supplier for the work
   supplierName?: string;
-  quotePrice?: number | null;
-  cost?: number | null;
+  scheduledSupplierId?: string; // Supplier assigned during direct scheduling (without quotes)
+  selectedQuoteId?: string; // ID of the accepted quote (if any)
+  
+  // Price tracking - distinguish between quote and final costs
+  quotePrice?: number | null; // Original quoted amount from accepted quote
+  estimatedPrice?: number | null; // Price entered during direct scheduling (without quotes)
+  finalPrice?: number | null; // Actual final cost after work completion
+  priceSource?: 'quote' | 'direct' | 'manual'; // How the price was determined
+  
   scheduledDate?: Date | null;
   quoteRequests?: QuoteRequest[];
   managerCommunication?: LogEntry[];
   lastStatusChangeByUid?: string;
   resolvedAt?: Date | null;
+  completedDate?: Date | null;
   userFeedbackLog?: UserFeedback[];
+  
+  // Legacy field for backward compatibility
+  cost?: number | null; // @deprecated - use finalPrice instead
 }
 
 // Enhanced Event System
@@ -624,6 +637,7 @@ export type TicketStatus =
   | 'New'                // Initial state - needs manager review
   | 'Quote Requested'    // Quotes requested from suppliers
   | 'Quote Received'     // Quotes received from suppliers
+  | 'Ready for Scheduling' // Winner selected, ready to schedule
   | 'PO Sent'           // Purchase order sent to selected supplier
   | 'Contracted'        // Contract established with supplier
   | 'Scheduled'         // Work approved and scheduled
@@ -668,6 +682,11 @@ export interface Ticket {
   comments: TicketComment[]; // Comments from residents and managers
   scheduledDate?: Date;
   completedDate?: Date;
+  
+  // Final cost tracking for expense forecasting
+  finalCost?: number; // Final cost confirmed on completion
+  finalCostCurrency?: string; // Currency for final cost (defaults to GBP)
+  
   feedback?: Feedback;
   createdAt: Date;
   updatedAt: Date;
@@ -923,7 +942,21 @@ export interface Expense {
   description: string;
   date: Date;
   vendorId?: string; // User ID
-  status: 'pending' | 'approved' | 'rejected';
+  vendorName?: string; // Vendor/Supplier name for display
+  
+  // Enhanced status for forecast tracking
+  status: 'forecast' | 'pending' | 'approved' | 'rejected' | 'invoiced' | 'paid';
+  
+  // Forecast-specific fields
+  expectedInvoiceDate?: Date; // When we expect to receive the invoice
+  forecastReason?: 'ticket_completion' | 'scheduled_work' | 'manual_entry'; // Why this expense was forecasted
+  
+  // Invoice matching
+  matchedToInvoiceId?: string; // When invoice is received and matched
+  matchedAt?: Date;
+  actualAmount?: number; // Actual invoice amount (may differ from forecast)
+  variance?: number; // actualAmount - amount (calculated)
+  
   approvedBy?: string; // User ID
   approvedAt?: Date;
   createdBy: string; // User ID

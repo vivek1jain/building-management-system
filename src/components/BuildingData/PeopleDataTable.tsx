@@ -12,7 +12,7 @@ import { getAllBuildings } from '../../services/buildingService'
 import { getPeopleByBuilding, createPerson, updatePerson } from '../../services/peopleService'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
-import { Modal, ModalFooter } from '../UI'
+import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 import { tokens } from '../../styles/tokens'
 import { getBadgeColors, getStatusColors, getButtonColors } from '../../utils/colors'
 
@@ -28,6 +28,16 @@ const PeopleDataTable: React.FC = () => {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+
+  // Person status dropdown options
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Status', description: 'Show all people' },
+    { value: PersonStatus.OWNER, label: 'Owner', description: 'Property owners' },
+    { value: PersonStatus.TENANT, label: 'Tenant', description: 'Current tenants' },
+    { value: PersonStatus.RESIDENT, label: 'Resident', description: 'General residents' },
+    { value: PersonStatus.MANAGER, label: 'Manager', description: 'Property managers' },
+    { value: PersonStatus.PENDING_APPROVAL, label: 'Pending Approval', description: 'Awaiting approval' }
+  ];
 
   // Form states
   const [personForm, setPersonForm] = useState({
@@ -450,21 +460,13 @@ const PeopleDataTable: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
           />
         </div>
-        <div className="relative flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-          >
-            <option value="all">All Status</option>
-            <option value={PersonStatus.OWNER}>Owner</option>
-            <option value={PersonStatus.TENANT}>Tenant</option>
-            <option value={PersonStatus.RESIDENT}>Resident</option>
-            <option value={PersonStatus.MANAGER}>Manager</option>
-            <option value={PersonStatus.PENDING_APPROVAL}>Pending Approval</option>
-          </select>
-          <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-        </div>
+        <Dropdown
+          options={statusOptions}
+          value={filterStatus}
+          onChange={(value) => setFilterStatus(value)}
+          placeholder="Filter by status"
+          className="min-w-[200px]"
+        />
         
         {/* Bulk Import/Export */}
         <BulkImportExport

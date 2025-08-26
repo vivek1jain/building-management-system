@@ -9,6 +9,14 @@ export const ticketEventService = {
     scheduledDate: Date, 
     userId: string
   ): Promise<BuildingEvent | null> {
+    console.log('🎫➡️📅 Starting createEventForScheduledTicket:', {
+      ticketId: ticket.id,
+      ticketTitle: ticket.title,
+      scheduledDate: scheduledDate.toISOString(),
+      buildingId: ticket.buildingId,
+      userId
+    });
+    
     try {
       // Calculate end date (2 hours after start by default)
       const endDate = new Date(scheduledDate);
@@ -26,11 +34,27 @@ export const ticketEventService = {
         status: 'scheduled' as const
       };
 
+      console.log('🎫➡️📅 Event data to create:', {
+        ...eventData,
+        startDate: eventData.startDate.toISOString(),
+        endDate: eventData.endDate.toISOString()
+      });
+
       const event = await eventService.createEvent(eventData);
-      console.log('Created event for scheduled ticket:', event.id);
+      console.log('✅ Created event for scheduled ticket:', {
+        eventId: event.id,
+        ticketId: ticket.id,
+        buildingId: event.buildingId,
+        status: event.status,
+        title: event.title
+      });
       return event;
     } catch (error) {
-      console.error('Failed to create event for scheduled ticket:', error);
+      console.error('❌ Failed to create event for scheduled ticket:', {
+        ticketId: ticket.id,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
       // Don't throw error - scheduling should still work even if event creation fails
       return null;
     }

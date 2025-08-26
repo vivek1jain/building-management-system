@@ -350,7 +350,7 @@ export const ticketService = {
         return {
           id: `${ticketId}-${supplierId}`,
           supplierId,
-          supplierName: supplier?.name || 'Unknown Supplier',
+          supplierName: supplier?.companyName || supplier?.name || 'Unknown Supplier',
           supplierEmail: supplier?.email || '',
           specialties: supplier?.specialties || [],
           sentAt: new Date(),
@@ -386,14 +386,28 @@ export const ticketService = {
         activityLogCount: [...ticket.activityLog, activityLogEntry].length
       })
 
-      await updateDoc(docRef, {
-        status: 'Quoting' as TicketStatus,
-        quoteRequests: finalQuoteRequests,
-        activityLog: [...ticket.activityLog, activityLogEntry],
-        updatedAt: serverTimestamp()
-      })
-      
-      console.log('✅ Firebase update completed successfully')
+      try {
+        await updateDoc(docRef, {
+          status: 'Quoting' as TicketStatus,
+          quoteRequests: finalQuoteRequests,
+          activityLog: [...ticket.activityLog, activityLogEntry],
+          updatedAt: serverTimestamp()
+        })
+        
+        console.log('✅ Firebase update completed successfully')
+        
+        // Verify the update by fetching the ticket again
+        const updatedTicket = await this.getTicketById(ticketId)
+        console.log('🔍 Post-update verification:', {
+          ticketId,
+          status: updatedTicket?.status,
+          quoteRequestsLength: updatedTicket?.quoteRequests?.length || 0,
+          activityLogLength: updatedTicket?.activityLog?.length || 0
+        })
+      } catch (updateError) {
+        console.error('❌ Firebase update failed:', updateError)
+        throw updateError
+      }
 
       // Send quote request emails
       await supplierService.requestQuotes(ticketId, supplierIds, userId)
@@ -443,47 +457,61 @@ export const ticketService = {
   },
 
   // Select winning quote and proceed to scheduling
-  async selectWinningQuote(ticketId: string, quoteId: string, userId: string): Promise<void> {
+  async selectWinningQuote(ticketId: string, supplierId: string, userId: string): Promise<void> {
     try {
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
       const ticket = await this.getTicketById(ticketId)
       
       if (!ticket) throw new Error('Ticket not found')
 
-      // Find the selected quote
-      const selectedQuote = ticket.quotes.find(q => q.id === quoteId)
-      if (!selectedQuote) throw new Error('Selected quote not found')
+      // Find the selected quote request
+      const selectedQuoteRequest = ticket.quoteRequests?.find(req => req.supplierId === supplierId)
+      if (!selectedQuoteRequest) throw new Error('Selected quote request not found')
+      if (!selectedQuoteRequest.quoteAmount) throw new Error('Quote request has no quote amount')
 
-      // Update quotes to mark winner and rejected quotes
+      // Update quote requests to mark winner and others as rejected
+      const { QuoteRequestStatus } = await import('../types')
+      const updatedQuoteRequests = ticket.quoteRequests?.map(req => ({
+        ...req,
+        status: req.supplierId === supplierId ? QuoteRequestStatus.ACCEPTED : req.status === QuoteRequestStatus.RECEIVED ? QuoteRequestStatus.REJECTED : req.status,
+        isWinner: req.supplierId === supplierId
+      })) || []
+
+      // Also update quotes array for compatibility - find the corresponding quote
+      const selectedQuote = ticket.quotes.find(q => q.supplierId === supplierId)
       const updatedQuotes = ticket.quotes.map(quote => ({
         ...quote,
-        status: quote.id === quoteId ? 'accepted' : 'declined',
-        isWinner: quote.id === quoteId
+        status: quote.supplierId === supplierId ? 'accepted' : 'declined',
+        isWinner: quote.supplierId === supplierId
       }))
 
       const activityLogEntry = {
         id: Date.now().toString(),
         action: 'Quote Selected',
-        description: `Winning quote selected from ${selectedQuote.supplierName} - ${new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(selectedQuote.amount)}`,
+        description: `Winning quote selected from ${selectedQuoteRequest.supplierName} - ${new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(selectedQuoteRequest.quoteAmount)}`,
         performedBy: userId,
         timestamp: new Date(),
         metadata: { 
-          winningQuoteId: quoteId,
-          supplierId: selectedQuote.supplierId, 
-          supplierName: selectedQuote.supplierName,
-          winningAmount: selectedQuote.amount
+          winningSupplierId: supplierId,
+          supplierName: selectedQuoteRequest.supplierName,
+          winningAmount: selectedQuoteRequest.quoteAmount
         }
       }
 
       await updateDoc(docRef, {
+        quoteRequests: updatedQuoteRequests,
         quotes: updatedQuotes,
-        assignedTo: selectedQuote.supplierId,
+        assignedTo: supplierId,
+        // Keep status as 'Quoting' - winner selection happens within the Quoting phase
         activityLog: [...ticket.activityLog, activityLogEntry],
         updatedAt: serverTimestamp()
       })
 
-      // Send confirmation/rejection emails to suppliers
-      await this.sendQuoteSelectionEmails(ticketId, selectedQuote, ticket.quotes.filter(q => q.id !== quoteId))
+      // Send confirmation/rejection emails to suppliers if quotes exist
+      if (selectedQuote) {
+        const rejectedQuotes = ticket.quotes.filter(q => q.supplierId !== supplierId)
+        await this.sendQuoteSelectionEmails(ticketId, selectedQuote, rejectedQuotes)
+      }
     } catch (error) {
       console.error('Error selecting winning quote:', error)
       throw new Error('Failed to select winning quote')
@@ -596,6 +624,338 @@ export const ticketService = {
     } catch (error) {
       console.error('Error getting ticket quotes:', error)
       throw new Error('Failed to get ticket quotes')
+    }
+  },
+
+  // Check if a Complete ticket can be reopened (within 7 days by managers/admins)
+  async canTicketBeReopened(ticketId: string): Promise<{ canReopen: boolean; daysRemaining: number; reason?: string }> {
+    try {
+      const ticket = await this.getTicketById(ticketId)
+      if (!ticket) {
+        return { canReopen: false, daysRemaining: 0, reason: 'Ticket not found' }
+      }
+
+      if (ticket.status !== 'Complete') {
+        return { canReopen: false, daysRemaining: 0, reason: 'Ticket is not in Complete status' }
+      }
+
+      // Find when the ticket was completed from activity log
+      const completedActivity = ticket.activityLog.find(log => 
+        (log.action === 'Status Updated' && log.description.includes('Complete')) ||
+        log.action.toLowerCase().includes('completed')
+      )
+
+      if (!completedActivity) {
+        return { canReopen: false, daysRemaining: 0, reason: 'No completion activity found' }
+      }
+
+      const completedDate = new Date(completedActivity.timestamp)
+      const daysSinceCompleted = Math.floor(
+        (new Date().getTime() - completedDate.getTime()) / (1000 * 60 * 60 * 24)
+      )
+      const daysRemaining = Math.max(0, 7 - daysSinceCompleted)
+      
+      return {
+        canReopen: daysSinceCompleted <= 7,
+        daysRemaining,
+        reason: daysSinceCompleted > 7 ? '7-day reopening window has expired' : undefined
+      }
+    } catch (error) {
+      console.error('Error checking if ticket can be reopened:', error)
+      return { canReopen: false, daysRemaining: 0, reason: 'Error checking reopening eligibility' }
+    }
+  },
+
+  // Reopen a Complete ticket back to Scheduled status
+  async reopenTicket(ticketId: string, userId: string, reason?: string): Promise<void> {
+    try {
+      const reopenCheck = await this.canTicketBeReopened(ticketId)
+      if (!reopenCheck.canReopen) {
+        throw new Error(`Cannot reopen ticket: ${reopenCheck.reason}`)
+      }
+
+      const docRef = doc(db, TICKETS_COLLECTION, ticketId)
+      const ticket = await this.getTicketById(ticketId)
+      
+      if (!ticket) throw new Error('Ticket not found')
+
+      const activityLogEntry = {
+        id: Date.now().toString(),
+        action: 'Ticket Reopened',
+        description: `Ticket reopened from Complete status${reason ? `: ${reason}` : ''}`,
+        performedBy: userId,
+        timestamp: new Date(),
+        metadata: { 
+          previousStatus: 'Complete',
+          newStatus: 'Scheduled',
+          reopenReason: reason,
+          daysRemainingWhenReopened: reopenCheck.daysRemaining
+        }
+      }
+
+      await updateDoc(docRef, {
+        status: 'Scheduled',
+        updatedAt: serverTimestamp(),
+        activityLog: [...ticket.activityLog, activityLogEntry]
+      })
+    } catch (error) {
+      console.error('Error reopening ticket:', error)
+      throw new Error('Failed to reopen ticket')
+    }
+  },
+
+  // Complete ticket with final cost and expense forecast creation
+  async completeTicket(
+    ticketId: string, 
+    userId: string, 
+    finalCost: number,
+    notes?: string
+  ): Promise<void> {
+    console.log('🏁 completeTicket method called with:', { ticketId, userId, finalCost, notes });
+    try {
+      console.log('📄 Creating document reference...');
+      const docRef = doc(db, TICKETS_COLLECTION, ticketId)
+      console.log('✅ Document reference created');
+      
+      console.log('📥 Fetching ticket data...');
+      const ticket = await this.getTicketById(ticketId)
+      console.log('📋 Ticket data received:', { 
+        id: ticket?.id, 
+        status: ticket?.status, 
+        buildingId: ticket?.buildingId 
+      });
+      
+      console.log('🔍 Validating inputs...');
+      if (!ticket) throw new Error('Ticket not found')
+      if (!finalCost || finalCost <= 0) throw new Error('Final cost is required and must be greater than 0')
+      console.log('✅ Input validation passed');
+
+      // Find supplier information from accepted quote, direct assignment, or activity log
+      let supplierId: string | undefined
+      let supplierName: string | undefined
+      
+      console.log('🔍 Checking ticket.quoteRequests:', { hasQuoteRequests: !!ticket.quoteRequests, quoteRequestsType: typeof ticket.quoteRequests, quoteRequestsValue: ticket.quoteRequests });
+      
+      // 1. Check for accepted quote (quoting workflow)
+      if (ticket.quoteRequests) {
+        console.log('🔍 Finding accepted quote in quoteRequests...');
+        const acceptedQuote = ticket.quoteRequests.find(req => req.status === 'Accepted' || req.isWinner)
+        console.log('🔍 Accepted quote search result:', acceptedQuote);
+        
+        if (acceptedQuote) {
+          supplierId = acceptedQuote.supplierId
+          supplierName = acceptedQuote.supplierName
+          console.log('✅ Found supplier from accepted quote:', { supplierId, supplierName });
+        }
+      }
+      
+      // 2. Check activity log for direct scheduling supplier assignment
+      if (!supplierId && ticket.activityLog) {
+        console.log('🔍 Searching activity log for supplier assignment...');
+        const supplierActivity = ticket.activityLog
+          .slice() // Create copy to avoid mutating original
+          .reverse() // Start from most recent
+          .find(log => 
+            log.action === 'Supplier Assigned' && 
+            log.metadata && 
+            log.metadata.supplierName
+          );
+        
+        console.log('🔍 Supplier activity search result:', supplierActivity);
+        
+        if (supplierActivity && supplierActivity.metadata) {
+          // For direct scheduling, we may not have a real supplierId, so use a generated one
+          supplierId = `scheduled-${supplierActivity.metadata.supplierName.toLowerCase().replace(/\s+/g, '-')}`
+          supplierName = supplierActivity.metadata.supplierName
+          console.log('✅ Found supplier from activity log (direct scheduling):', { supplierId, supplierName });
+        }
+      }
+      
+      // 3. Data integrity check - tickets should only reach Complete if they have supplier info
+      if (!supplierId) {
+        console.error('⚠️  DATA INTEGRITY WARNING: Ticket completed without supplier information!');
+        console.error('📊 Ticket completion data:', {
+          ticketId: ticket.id,
+          status: ticket.status,
+          hasQuoteRequests: !!ticket.quoteRequests,
+          quoteRequestsCount: ticket.quoteRequests?.length || 0,
+          activityLogCount: ticket.activityLog?.length || 0,
+          hasAssignedTo: !!ticket.assignedTo,
+          assignedTo: ticket.assignedTo
+        });
+        console.error('🔍 Activity log actions:', ticket.activityLog?.map(log => log.action) || []);
+        
+        // This indicates a workflow violation - the ticket should not have reached Complete status
+        // without going through either the quote workflow or direct scheduling workflow
+        console.warn('💡 This suggests the ticket workflow was not followed correctly.');
+      }
+
+      console.log('📝 Creating activity log entry...');
+      
+      // Create metadata object, filtering out undefined values to prevent Firebase errors
+      const baseMetadata = {
+        previousStatus: ticket.status,
+        finalCost,
+        gracePeriodExpires: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString()
+      }
+      
+      // Only add supplier info if it exists
+      if (supplierId) baseMetadata.supplierId = supplierId
+      if (supplierName) baseMetadata.supplierName = supplierName
+      if (notes) baseMetadata.completionNotes = notes
+      
+      const activityLogEntry = {
+        id: Date.now().toString(),
+        action: 'Work Completed',
+        description: `Work completed with final cost of ${new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(finalCost)}${notes ? `. ${notes}` : ''}`,
+        performedBy: userId,
+        timestamp: new Date(),
+        metadata: baseMetadata
+      }
+      console.log('✅ Activity log entry created:', { action: activityLogEntry.action, description: activityLogEntry.description, metadataKeys: Object.keys(baseMetadata) });
+
+      // Update ticket with completion data
+      console.log('📝 Updating ticket document with completion data...');
+      console.log('📊 Update payload:', {
+        status: 'Complete',
+        completedDateType: typeof serverTimestamp(),
+        activityLogLength: [...ticket.activityLog, activityLogEntry].length,
+        finalCost,
+        finalCostCurrency: 'GBP'
+      });
+      
+      try {
+        console.log('🔄 Calling updateDoc...');
+        const updateResult = await updateDoc(docRef, {
+          status: 'Complete',
+          completedDate: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          activityLog: [...ticket.activityLog, activityLogEntry],
+          // Store final cost in ticket for reference
+          finalCost,
+          finalCostCurrency: 'GBP'
+        })
+        console.log('✅ updateDoc completed, result:', updateResult);
+        console.log('✅ Ticket document updated successfully');
+      } catch (updateError: any) {
+        console.error('❌ Error updating ticket document:', updateError);
+        console.error('❌ Error code:', updateError?.code);
+        console.error('❌ Error message:', updateError?.message);
+        console.error('❌ Full error object:', updateError);
+        
+        // Check for specific Firebase errors
+        if (updateError?.code === 'permission-denied') {
+          console.error('🚫 PERMISSION DENIED - Check Firestore rules for ticket updates');
+        } else if (updateError?.code === 'unavailable') {
+          console.error('📡 FIREBASE UNAVAILABLE - Check network connection');
+        } else if (updateError?.code === 'not-found') {
+          console.error('🔍 DOCUMENT NOT FOUND - Ticket may have been deleted');
+        }
+        
+        throw new Error(`Firebase update failed: ${updateError?.message || updateError}`);
+      }
+
+      // Create expense forecast record - always create for completed tickets with final costs
+      console.log('📊 Checking expense forecast creation for completed ticket:', { 
+        hasSupplierId: !!supplierId, 
+        hasSupplierName: !!supplierName,
+        finalCost,
+        ticketId 
+      });
+      
+      try {
+        console.log('📊 Importing expense service...');
+        const { expenseService } = await import('./expenseService')
+        console.log('📊 Creating expense from ticket...');
+        
+        // Use supplier info if available, otherwise use defaults
+        const expenseId = await expenseService.createExpenseFromTicket(
+          ticketId,
+          ticket.buildingId,
+          finalCost,
+          supplierId || 'unknown-supplier', // Default if no supplier
+          supplierName || 'Unknown Supplier', // Default if no supplier name
+          ticket.title,
+          'reactive_maintenance', // Default category for ticket completion
+          userId
+        )
+        
+        console.log(`✅ Created forecast expense ${expenseId} for completed ticket ${ticketId}`);
+        if (!supplierId || !supplierName) {
+          console.log('📝 Note: Expense created with default supplier info - can be updated later');
+        }
+      } catch (expenseError) {
+        console.error('❌ Failed to create expense forecast:', expenseError)
+        console.error('❌ Expense creation error details:', {
+          message: expenseError.message,
+          ticketId,
+          finalCost,
+          supplierId,
+          supplierName
+        });
+        // Don't fail the ticket completion if expense creation fails
+      }
+
+    } catch (error) {
+      console.error('❌ Error completing ticket:', error)
+      // Convert any error to a readable string for debugging
+      const errorDetails = {
+        message: error.message || 'Unknown error',
+        name: error.name,
+        stack: error.stack,
+        toString: error.toString()
+      };
+      console.error('❌ Error details:', errorDetails);
+      throw new Error(`Failed to complete ticket: ${errorDetails.message}`)
+    }
+  },
+
+  // Get tickets that are eligible for auto-closure (Complete status for 7+ days)
+  async getTicketsEligibleForAutoClosure(): Promise<Ticket[]> {
+    try {
+      const completeTicketsQuery = query(
+        collection(db, TICKETS_COLLECTION),
+        where('status', '==', 'Complete')
+      )
+      
+      const querySnapshot = await getDocs(completeTicketsQuery)
+      const eligibleTickets: Ticket[] = []
+      
+      for (const doc of querySnapshot.docs) {
+        const ticket = {
+          id: doc.id,
+          ...doc.data(),
+          createdAt: convertTimestamp(doc.data().createdAt),
+          updatedAt: convertTimestamp(doc.data().updatedAt),
+          scheduledDate: convertTimestamp(doc.data().scheduledDate),
+          completedDate: convertTimestamp(doc.data().completedDate),
+          activityLog: doc.data().activityLog?.map((log: any) => ({
+            ...log,
+            timestamp: convertTimestamp(log.timestamp)
+          })) || []
+        } as Ticket
+        
+        // Check if it's been 7+ days since completion
+        const completedActivity = ticket.activityLog.find(log => 
+          (log.action === 'Status Updated' && log.description.includes('Complete')) ||
+          log.action.toLowerCase().includes('completed')
+        )
+        
+        if (completedActivity) {
+          const daysSinceCompleted = Math.floor(
+            (new Date().getTime() - new Date(completedActivity.timestamp).getTime()) / (1000 * 60 * 60 * 24)
+          )
+          
+          if (daysSinceCompleted >= 7) {
+            eligibleTickets.push(ticket)
+          }
+        }
+      }
+      
+      return eligibleTickets
+    } catch (error) {
+      console.error('Error getting tickets eligible for auto-closure:', error)
+      throw new Error('Failed to get tickets eligible for auto-closure')
     }
   },
 

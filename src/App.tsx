@@ -17,7 +17,7 @@ import NotificationList from './components/Notifications/NotificationList'
 // Import new comprehensive feature pages
 import BuildingDataManagement from './pages/BuildingDataManagement'
 import ServiceChargesPage from './pages/ServiceCharges'
-import TicketsWorkOrders from './pages/TicketsWorkOrders'
+import Tickets from './pages/Tickets'
 import Finances from './pages/Finances' // Unified Financial Management
 import Settings from './pages/Settings'
 import DensityTest from './components/DensityTest'
@@ -47,8 +47,8 @@ function App() {
               <Route path="finances" element={<Finances />} />
               
               {/* Unified Tickets & Work Orders */}
-              <Route path="tickets" element={<TicketsWorkOrders />} />
-              <Route path="work-orders" element={<TicketsWorkOrders />} />
+              <Route path="tickets" element={<Tickets />} />
+              <Route path="work-orders" element={<Tickets />} />
               <Route path="tickets/new" element={<CreateTicket />} />
               <Route path="tickets/:id" element={<TicketDetail />} />
               <Route path="suppliers" element={<Suppliers />} />

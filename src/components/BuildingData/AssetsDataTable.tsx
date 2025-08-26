@@ -9,7 +9,7 @@ import { exportAssetsToCSV } from '../../utils/csvExport'
 import { ImportValidationResult, importAssetsFromCSV } from '../../utils/csvImport'
 import { getAllBuildings, getAssetsByBuilding, createAsset, updateAsset, deleteAsset } from '../../services/buildingService'
 import { DataTable, Column, TableAction } from '../UI/DataTable'
-import { Button, Modal, ModalFooter } from '../UI'
+import { Button, Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 
 const AssetsDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -24,6 +24,15 @@ const AssetsDataTable: React.FC = () => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+
+  // Asset status dropdown options
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Status', description: 'Show all assets' },
+    { value: AssetStatus.OPERATIONAL, label: 'Operational', description: 'Currently operational' },
+    { value: AssetStatus.NEEDS_REPAIR, label: 'Needs Repair', description: 'Requires repairs' },
+    { value: AssetStatus.IN_REPAIR, label: 'In Repair', description: 'Currently being repaired' },
+    { value: AssetStatus.DECOMMISSIONED, label: 'Decommissioned', description: 'No longer in use' }
+  ];
 
   // Form states using correct Asset interface
   const [assetForm, setAssetForm] = useState({
@@ -495,20 +504,13 @@ const AssetsDataTable: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
           />
         </div>
-        <div className="relative flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-          >
-            <option value="all">All Status</option>
-            <option value={AssetStatus.OPERATIONAL}>Operational</option>
-            <option value={AssetStatus.NEEDS_REPAIR}>Needs Repair</option>
-            <option value={AssetStatus.IN_REPAIR}>In Repair</option>
-            <option value={AssetStatus.DECOMMISSIONED}>Decommissioned</option>
-          </select>
-          <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-        </div>
+        <Dropdown
+          options={statusOptions}
+          value={filterStatus}
+          onChange={(value) => setFilterStatus(value)}
+          placeholder="Filter by status"
+          className="min-w-[200px]"
+        />
         
         {/* Bulk Import/Export */}
         <BulkImportExport

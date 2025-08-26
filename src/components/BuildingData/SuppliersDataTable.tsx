@@ -12,7 +12,7 @@ import { exportSuppliersToCSV } from '../../utils/csvExport'
 import { importSuppliersFromCSV, ImportValidationResult } from '../../utils/csvImport'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
-import { Modal, ModalFooter } from '../UI'
+import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 import { tokens } from '../../styles/tokens'
 
 const SuppliersDataTable: React.FC = () => {
@@ -27,6 +27,17 @@ const SuppliersDataTable: React.FC = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all')
+
+  // Supplier specialty dropdown options
+  const specialtyOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Specialties', description: 'Show all suppliers' },
+    { value: 'plumbing', label: 'Plumbing', description: 'Plumbing and water systems' },
+    { value: 'electrical', label: 'Electrical', description: 'Electrical systems and wiring' },
+    { value: 'hvac', label: 'HVAC', description: 'Heating, ventilation, and air conditioning' },
+    { value: 'cleaning', label: 'Cleaning', description: 'Cleaning and janitorial services' },
+    { value: 'security', label: 'Security', description: 'Security systems and services' },
+    { value: 'landscaping', label: 'Landscaping', description: 'Landscaping and gardening' }
+  ];
 
   // Form states
   const [supplierForm, setSupplierForm] = useState({
@@ -512,22 +523,13 @@ const SuppliersDataTable: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
           />
         </div>
-        <div className="relative flex items-center gap-2">
-          <select
-            value={selectedSpecialty}
-            onChange={(e) => setSelectedSpecialty(e.target.value)}
-            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-          >
-            <option value="all">All Specialties</option>
-            <option value="plumbing">Plumbing</option>
-            <option value="electrical">Electrical</option>
-            <option value="hvac">HVAC</option>
-            <option value="cleaning">Cleaning</option>
-            <option value="security">Security</option>
-            <option value="landscaping">Landscaping</option>
-          </select>
-          <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-        </div>
+        <Dropdown
+          options={specialtyOptions}
+          value={selectedSpecialty}
+          onChange={(value) => setSelectedSpecialty(value)}
+          placeholder="Filter by specialty"
+          className="min-w-[200px]"
+        />
         
         {/* Bulk Import/Export */}
         <BulkImportExport
@@ -603,20 +605,12 @@ const SuppliersDataTable: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
-                <select
+                <Dropdown
+                  options={specialtyOptions.filter(opt => opt.value !== 'all')}
                   value={supplierForm.specialty}
-                  onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value="">Select Specialty</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="HVAC">HVAC</option>
-                  <option value="Cleaning">Cleaning</option>
-                  <option value="Security">Security</option>
-                  <option value="Landscaping">Landscaping</option>
-                  <option value="General Maintenance">General Maintenance</option>
-                </select>
+                  onChange={(value) => setSupplierForm({...supplierForm, specialty: value})}
+                  placeholder="Select Specialty"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
@@ -776,20 +770,12 @@ const SuppliersDataTable: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
-                <select
+                <Dropdown
+                  options={specialtyOptions.filter(opt => opt.value !== 'all')}
                   value={supplierForm.specialty}
-                  onChange={(e) => setSupplierForm({...supplierForm, specialty: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value="">Select specialty</option>
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="HVAC">HVAC</option>
-                  <option value="Cleaning">Cleaning</option>
-                  <option value="Security">Security</option>
-                  <option value="Landscaping">Landscaping</option>
-                  <option value="General Maintenance">General Maintenance</option>
-                </select>
+                  onChange={(value) => setSupplierForm({...supplierForm, specialty: value})}
+                  placeholder="Select Specialty"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>

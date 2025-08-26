@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { User, DollarSign, Calendar, MessageSquare, ArrowUp, ArrowDown } from 'lucide-react'
-import { WorkOrder, TicketStatus, UrgencyLevel } from '../types'
+import { WorkOrder, TicketStatus, UrgencyLevel, WorkOrderStatus, WorkOrderPriority } from '../types'
 
 type SortField = 'title' | 'status' | 'priority' | 'assignedTo' | 'cost' | 'scheduledDate'
 type SortDirection = 'asc' | 'desc'
@@ -16,23 +16,23 @@ const WorkOrderTable: React.FC<WorkOrderTableProps> = ({
 }) => {
   const [sortField, setSortField] = useState<SortField | null>(null)
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
-  const getStatusColor = (status: TicketStatus) => {
+  const getStatusColor = (status: WorkOrderStatus) => {
     switch (status) {
-      case 'Triage': return 'bg-yellow-100 text-yellow-800'
-      case 'Scheduled': return 'bg-cyan-100 text-cyan-800'
-      case 'In Progress': return 'bg-blue-100 text-blue-800'
-      case 'Resolved': return 'bg-green-100 text-green-800'
-      case 'Cancelled': return 'bg-red-100 text-red-800'
+      case WorkOrderStatus.TRIAGE: return 'bg-yellow-100 text-yellow-800'
+      case WorkOrderStatus.SCHEDULED: return 'bg-cyan-100 text-cyan-800'
+      case WorkOrderStatus.IN_PROGRESS: return 'bg-blue-100 text-blue-800'
+      case WorkOrderStatus.RESOLVED: return 'bg-green-100 text-green-800'
+      case WorkOrderStatus.CANCELLED: return 'bg-red-100 text-red-800'
       default: return 'bg-neutral-100 text-gray-800'
     }
   }
 
-  const getPriorityColor = (priority: UrgencyLevel) => {
+  const getPriorityColor = (priority: WorkOrderPriority) => {
     switch (priority) {
-      case 'Low': return 'bg-green-100 text-green-800'
-      case 'Medium': return 'bg-yellow-100 text-yellow-800'
-      case 'High': return 'bg-orange-100 text-orange-800'
-      case 'Critical': return 'bg-red-100 text-red-800'
+      case WorkOrderPriority.LOW: return 'bg-green-100 text-green-800'
+      case WorkOrderPriority.MEDIUM: return 'bg-yellow-100 text-yellow-800'
+      case WorkOrderPriority.HIGH: return 'bg-orange-100 text-orange-800'
+      case WorkOrderPriority.URGENT: return 'bg-red-100 text-red-800'
       default: return 'bg-neutral-100 text-gray-800'
     }
   }

@@ -9,7 +9,7 @@ export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full'
 export interface ModalProps {
   isOpen: boolean
   onClose: () => void
-  title?: string
+  title?: string | ReactNode
   description?: string
   children: ReactNode
   footer?: ReactNode
@@ -117,12 +117,12 @@ export const Modal: React.FC<ModalProps> = ({
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
             <div className="flex-1 min-w-0">
               {title && (
-                <h2
+                <div
                   id="modal-title"
-                  className="text-lg font-semibold text-neutral-900 truncate"
+                  className="text-lg font-semibold text-neutral-900"
                 >
                   {title}
-                </h2>
+                </div>
               )}
               {description && (
                 <p

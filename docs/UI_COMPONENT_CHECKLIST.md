@@ -47,7 +47,7 @@ This document provides a comprehensive checklist of all user-facing components, 
   - [ ] Suppliers Data Table
   - [ ] Assets Data Table
 
-### 3. **Ticketing** (`/src/pages/TicketsWorkOrders.tsx`)
+### 3. **Ticketing** (`/src/pages/Tickets.tsx`)
 - [ ] **Header Section**
   - [ ] Page title and subtitle
   - [ ] "New Ticket" button styling
@@ -653,7 +653,7 @@ This document provides a comprehensive checklist of all user-facing components, 
 
 ### Phase 2: Main Pages (High Priority)
 1. [ ] Dashboard.tsx
-2. [ ] TicketsWorkOrders.tsx
+2. [ ] Tickets.tsx
 3. [ ] BuildingDataManagement.tsx
 4. [ ] Finances.tsx
 

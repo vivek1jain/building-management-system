@@ -119,7 +119,7 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Expenses collection
+    // Expenses collection - TEMPORARILY RELAXED FOR TESTING
     match /expenses/{expenseId} {
       // Anyone authenticated can read expenses
       allow read: if isAuthenticated();
@@ -129,10 +129,10 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
       
-      // Only admins can delete expenses
-      allow delete: if isAuthenticated() && 
+      // TESTING: Allow managers and admins to delete expenses for data cleanup
+      allow delete: if isManager() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
     // Flats collection
@@ -221,7 +221,7 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Income collection - NEW
+    // Income collection - TEMPORARILY RELAXED FOR TESTING
     match /income/{incomeId} {
       // Anyone authenticated can read income entries
       allow read: if isAuthenticated();
@@ -231,10 +231,10 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
       
-      // Only admins can delete income entries
-      allow delete: if isAuthenticated() && 
+      // TESTING: Allow managers and admins to delete income entries for data cleanup
+      allow delete: if isManager() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
     // Email logs collection - NEW

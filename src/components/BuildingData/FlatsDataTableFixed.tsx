@@ -11,7 +11,7 @@ import { getAllBuildings } from '../../services/buildingService'
 import { getFlatsByBuilding, createFlat, updateFlat, deleteFlat } from '../../services/flatService'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
-import { Modal, ModalFooter } from '../UI'
+import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 
 const FlatsDataTableFixed: React.FC = () => {
   const { currentUser } = useAuth()
@@ -25,6 +25,15 @@ const FlatsDataTableFixed: React.FC = () => {
   const [selectedFlat, setSelectedFlat] = useState<Flat | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+
+  // Flat status dropdown options
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Status', description: 'Show all flats' },
+    { value: 'vacant', label: 'Vacant', description: 'Available for rent' },
+    { value: 'occupied', label: 'Occupied', description: 'Currently rented' },
+    { value: 'maintenance', label: 'Maintenance', description: 'Under maintenance' },
+    { value: 'reserved', label: 'Reserved', description: 'Reserved for tenant' }
+  ];
 
   // Form states
   const [flatForm, setFlatForm] = useState({
@@ -421,17 +430,13 @@ const FlatsDataTableFixed: React.FC = () => {
           onChange={(e) => setSearchTerm(e.target.value)}
           className="flex-1 max-w-md px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
         />
-        <select
+        <Dropdown
+          options={statusOptions}
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="appearance-none bg-white border border-neutral-200 rounded-lg px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-colors duration-200 min-w-[200px]"
-        >
-          <option value="all">All Status</option>
-          <option value="vacant">Vacant</option>
-          <option value="occupied">Occupied</option>
-          <option value="maintenance">Maintenance</option>
-          <option value="reserved">Reserved</option>
-        </select>
+          onChange={(value) => setFilterStatus(value)}
+          placeholder="Filter by status"
+          className="min-w-[200px]"
+        />
         
         {/* Bulk Import/Export */}
         <BulkImportExport

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendQuoteSubmissionEmail = exports.sendQuoteRequestEmail = void 0;
+exports.autoCloseCompletedTickets = exports.sendQuoteSubmissionEmail = exports.sendQuoteRequestEmail = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const nodemailer = require("nodemailer");
@@ -180,6 +180,90 @@ exports.sendQuoteSubmissionEmail = functions.firestore
     }
     catch (error) {
         console.error('Error sending quote submission email:', error);
+        throw error;
+    }
+});
+// Scheduled function to auto-close Complete tickets after 7 days
+exports.autoCloseCompletedTickets = functions.pubsub
+    .schedule('0 2 * * *') // Run daily at 2 AM UTC
+    .timeZone('Europe/London') // UK timezone
+    .onRun(async (context) => {
+    var _a;
+    console.log('🔄 Starting auto-close job for completed tickets');
+    try {
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+        console.log('🔍 Looking for Complete tickets older than:', sevenDaysAgo.toISOString());
+        // Query for tickets with status 'Complete'
+        const completeTicketsQuery = db.collection('tickets')
+            .where('status', '==', 'Complete');
+        const snapshot = await completeTicketsQuery.get();
+        console.log(`📊 Found ${snapshot.size} tickets with Complete status`);
+        let processedCount = 0;
+        let closedCount = 0;
+        const batch = db.batch();
+        for (const doc of snapshot.docs) {
+            const ticket = doc.data();
+            processedCount++;
+            // Find when the ticket was completed from activity log
+            const activityLog = ticket.activityLog || [];
+            const completedActivity = activityLog.find((log) => {
+                var _a, _b;
+                return (log.action === 'Status Updated' && ((_a = log.description) === null || _a === void 0 ? void 0 : _a.includes('Complete'))) ||
+                    ((_b = log.action) === null || _b === void 0 ? void 0 : _b.toLowerCase().includes('completed'));
+            });
+            if (!completedActivity) {
+                console.log(`⚠️  Ticket ${doc.id}: No completion activity found, skipping`);
+                continue;
+            }
+            const completedDate = ((_a = completedActivity.timestamp) === null || _a === void 0 ? void 0 : _a.toDate) ? completedActivity.timestamp.toDate() : new Date(completedActivity.timestamp);
+            const daysSinceCompleted = Math.floor((now.getTime() - completedDate.getTime()) / (24 * 60 * 60 * 1000));
+            console.log(`🔍 Ticket ${doc.id}: Completed ${daysSinceCompleted} days ago`);
+            if (daysSinceCompleted >= 7) {
+                console.log(`✅ Auto-closing ticket ${doc.id} (completed ${daysSinceCompleted} days ago)`);
+                // Create activity log entry for auto-closure
+                const autoCloseActivity = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    action: 'Auto Closed',
+                    description: `Ticket automatically closed after 7 days (completed ${daysSinceCompleted} days ago)`,
+                    performedBy: 'system',
+                    timestamp: admin.firestore.Timestamp.fromDate(now),
+                    metadata: {
+                        originalCompletedDate: completedDate.toISOString(),
+                        daysSinceCompleted,
+                        autoCloseReason: '7-day-rule'
+                    }
+                };
+                // Update ticket status to Closed and add activity log entry
+                const ticketRef = doc.ref;
+                batch.update(ticketRef, {
+                    status: 'Closed',
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    activityLog: admin.firestore.FieldValue.arrayUnion(autoCloseActivity)
+                });
+                closedCount++;
+            }
+            else {
+                console.log(`⏳ Ticket ${doc.id}: Still within 7-day grace period (${7 - daysSinceCompleted} days remaining)`);
+            }
+        }
+        // Commit all updates in a batch
+        if (closedCount > 0) {
+            await batch.commit();
+            console.log(`✅ Auto-close job completed: ${closedCount} tickets closed out of ${processedCount} Complete tickets`);
+        }
+        else {
+            console.log(`ℹ️  Auto-close job completed: No tickets needed closing out of ${processedCount} Complete tickets`);
+        }
+        return {
+            success: true,
+            processedCount,
+            closedCount,
+            timestamp: now.toISOString()
+        };
+    }
+    catch (error) {
+        console.error('❌ Error in auto-close job:', error);
         throw error;
     }
 });

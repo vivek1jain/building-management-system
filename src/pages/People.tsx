@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useBuilding } from '../contexts/BuildingContext'
-import { getPeopleStats } from '../services/peopleService'
-import { Person, PersonStatus, UserRole, Building } from '../types'
+import { createPerson } from '../services/personService'
+import { PersonStatus, PersonRole } from '../types'
+import { Dropdown, DropdownOption } from '../components/UI'
 import { 
   Users, 
   UserPlus, 
@@ -219,6 +220,15 @@ const PeoplePage: React.FC = () => {
     }).format(date)
   }
 
+  // Status filter options
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Status', description: 'Show people with all statuses' },
+    { value: 'active', label: 'Active', description: 'Currently active residents' },
+    { value: 'inactive', label: 'Inactive', description: 'Inactive residents' },
+    { value: 'pending', label: 'Pending', description: 'Pending approval' },
+    { value: 'suspended', label: 'Suspended', description: 'Suspended accounts' }
+  ];
+
   const filteredPeople = people.filter(person => {
     const matchesSearch = 
       person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -270,17 +280,14 @@ const PeoplePage: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <select
+            <Dropdown
+              options={statusOptions}
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-              <option value="pending">Pending</option>
-              <option value="suspended">Suspended</option>
-            </select>
+              onChange={(value) => setFilterStatus(value)}
+              placeholder="Filter by status..."
+              size="md"
+              className="min-w-[160px]"
+            />
           </div>
         </div>
       </div>

@@ -9,6 +9,7 @@ type SortDirection = 'asc' | 'desc'
 
 interface EventTableProps {
   events: BuildingEvent[]
+  onViewEvent?: (event: BuildingEvent) => void
   onEditEvent?: (event: BuildingEvent) => void
   onTicketEventClick?: (ticketId: string) => void
   onStatusUpdate?: (eventId: string, newStatus: string) => void
@@ -22,6 +23,7 @@ interface EventTableProps {
 
 const EventTable: React.FC<EventTableProps> = ({
   events,
+  onViewEvent,
   onEditEvent,
   onTicketEventClick,
   onStatusUpdate,
@@ -316,35 +318,20 @@ const EventTable: React.FC<EventTableProps> = ({
               const isPast = isEventPast(endDate)
               const isCurrent = isEventCurrent(startDate, endDate)
               
-              const handleRowClick = () => {
-                if (isTicketDriven && event.ticketId) {
-                  onTicketEventClick?.(event.ticketId)
-                } else {
-                  onEditEvent?.(event)
-                }
-              }
-              
-              const handleKeyDown = (e: React.KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  handleRowClick()
-                }
-              }
+              // Check if ticket-driven event is from a completed/closed ticket
+              const isTicketCompleted = isTicketDriven && (event.status === 'completed' || event.ticketStatus === 'Complete' || event.ticketStatus === 'Closed')
               
               return (
                 <tr
                   key={event.id}
-                  onClick={handleRowClick}
-                  onKeyDown={handleKeyDown}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={isTicketDriven ? `View ticket: ${event.title}` : `Edit event: ${event.title}`}
-                  className={`transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-inset hover:bg-neutral-50 cursor-pointer ${
+                  className={`transition-colors duration-200 ${
                     isPast ? 'opacity-60' : ''
                   } ${
                     isCurrent ? 'bg-blue-25 border-l-2 border-l-blue-400' : ''
                   } ${
                     isTicketDriven ? 'bg-blue-50/30' : ''
+                  } ${
+                    isTicketCompleted ? 'opacity-50 bg-gray-50 text-gray-500' : ''
                   }`}
                 >
                 <td className="px-6 py-4">
@@ -429,38 +416,42 @@ const EventTable: React.FC<EventTableProps> = ({
                     )}
                   </div>
                 </td>
-                {!isTicketDriven && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center space-x-2">
-                      {/* Workflow action buttons for regular events only - ensure consistent width */}
-                      {getWorkflowActions && onStatusUpdate && 
-                        getWorkflowActions(event.status).map((action) => (
-                          <Button
-                            key={action.action}
-                            variant={action.color === 'btn-primary' ? 'primary' : 'outline'}
-                            size="sm"
-                            className="px-3 py-1 min-w-[80px] text-center"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onStatusUpdate(event.id, action.action)
-                            }}
-                          >
-                            {action.label}
-                          </Button>
-                        ))
-                      }
-                    </div>
-                  </td>
-                )}
-                {isTicketDriven && (
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <div className="flex items-center justify-center min-w-[80px]">
-                      <span className="text-xs text-blue-600 font-inter cursor-pointer hover:text-blue-800 px-3 py-1">
-                        View Ticket →
-                      </span>
-                    </div>
-                  </td>
-                )}
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <div className="flex items-center space-x-2">
+                    {/* View button - always available */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        if (isTicketDriven && event.ticketId) {
+                          onTicketEventClick?.(event.ticketId)
+                        } else if (onViewEvent) {
+                          onViewEvent(event)
+                        }
+                      }}
+                    >
+                      View
+                    </Button>
+                    
+                    {/* Edit button - disabled for completed/cancelled events and ticket events */}
+                    {!isTicketDriven && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={event.status === 'completed' || event.status === 'cancelled'}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (onEditEvent) {
+                            onEditEvent(event)
+                          }
+                        }}
+                      >
+                        Edit
+                      </Button>
+                    )}
+                  </div>
+                </td>
                 </tr>
               )
             })}

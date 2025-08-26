@@ -49,15 +49,36 @@ export const getWorkOrdersByBuilding = async (buildingId: string): Promise<WorkO
         priority: data.priority,
         status: data.status,
         flatId: data.flatId,
+        flatNumber: data.flatNumber || null,
+        assetId: data.assetId,
         scheduledDate: convertTimestamp(data.scheduledDate),
+        completedDate: data.completedDate ? convertTimestamp(data.completedDate) : null,
         assignedToUid: data.assignedToUid,
+        assignedToUserEmail: data.assignedToUserEmail,
+        
+        // Supplier information
+        supplierId: data.supplierId,
+        supplierName: data.supplierName,
+        scheduledSupplierId: data.scheduledSupplierId,
+        selectedQuoteId: data.selectedQuoteId,
+        
+        // Price tracking
+        quotePrice: data.quotePrice || null,
+        estimatedPrice: data.estimatedPrice || null,
+        finalPrice: data.finalPrice || null,
+        priceSource: data.priceSource,
+        cost: data.cost || null, // Legacy field
+        
         createdByUid: data.createdByUid,
         createdByUserEmail: data.createdByUserEmail,
         createdAt: convertTimestamp(data.createdAt),
         updatedAt: convertTimestamp(data.updatedAt),
         resolutionNotes: data.resolutionNotes || [],
         quoteRequests: data.quoteRequests || [],
-        managerCommunication: data.managerCommunication || []
+        managerCommunication: data.managerCommunication || [],
+        lastStatusChangeByUid: data.lastStatusChangeByUid,
+        resolvedAt: data.resolvedAt ? convertTimestamp(data.resolvedAt) : null,
+        userFeedbackLog: data.userFeedbackLog || []
       })
     })
     
@@ -88,15 +109,36 @@ export const getAllWorkOrders = async (): Promise<WorkOrder[]> => {
         priority: data.priority,
         status: data.status,
         flatId: data.flatId,
+        flatNumber: data.flatNumber || null,
+        assetId: data.assetId,
         scheduledDate: convertTimestamp(data.scheduledDate),
+        completedDate: data.completedDate ? convertTimestamp(data.completedDate) : null,
         assignedToUid: data.assignedToUid,
+        assignedToUserEmail: data.assignedToUserEmail,
+        
+        // Supplier information
+        supplierId: data.supplierId,
+        supplierName: data.supplierName,
+        scheduledSupplierId: data.scheduledSupplierId,
+        selectedQuoteId: data.selectedQuoteId,
+        
+        // Price tracking
+        quotePrice: data.quotePrice || null,
+        estimatedPrice: data.estimatedPrice || null,
+        finalPrice: data.finalPrice || null,
+        priceSource: data.priceSource,
+        cost: data.cost || null, // Legacy field
+        
         createdByUid: data.createdByUid,
         createdByUserEmail: data.createdByUserEmail,
         createdAt: convertTimestamp(data.createdAt),
         updatedAt: convertTimestamp(data.updatedAt),
         resolutionNotes: data.resolutionNotes || [],
         quoteRequests: data.quoteRequests || [],
-        managerCommunication: data.managerCommunication || []
+        managerCommunication: data.managerCommunication || [],
+        lastStatusChangeByUid: data.lastStatusChangeByUid,
+        resolvedAt: data.resolvedAt ? convertTimestamp(data.resolvedAt) : null,
+        userFeedbackLog: data.userFeedbackLog || []
       })
     })
     
@@ -123,15 +165,36 @@ export const getWorkOrderById = async (workOrderId: string): Promise<WorkOrder |
         priority: data.priority,
         status: data.status,
         flatId: data.flatId,
+        flatNumber: data.flatNumber || null,
+        assetId: data.assetId,
         scheduledDate: convertTimestamp(data.scheduledDate),
+        completedDate: data.completedDate ? convertTimestamp(data.completedDate) : null,
         assignedToUid: data.assignedToUid,
+        assignedToUserEmail: data.assignedToUserEmail,
+        
+        // Supplier information
+        supplierId: data.supplierId,
+        supplierName: data.supplierName,
+        scheduledSupplierId: data.scheduledSupplierId,
+        selectedQuoteId: data.selectedQuoteId,
+        
+        // Price tracking
+        quotePrice: data.quotePrice || null,
+        estimatedPrice: data.estimatedPrice || null,
+        finalPrice: data.finalPrice || null,
+        priceSource: data.priceSource,
+        cost: data.cost || null, // Legacy field
+        
         createdByUid: data.createdByUid,
         createdByUserEmail: data.createdByUserEmail,
         createdAt: convertTimestamp(data.createdAt),
         updatedAt: convertTimestamp(data.updatedAt),
         resolutionNotes: data.resolutionNotes || [],
         quoteRequests: data.quoteRequests || [],
-        managerCommunication: data.managerCommunication || []
+        managerCommunication: data.managerCommunication || [],
+        lastStatusChangeByUid: data.lastStatusChangeByUid,
+        resolvedAt: data.resolvedAt ? convertTimestamp(data.resolvedAt) : null,
+        userFeedbackLog: data.userFeedbackLog || []
       }
     }
     
@@ -271,15 +334,36 @@ export const subscribeToWorkOrders = (buildingId: string | null, callback: (work
           priority: data.priority,
           status: data.status,
           flatId: data.flatId,
+          flatNumber: data.flatNumber || null,
+          assetId: data.assetId,
           scheduledDate: convertTimestamp(data.scheduledDate),
+          completedDate: data.completedDate ? convertTimestamp(data.completedDate) : null,
           assignedToUid: data.assignedToUid,
+          assignedToUserEmail: data.assignedToUserEmail,
+          
+          // Supplier information
+          supplierId: data.supplierId,
+          supplierName: data.supplierName,
+          scheduledSupplierId: data.scheduledSupplierId,
+          selectedQuoteId: data.selectedQuoteId,
+          
+          // Price tracking
+          quotePrice: data.quotePrice || null,
+          estimatedPrice: data.estimatedPrice || null,
+          finalPrice: data.finalPrice || null,
+          priceSource: data.priceSource,
+          cost: data.cost || null, // Legacy field
+          
           createdByUid: data.createdByUid,
           createdByUserEmail: data.createdByUserEmail,
           createdAt: convertTimestamp(data.createdAt),
           updatedAt: convertTimestamp(data.updatedAt),
           resolutionNotes: data.resolutionNotes || [],
           quoteRequests: data.quoteRequests || [],
-          managerCommunication: data.managerCommunication || []
+          managerCommunication: data.managerCommunication || [],
+          lastStatusChangeByUid: data.lastStatusChangeByUid,
+          resolvedAt: data.resolvedAt ? convertTimestamp(data.resolvedAt) : null,
+          userFeedbackLog: data.userFeedbackLog || []
         })
       })
       callback(workOrders)
@@ -288,5 +372,107 @@ export const subscribeToWorkOrders = (buildingId: string | null, callback: (work
     console.error('Error subscribing to work orders:', error)
     callback([])
     return () => {}
+  }
+}
+
+// Update work order with supplier and price information (for direct scheduling)
+export const updateWorkOrderWithSupplierAndPrice = async (
+  workOrderId: string, 
+  supplierId: string,
+  supplierName: string,
+  estimatedPrice: number,
+  updatedByUid: string
+): Promise<void> => {
+  try {
+    const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
+    await updateDoc(docRef, {
+      scheduledSupplierId: supplierId,
+      supplierId: supplierId,
+      supplierName: supplierName,
+      estimatedPrice: estimatedPrice,
+      priceSource: 'direct',
+      lastStatusChangeByUid: updatedByUid,
+      updatedAt: serverTimestamp()
+    })
+  } catch (error) {
+    console.error('Error updating work order with supplier and price:', error)
+    throw error
+  }
+}
+
+// Update work order final price on completion and create expense forecast
+export const updateWorkOrderFinalPrice = async (
+  workOrderId: string,
+  finalPrice: number,
+  updatedByUid: string
+): Promise<void> => {
+  try {
+    // Get the work order to extract supplier and building information
+    const workOrder = await getWorkOrderById(workOrderId)
+    if (!workOrder) throw new Error('Work order not found')
+    
+    const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
+    await updateDoc(docRef, {
+      finalPrice: finalPrice,
+      completedDate: serverTimestamp(),
+      status: WorkOrderStatus.RESOLVED,
+      lastStatusChangeByUid: updatedByUid,
+      updatedAt: serverTimestamp()
+    })
+
+    // Create expense forecast record
+    if (workOrder.supplierId && workOrder.supplierName) {
+      try {
+        const { expenseService } = await import('./expenseService')
+        const expenseId = await expenseService.createExpenseFromTicket(
+          workOrderId, // Using work order ID as reference
+          workOrder.buildingId,
+          finalPrice,
+          workOrder.supplierId,
+          workOrder.supplierName,
+          workOrder.title,
+          'reactive_maintenance', // Default category for work order completion
+          updatedByUid
+        )
+        
+        console.log(`Created forecast expense ${expenseId} for completed work order ${workOrderId}`)
+      } catch (expenseError) {
+        console.error('Failed to create expense forecast for work order:', expenseError)
+        // Don't fail the work order completion if expense creation fails
+      }
+    } else {
+      console.warn(`No supplier information found for work order ${workOrderId}, skipping expense forecast creation`)
+    }
+  } catch (error) {
+    console.error('Error updating work order final price:', error)
+    throw error
+  }
+}
+
+// Accept quote and set pricing information
+export const acceptQuoteForWorkOrder = async (
+  workOrderId: string,
+  quoteId: string,
+  quotePrice: number,
+  supplierId: string,
+  supplierName: string,
+  updatedByUid: string
+): Promise<void> => {
+  try {
+    const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
+    await updateDoc(docRef, {
+      selectedQuoteId: quoteId,
+      quotePrice: quotePrice,
+      finalPrice: quotePrice, // Initialize final price with quote price
+      supplierId: supplierId,
+      supplierName: supplierName,
+      priceSource: 'quote',
+      status: WorkOrderStatus.SCHEDULED,
+      lastStatusChangeByUid: updatedByUid,
+      updatedAt: serverTimestamp()
+    })
+  } catch (error) {
+    console.error('Error accepting quote for work order:', error)
+    throw error
   }
 }

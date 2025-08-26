@@ -15,10 +15,12 @@ import { useNotifications } from '../contexts/NotificationContext'
 import { ticketService } from '../services/ticketService'
 import { CreateTicketForm, UrgencyLevel } from '../types'
 import { useBuilding } from '../contexts/BuildingContext'
+import { Dropdown, DropdownOption } from '../components/UI'
 
 const CreateTicket = () => {
   const [attachments, setAttachments] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('')
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, loading: buildingsLoading } = useBuilding()
@@ -28,7 +30,10 @@ const CreateTicket = () => {
     register,
     handleSubmit,
     formState: { errors },
-    watch
+    watch,
+    setValue,
+    setError,
+    clearErrors
   } = useForm<CreateTicketForm>()
 
   const urgency = watch('urgency')
@@ -84,6 +89,22 @@ const CreateTicket = () => {
       setLoading(false)
     }
   }
+
+  // Handle building selection
+  const handleBuildingChange = (buildingId: string) => {
+    setSelectedBuildingId(buildingId)
+    setValue('buildingId', buildingId)
+    if (buildingId) {
+      clearErrors('buildingId')
+    }
+  }
+
+  // Convert buildings to dropdown options
+  const buildingOptions: DropdownOption[] = buildings.map((building) => ({
+    value: building.id,
+    label: building.name,
+    description: building.address ? `${building.units || 0} units • ${building.address}` : `${building.units || 0} units`
+  }))
 
   const urgencyOptions: { value: UrgencyLevel; label: string; color: string; icon: string }[] = [
     { value: 'Low', label: 'Low', color: 'bg-green-100 text-green-800', icon: '🟢' },
@@ -145,23 +166,19 @@ const CreateTicket = () => {
 
         {/* Building Selection */}
         <div>
-          <label htmlFor="buildingId" className="block text-sm font-medium text-neutral-700 mb-2">
+          <label className="block text-sm font-medium text-neutral-700 mb-2">
             Building *
           </label>
-          <select
-            {...register('buildingId', { required: 'Building selection is required' })}
-            className="input"
+          <Dropdown
+            options={buildingOptions}
+            value={selectedBuildingId}
+            onChange={handleBuildingChange}
             disabled={buildingsLoading}
-          >
-            <option value="">
-              {buildingsLoading ? 'Loading buildings...' : 'Select a building...'}
-            </option>
-            {buildings.map((building) => (
-              <option key={building.id} value={building.id}>
-                {building.name}
-              </option>
-            ))}
-          </select>
+            placeholder={buildingsLoading ? 'Loading buildings...' : 'Select a building...'}
+            size="md"
+            showSearch={buildingOptions.length > 5}
+            className="w-full"
+          />
           {errors.buildingId && (
             <p className="mt-1 text-sm text-red-600 flex items-center">
               <AlertCircle className="h-4 w-4 mr-1" />

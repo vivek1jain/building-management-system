@@ -18,11 +18,21 @@ import {
   Edit,
   Trash2
 } from 'lucide-react'
-import { BuildingEvent } from '../types'
+import { BuildingEvent, Ticket } from '../types'
 import { eventService } from '../services/eventService'
+import { ticketService } from '../services/ticketService'
 import Modal, { ModalFooter } from '../components/UI/Modal'
 import Button from '../components/UI/Button'
+import { Dropdown, DropdownOption } from '../components/UI'
 import EventTable from '../components/EventTable'
+import { TicketDetailModal } from '../components/TicketDetailModal'
+import { EventDetailModal } from '../components/EventDetailModal'
+
+// Debug utility - remove in production
+if (process.env.NODE_ENV === 'development') {
+  import('../debug/checkFirebaseData.js');
+  import('../debug/repairMissingEvents.js');
+}
 
 const Events = () => {
   const navigate = useNavigate()
@@ -37,6 +47,15 @@ const Events = () => {
   
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<'all' | 'scheduled' | 'in-progress' | 'completed' | 'cancelled'>('all')
+  
+  // Event status dropdown options
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Statuses', description: 'Show all events' },
+    { value: 'scheduled', label: 'Scheduled', description: 'Upcoming scheduled events' },
+    { value: 'in-progress', label: 'In Progress', description: 'Currently active events' },
+    { value: 'completed', label: 'Completed', description: 'Finished events' },
+    { value: 'cancelled', label: 'Cancelled', description: 'Cancelled events' }
+  ];
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [editingEvent, setEditingEvent] = useState<BuildingEvent | null>(null)
   const [showEditForm, setShowEditForm] = useState(false)
@@ -47,6 +66,15 @@ const Events = () => {
     assignedTo: [] as string[]
   })
   
+  // Ticket modal state management
+  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
+  const [showTicketModal, setShowTicketModal] = useState(false)
+  const [loadingTicket, setLoadingTicket] = useState(false)
+  
+  // Event detail modal state management
+  const [selectedEvent, setSelectedEvent] = useState<BuildingEvent | null>(null)
+  const [showEventDetailModal, setShowEventDetailModal] = useState(false)
+  
   // Separate date and time state for better UX
   const [eventDate, setEventDate] = useState('')
   const [startTime, setStartTime] = useState('')
@@ -55,18 +83,120 @@ const Events = () => {
   // Form error state
   const [formError, setFormError] = useState('')
 
-  // Load all events from Firebase on component mount
+  // Load all events from Firebase on component mount with real-time updates
   useEffect(() => {
-    loadEvents()
+    let unsubscribe: (() => void) | null = null;
+    
+    const setupRealtimeListener = async () => {
+      try {
+        // Import Firebase real-time listener functions
+        const { collection, onSnapshot, orderBy, query } = await import('firebase/firestore');
+        const { db } = await import('../firebase/config');
+        
+        console.log('📅🔄 Setting up real-time listener for events...');
+        
+        const eventsQuery = query(
+          collection(db, 'buildingEvents'),
+          orderBy('startDate', 'desc')
+        );
+        
+        unsubscribe = onSnapshot(eventsQuery, (snapshot) => {
+          console.log('📅🔄 Real-time events update received:', {
+            size: snapshot.size,
+            changes: snapshot.docChanges().map(change => ({
+              type: change.type,
+              id: change.doc.id,
+              data: {
+                title: change.doc.data().title,
+                buildingId: change.doc.data().buildingId,
+                status: change.doc.data().status,
+                ticketId: change.doc.data().ticketId || 'No ticket ID'
+              }
+            }))
+          });
+          
+          const eventsData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
+              endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
+              updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)
+            };
+          });
+          
+          console.log('📅🔄 Processed events data:', {
+            total: eventsData.length,
+            ticketEvents: eventsData.filter(e => e.ticketId).length,
+            scheduledEvents: eventsData.filter(e => e.status === 'scheduled').length,
+            buildingIds: [...new Set(eventsData.map(e => e.buildingId))]
+          });
+          
+          setAllEvents(eventsData);
+          setLoading(false);
+        }, (error) => {
+          console.error('❌ Real-time listener error:', error);
+          // Fallback to regular loading if real-time fails
+          loadEvents();
+        });
+        
+      } catch (error) {
+        console.error('❌ Failed to setup real-time listener, falling back to periodic loading:', error);
+        // Fallback to the original periodic loading
+        loadEvents();
+        const interval = setInterval(() => {
+          loadEvents();
+        }, 30000);
+        
+        return () => clearInterval(interval);
+      }
+    };
+    
+    setupRealtimeListener();
+    
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        console.log('📅🔄 Cleaning up real-time listener...');
+        unsubscribe();
+      }
+    };
   }, [])
 
   // Filter events when building selection changes
   useEffect(() => {
+    console.log('🏢🔍 Building filter triggered:', {
+      selectedBuildingId,
+      totalEvents: allEvents.length,
+      allEventBuildingIds: allEvents.map(e => ({ id: e.id, buildingId: e.buildingId, title: e.title, ticketId: e.ticketId })),
+      ticketEvents: allEvents.filter(e => e.ticketId).map(e => ({ id: e.id, buildingId: e.buildingId, title: e.title, ticketId: e.ticketId }))
+    });
+    
     if (selectedBuildingId) {
-      const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuildingId)
+      const buildingEvents = allEvents.filter(event => {
+        const matches = event.buildingId === selectedBuildingId;
+        if (event.ticketId) {
+          console.log('🎫 Event filter check:', {
+            eventId: event.id,
+            eventBuildingId: event.buildingId,
+            selectedBuildingId,
+            matches,
+            title: event.title,
+            ticketId: event.ticketId
+          });
+        }
+        return matches;
+      });
+      
       setEvents(buildingEvents)
-      console.log(`Loaded ${buildingEvents.length} events for building:`, selectedBuildingId)
+      console.log(`🏢✅ Loaded ${buildingEvents.length} events for building:`, {
+        buildingId: selectedBuildingId,
+        events: buildingEvents.map(e => ({ id: e.id, title: e.title, ticketId: e.ticketId || 'No ticket' }))
+      });
     } else {
+      console.log('🏢❌ No building selected - showing no events');
       setEvents([])
     }
   }, [selectedBuildingId, allEvents])
@@ -76,7 +206,20 @@ const Events = () => {
       setLoading(true)
       console.log('📅 Loading events from Firebase...')
       const eventsData = await eventService.getEvents()
-      console.log('📅 Events loaded:', eventsData.length)
+      console.log('📅 Events loaded:', {
+        total: eventsData.length,
+        events: eventsData.map(e => ({
+          id: e.id,
+          title: e.title,
+          buildingId: e.buildingId,
+          status: e.status,
+          startDate: e.startDate.toISOString(),
+          ticketId: e.ticketId || 'No ticket ID'
+        })),
+        ticketEvents: eventsData.filter(e => e.ticketId).length,
+        scheduledEvents: eventsData.filter(e => e.status === 'scheduled').length,
+        buildingIds: [...new Set(eventsData.map(e => e.buildingId))]
+      })
       setAllEvents(eventsData)
     } catch (error) {
       console.error('❌ Error loading events:', error)
@@ -525,17 +668,69 @@ const Events = () => {
           { label: 'Reopen', action: 'scheduled', color: 'btn-secondary' }
         ]
       case 'cancelled':
-        return [
-          { label: 'Reschedule', action: 'scheduled', color: 'btn-primary' }
-        ]
+        return []
       default:
         return []
     }
   }
 
-  const handleTicketEventClick = (ticketId: string) => {
-    // Navigate to tickets page with ticket detail modal
-    navigate(`/tickets?ticketId=${ticketId}`)
+  const handleTicketEventClick = async (ticketId: string) => {
+    try {
+      setLoadingTicket(true)
+      console.log('📋 Loading ticket details for:', ticketId)
+      
+      const ticket = await ticketService.getTicketById(ticketId)
+      if (ticket) {
+        setSelectedTicket(ticket)
+        setShowTicketModal(true)
+        console.log('✅ Ticket loaded and modal opened')
+      } else {
+        console.error('❌ Ticket not found:', ticketId)
+        addNotification({
+          title: 'Error',
+          message: 'Ticket not found. It may have been deleted.',
+          type: 'error',
+          userId: currentUser?.id || ''
+        })
+      }
+    } catch (error) {
+      console.error('❌ Error loading ticket:', error)
+      addNotification({
+        title: 'Error', 
+        message: 'Failed to load ticket details. Please try again.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setLoadingTicket(false)
+    }
+  }
+  
+  const handleTicketModalClose = () => {
+    setShowTicketModal(false)
+    setSelectedTicket(null)
+  }
+  
+  const handleTicketUpdate = (updatedTicket: Ticket) => {
+    // Reload events to get updated event statuses after ticket changes
+    loadEvents()
+  }
+  
+  // Event detail modal handlers
+  const handleEventClick = (event: BuildingEvent) => {
+    setSelectedEvent(event)
+    setShowEventDetailModal(true)
+    console.log('📅 Opening event detail modal for:', event.title)
+  }
+  
+  const handleEventDetailModalClose = () => {
+    setShowEventDetailModal(false)
+    setSelectedEvent(null)
+  }
+  
+  const handleEventUpdate = () => {
+    // Reload events to get updated data after event changes
+    loadEvents()
   }
 
   return (
@@ -563,20 +758,13 @@ const Events = () => {
             className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
           />
         </div>
-        <div className="relative flex items-center gap-2">
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
-          >
-            <option value="all">All Statuses</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="in-progress">In Progress</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-          <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
-        </div>
+        <Dropdown
+          options={statusOptions}
+          value={filterStatus}
+          onChange={(value) => setFilterStatus(value as any)}
+          placeholder="Filter by status"
+          className="min-w-[200px]"
+        />
         
         <Button
           onClick={() => {
@@ -881,8 +1069,32 @@ const Events = () => {
       ) : (
         <EventTable
           events={filteredEvents}
+          onViewEvent={handleEventClick}
           onEditEvent={handleEditEvent}
           onTicketEventClick={handleTicketEventClick}
+          onStatusUpdate={handleStatusUpdate}
+          getWorkflowActions={getWorkflowActions}
+        />
+      )}
+      
+      {/* Ticket Detail Modal */}
+      {selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          isOpen={showTicketModal}
+          onClose={handleTicketModalClose}
+          onUpdate={handleTicketUpdate}
+        />
+      )}
+      
+      {/* Event Detail Modal */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          isOpen={showEventDetailModal}
+          onClose={handleEventDetailModalClose}
+          onEdit={handleEditEvent}
+          onDelete={handleDeleteEvent}
           onStatusUpdate={handleStatusUpdate}
           getWorkflowActions={getWorkflowActions}
         />
@@ -892,4 +1104,4 @@ const Events = () => {
   )
 }
 
-export default Events 
+export default Events

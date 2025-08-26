@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign } from 'lucide-react';
 import { Ticket, TicketComment, TicketStatus, EnhancedQuote } from '../types';
-import { TicketComments } from './TicketComments';
 import { TicketCommentService } from '../services/ticketCommentService';
-import { ticketService } from '../services/ticketService';
-import { ticketEventService } from '../services/ticketEventService';
-import { UserBuildingService } from '../services/userBuildingService';
-import { getUserFirstName, getUserDisplayNames } from '../services/userLookupService';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { Modal } from './UI';
-import { DateTimePicker } from './DateTimePicker';
+import { ticketService } from '../services/ticketService';
+import { ticketEventService } from '../services/ticketEventService';
+import { expenseService } from '../services/expenseService';
+import { UserBuildingService } from '../services/userBuildingService';
+import { getUserDisplayNames } from '../services/userLookupService';
+import Modal from './UI/Modal';
 import SupplierSelectionModal from './Suppliers/SupplierSelectionModal';
 import QuoteComparisonModal from './Tickets/QuoteComparisonModal';
 import QuoteManagementModal from './Tickets/QuoteManagementModal';
+import ScheduleModal from './Scheduling/ScheduleModal';
+import { TicketComments } from './TicketComments';
+import TicketCompletionModal from './TicketCompletionModal';
 
 interface TicketDetailModalProps {
   ticket: Ticket;
@@ -35,10 +37,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
   const [isLoadingModalContent, setIsLoadingModalContent] = useState(true);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [showSchedulePicker, setShowSchedulePicker] = useState(false);
-  const [showReschedulePicker, setShowReschedulePicker] = useState(false);
-  const [selectedScheduleDate, setSelectedScheduleDate] = useState<Date | undefined>();
-  const [selectedRescheduleDate, setSelectedRescheduleDate] = useState<Date | undefined>();
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState(false);
   const [localTicket, setLocalTicket] = useState<Ticket>(ticket);
   const [userNames, setUserNames] = useState<Record<string, string>>({});
   
@@ -46,11 +46,47 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const [showSupplierSelection, setShowSupplierSelection] = useState(false);
   const [showQuoteComparison, setShowQuoteComparison] = useState(false);
   const [showQuoteManagement, setShowQuoteManagement] = useState(false);
+  
+  // Completion workflow state
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [isCompletingTicket, setIsCompletingTicket] = useState(false);
+  
+  // Expense tracking state
+  const [linkedExpense, setLinkedExpense] = useState<any>(null);
+  const [loadingExpense, setLoadingExpense] = useState(false);
+
+  // Debug: Track showQuoteManagement state changes
+  useEffect(() => {
+    console.log('🔄 showQuoteManagement state changed:', showQuoteManagement)
+  }, [showQuoteManagement])
 
   // Update local ticket when prop changes
   useEffect(() => {
     setLocalTicket(ticket);
   }, [ticket]);
+
+  // Load linked expense when ticket is complete
+  useEffect(() => {
+    const loadLinkedExpense = async () => {
+      if (localTicket.status === 'Complete' && isOpen) {
+        setLoadingExpense(true);
+        try {
+          const expenses = await expenseService.getExpensesByTicketId(localTicket.id);
+          if (expenses && expenses.length > 0) {
+            setLinkedExpense(expenses[0]); // Take the first/main expense linked to this ticket
+          }
+        } catch (error) {
+          console.error('Failed to load linked expense:', error);
+        } finally {
+          setLoadingExpense(false);
+        }
+      } else {
+        setLinkedExpense(null);
+      }
+    };
+
+    loadLinkedExpense();
+  }, [localTicket.status, localTicket.id, isOpen]);
 
   useEffect(() => {
     if (isOpen && ticket && currentUser) {
@@ -165,6 +201,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     switch (status) {
       case 'New': return 'bg-blue-100 text-blue-800'
       case 'Quoting': return 'bg-yellow-100 text-yellow-800'
+      case 'Ready for Scheduling': return 'bg-green-100 text-green-800' // Historic status
       case 'Scheduled': return 'bg-cyan-100 text-cyan-800'
       case 'Complete': return 'bg-green-100 text-green-800'
       case 'Closed': return 'bg-gray-100 text-gray-800'
@@ -197,7 +234,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }).format(date);
   };
 
-  // Simplified 6-stage workflow transitions
+  // Simplified workflow transitions
   const getNextStatusOptions = (currentStatus: TicketStatus): TicketStatus[] => {
     switch (currentStatus) {
       case 'New':
@@ -206,6 +243,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       case 'Quoting':
         // Quote received and approved: Schedule work or Cancel
         return ['Scheduled'];
+      case 'Ready for Scheduling':
+        // Historic status - allow scheduling
+        return ['Scheduled'];
       case 'Scheduled':
         // Work scheduled and completed: Mark complete
         return ['Complete'];
@@ -213,12 +253,104 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         // Work complete: Close ticket
         return ['Closed'];
       case 'Closed':
+        // Terminal state - but allow re-opening within 7 days for managers
+        return canReopenTicket() ? ['Complete'] : [];
       case 'Cancelled':
-        // Terminal states - no further transitions
+        // Terminal state - no further transitions
         return [];
       default:
         return [];
     }
+  };
+
+  // Check if ticket can be reopened (within 7 days, by managers only)
+  const canReopenTicket = (): boolean => {
+    console.log('🔍 Checking canReopenTicket:', {
+      canUpdateStatus,
+      currentUserRole: currentUser?.role,
+      ticketStatus: localTicket.status,
+      activityLogLength: localTicket.activityLog.length,
+      hasCompletedDate: !!(localTicket as any).completedDate
+    });
+    
+    if (!canUpdateStatus || localTicket.status !== 'Complete') {
+      console.log('❌ canReopenTicket: Failed basic checks', { canUpdateStatus, status: localTicket.status });
+      return false;
+    }
+    
+    // Prefer explicit completedDate if present
+    const completedDateFromField = (localTicket as any).completedDate ? new Date((localTicket as any).completedDate as any) : null;
+
+    // Find when the ticket was completed from activity log (more robust matching)
+    const completedActivity = localTicket.activityLog.find(log => {
+      const action = (log.action || '').toLowerCase();
+      const description = (log.description || '').toLowerCase();
+      const newStatus = (log as any).metadata?.newStatus;
+
+      const matches = (
+        // Status Updated -> ... to Complete (case-insensitive) OR metadata flag
+        (log.action === 'Status Updated' && (description.includes('complete') || newStatus === 'Complete')) ||
+        // Any action containing the word "completed" (e.g., "Work Completed")
+        action.includes('completed') ||
+        // Exact action labels sometimes used
+        action === 'complete'
+      );
+
+      if (matches) {
+        console.log('✅ Found completed activity:', log);
+      }
+      return matches;
+    });
+    
+    console.log('🔍 Activity log search results:', {
+      foundCompletedActivity: !!completedActivity,
+      allActivities: localTicket.activityLog.map(log => ({ action: log.action, description: log.description, timestamp: log.timestamp }))
+    });
+    
+    if (!completedActivity && !completedDateFromField) {
+      console.log('❌ canReopenTicket: No completed activity or completedDate found');
+      return false;
+    }
+
+    const completionTimestamp = completedDateFromField?.getTime() ?? new Date((completedActivity as any).timestamp).getTime();
+    
+    // Check if it's within 7 days
+    const daysSinceCompleted = Math.floor(
+      (Date.now() - completionTimestamp) / (1000 * 60 * 60 * 24)
+    );
+    
+    console.log('📅 Time check:', {
+      completedTimestamp: completedDateFromField ?? (completedActivity as any)?.timestamp,
+      daysSinceCompleted,
+      withinSevenDays: daysSinceCompleted <= 7
+    });
+    
+    const canReopen = daysSinceCompleted <= 7;
+    console.log('✅ Final canReopenTicket result:', canReopen);
+    return canReopen;
+  };
+
+  // Get days remaining for reopening
+  const getDaysRemainingForReopen = (): number => {
+    if (localTicket.status !== 'Complete') return 0;
+    
+    const completedDateFromField = (localTicket as any).completedDate ? new Date((localTicket as any).completedDate as any) : null;
+
+    const completedActivity = localTicket.activityLog.find(log => 
+      ((log.action === 'Status Updated') && ((log.description || '').toLowerCase().includes('complete') || (log as any).metadata?.newStatus === 'Complete')) ||
+      (log.action || '').toLowerCase().includes('completed') ||
+      (log.action || '').toLowerCase() === 'complete'
+    );
+    
+    if (!completedActivity && !completedDateFromField) return 0;
+
+    const completionTimestamp = completedDateFromField?.getTime() ?? new Date((completedActivity as any).timestamp).getTime();
+    
+    const daysSinceCompleted = Math.floor(
+      (Date.now() - completionTimestamp) / (1000 * 60 * 60 * 24)
+    );
+    
+    return Math.max(0, 7 - daysSinceCompleted);
   };
 
   const handleStatusUpdate = async (newStatus: TicketStatus) => {
@@ -230,9 +362,15 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       return;
     }
 
-    // If transitioning to Scheduled, show the date picker
+    // If transitioning to Scheduled, show the enhanced schedule modal
     if (newStatus === 'Scheduled') {
-      setShowSchedulePicker(true);
+      setShowScheduleModal(true);
+      return;
+    }
+
+    // If transitioning to Complete, show the completion modal
+    if (newStatus === 'Complete') {
+      setShowCompletionModal(true);
       return;
     }
 
@@ -240,19 +378,20 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     try {
       await ticketService.updateTicketStatus(ticket.id, newStatus, currentUser.id);
       
-      // Handle event updates for status changes
-      if (newStatus === 'Complete') {
-        await ticketEventService.completeEventForTicket(ticket.id);
-      } else if (newStatus === 'Cancelled') {
+      // Handle event updates for status changes  
+      if (newStatus === 'Cancelled') {
         await ticketEventService.cancelEventForTicket(ticket.id);
       }
       
       // Update the local ticket object
       const updatedTicket = {
-        ...ticket,
+        ...localTicket,
         status: newStatus,
         updatedAt: new Date()
       };
+
+      // Update local state to immediately reflect changes in the modal
+      setLocalTicket(updatedTicket);
 
       // Call the onUpdate callback to update the parent component
       if (onUpdate) {
@@ -279,18 +418,55 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   };
 
   // Handle quote workflow events
-  const handleQuotesRequested = () => {
+  const handleQuotesRequested = async () => {
+    console.log('🔄 handleQuotesRequested called');
     setShowSupplierSelection(false);
     
-    // Refresh the ticket to show updated status
-    if (onUpdate) {
+    // Fetch the updated ticket data from Firebase to get the new quote requests
+    try {
+      console.log('📥 Fetching updated ticket data for:', ticket.id);
+      const updatedTicketData = await ticketService.getTicketById(ticket.id);
+      console.log('📋 Updated ticket data received:', {
+        id: updatedTicketData?.id,
+        status: updatedTicketData?.status,
+        quoteRequestsLength: updatedTicketData?.quoteRequests?.length || 0,
+        quotesLength: updatedTicketData?.quotes?.length || 0
+      });
+      
+      if (updatedTicketData) {
+        console.log('✅ Setting localTicket with updated data')
+        console.log('🔍 Updated ticket quoteRequests:', updatedTicketData.quoteRequests?.length || 0, 'items')
+        console.log('📋 QuoteRequests data sample:', updatedTicketData.quoteRequests?.slice(0, 2))
+        setLocalTicket(updatedTicketData)
+        if (onUpdate) {
+          console.log('✅ Calling onUpdate with updated data')
+          onUpdate(updatedTicketData)
+        }
+      } else {
+        console.log('❌ No updated ticket data, using fallback');
+        // Fallback: just update the status if we can't fetch the ticket
+        const updatedTicket = {
+          ...localTicket,
+          status: 'Quoting' as TicketStatus,
+          updatedAt: new Date()
+        };
+        setLocalTicket(updatedTicket);
+        if (onUpdate) {
+          onUpdate(updatedTicket);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch updated ticket data:', error);
+      // Fallback: just update the status
       const updatedTicket = {
         ...localTicket,
         status: 'Quoting' as TicketStatus,
         updatedAt: new Date()
       };
       setLocalTicket(updatedTicket);
-      onUpdate(updatedTicket);
+      if (onUpdate) {
+        onUpdate(updatedTicket);
+      }
     }
   };
 
@@ -310,68 +486,131 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
   };
 
-  const handleQuoteManagement = () => {
-    setShowQuoteManagement(false);
+  const handleQuoteManagement = async () => {
+    // Don't close the modal here - let the modal close itself when needed
     
-    // Refresh the ticket data to show any updates
-    if (onUpdate) {
-      const updatedTicket = {
-        ...localTicket,
-        updatedAt: new Date()
-      };
-      setLocalTicket(updatedTicket);
-      onUpdate(updatedTicket);
-    }
-  };
-
-  const handleScheduleWithDate = async () => {
-    if (!currentUser || !selectedScheduleDate) return;
-
-    setIsUpdatingStatus(true);
+    // Fetch the updated ticket data from Firebase to get the latest quote requests
     try {
-      // Schedule the ticket with the selected date
-      await ticketService.scheduleTicket(ticket.id, selectedScheduleDate, currentUser.id);
+      console.log('📥 Fetching updated ticket data for quote management:', ticket.id);
+      const updatedTicketData = await ticketService.getTicketById(ticket.id);
+      console.log('📋 Updated ticket data received:', {
+        id: updatedTicketData?.id,
+        status: updatedTicketData?.status,
+        quoteRequestsLength: updatedTicketData?.quoteRequests?.length || 0,
+        quotesLength: updatedTicketData?.quotes?.length || 0
+      });
       
-      // Create an event for the scheduled work
-      await ticketEventService.createEventForScheduledTicket(ticket, selectedScheduleDate, currentUser.id);
-      
-      // Create activity log entry for the local update
-      const activityLogEntry = {
-        id: Date.now().toString(),
-        action: 'Scheduled',
-        description: `Work scheduled for ${selectedScheduleDate.toLocaleString()} by ${currentUser.name || 'Unknown User'}`,
-        performedBy: currentUser.id,
-        timestamp: new Date(),
-        metadata: { scheduledDate: selectedScheduleDate.toISOString() }
-      };
-
-      // Update the local ticket object with new activity log
+      if (updatedTicketData) {
+        console.log('✅ Setting localTicket with updated data from quote management')
+        console.log('🔍 Updated ticket quoteRequests:', updatedTicketData.quoteRequests?.length || 0, 'items')
+        setLocalTicket(updatedTicketData)
+        if (onUpdate) {
+          console.log('✅ Calling onUpdate with updated data from quote management')
+          onUpdate(updatedTicketData)
+        }
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch updated ticket data in quote management:', error);
+      // Fallback: just update the timestamp
       const updatedTicket = {
         ...localTicket,
-        status: 'Scheduled' as TicketStatus,
-        scheduledDate: selectedScheduleDate,
-        activityLog: [...localTicket.activityLog, activityLogEntry],
         updatedAt: new Date()
       };
-
-      // Update local state to immediately reflect changes in the modal
       setLocalTicket(updatedTicket);
-
-      // Call the onUpdate callback to update the parent component
       if (onUpdate) {
         onUpdate(updatedTicket);
       }
+    }
+  };
 
+  // Handle scheduling from enhanced ScheduleModal
+  const handleScheduleWork = async (event: any, supplierInfo?: any) => {
+    if (!currentUser) return;
+
+    setIsUpdatingStatus(true);
+    try {
+      // 1. Schedule the ticket (this updates status, date, and adds activity log)
+      await ticketService.scheduleTicket(ticket.id, event.startDate, currentUser.id);
+      
+      // 2. Create the calendar event
+      await ticketEventService.createEventForScheduledTicket(
+        localTicket,
+        event.startDate,
+        currentUser.id
+      );
+      
+      // 3. Add additional activity log entry if supplier info is provided
+      if (supplierInfo) {
+        await ticketService.addActivityLogEntry(
+          ticket.id,
+          'Supplier Assigned',
+          `Work scheduled with ${supplierInfo.supplier.name} at expected cost: $${supplierInfo.expectedCost}`,
+          currentUser.id,
+          { 
+            supplierName: supplierInfo.supplier.name,
+            expectedCost: supplierInfo.expectedCost
+          }
+        );
+      }
+
+      // 5. Fetch the updated ticket data from Firebase to get the latest activity log
+      try {
+        console.log('📥 Fetching updated ticket data after scheduling:', ticket.id);
+        const updatedTicketData = await ticketService.getTicketById(ticket.id);
+        console.log('📋 Updated ticket data received after scheduling:', {
+          id: updatedTicketData?.id,
+          status: updatedTicketData?.status,
+          activityLogLength: updatedTicketData?.activityLog?.length || 0
+        });
+        
+        if (updatedTicketData) {
+          console.log('✅ Setting localTicket with updated data after scheduling');
+          setLocalTicket(updatedTicketData);
+          if (onUpdate) {
+            console.log('✅ Calling onUpdate with updated data after scheduling');
+            onUpdate(updatedTicketData);
+          }
+        } else {
+          // Fallback: Update with basic info if fetch fails
+          const fallbackTicket = {
+            ...localTicket,
+            status: 'Scheduled' as TicketStatus,
+            scheduledDate: event.startDate,
+            updatedAt: new Date()
+          };
+          setLocalTicket(fallbackTicket);
+          if (onUpdate) {
+            onUpdate(fallbackTicket);
+          }
+        }
+      } catch (fetchError) {
+        console.error('❌ Failed to fetch updated ticket data after scheduling:', fetchError);
+        // Fallback: Update with basic info if fetch fails
+        const fallbackTicket = {
+          ...localTicket,
+          status: 'Scheduled' as TicketStatus,
+          scheduledDate: event.startDate,
+          updatedAt: new Date()
+        };
+        setLocalTicket(fallbackTicket);
+        if (onUpdate) {
+          onUpdate(fallbackTicket);
+        }
+      }
+
+      const message = supplierInfo 
+        ? `Work scheduled with ${supplierInfo.supplier.name} for ${event.startDate.toLocaleDateString()}`
+        : `Work scheduled for ${event.startDate.toLocaleDateString()}`;
+      
       addNotification({
         userId: currentUser.id,
         title: 'Work Scheduled',
-        message: `Work scheduled for ${selectedScheduleDate.toLocaleString()}`,
+        message,
         type: 'success'
       });
 
-      // Reset state
-      setShowSchedulePicker(false);
-      setSelectedScheduleDate(undefined);
+      // Close the schedule modal
+      setShowScheduleModal(false);
     } catch (error) {
       console.error('Failed to schedule work:', error);
       addNotification({
@@ -385,39 +624,38 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
   };
 
-  const handleRescheduleWithDate = async () => {
-    if (!currentUser || !selectedRescheduleDate) return;
+  // Handle rescheduling from enhanced ScheduleModal
+  const handleRescheduleWork = async (event: any, supplierInfo?: any) => {
+    if (!currentUser) return;
 
     setIsUpdatingStatus(true);
     try {
-      // Reschedule the ticket with the new date
-      await ticketService.rescheduleTicket(ticket.id, selectedRescheduleDate, currentUser.id);
-      
-      // Update the associated event
-      await ticketEventService.updateEventForRescheduledTicket(ticket.id, selectedRescheduleDate);
-      
       // Update the local ticket object
       const updatedTicket = {
-        ...ticket,
-        scheduledDate: selectedRescheduleDate,
+        ...localTicket,
+        scheduledDate: event.startDate,
         updatedAt: new Date()
       };
 
-      // Call the onUpdate callback to update the parent component
+      setLocalTicket(updatedTicket);
+
       if (onUpdate) {
         onUpdate(updatedTicket);
       }
 
+      const message = supplierInfo 
+        ? `Work rescheduled with ${supplierInfo.supplier.name} for ${event.startDate.toLocaleDateString()}`
+        : `Work rescheduled to ${event.startDate.toLocaleDateString()}`;
+        
       addNotification({
         userId: currentUser.id,
         title: 'Work Rescheduled',
-        message: `Work rescheduled to ${selectedRescheduleDate.toLocaleString()}`,
+        message,
         type: 'success'
       });
 
-      // Reset state
-      setShowReschedulePicker(false);
-      setSelectedRescheduleDate(undefined);
+      // Close the reschedule modal
+      setShowRescheduleModal(false);
     } catch (error) {
       console.error('Failed to reschedule work:', error);
       addNotification({
@@ -428,6 +666,85 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       });
     } finally {
       setIsUpdatingStatus(false);
+    }
+  };
+
+  // Handle ticket completion with final cost and notes
+  const handleCompleteTicket = async (finalCost: number, notes?: string) => {
+    if (!currentUser) {
+      console.error('No current user found');
+      return;
+    }
+
+    console.log('🚀 Starting ticket completion:', {
+      ticketId: ticket.id,
+      finalCost,
+      notes,
+      currentUser: currentUser.id
+    });
+
+    setIsCompletingTicket(true);
+    try {
+      console.log('📞 Calling ticketService.completeTicket...');
+      // Use the new completeTicket service method that handles final cost and expense forecast creation
+      await ticketService.completeTicket(ticket.id, currentUser.id, finalCost, notes);
+      console.log('✅ ticketService.completeTicket completed successfully');
+      
+      console.log('📅 Completing calendar event...');
+      // Handle calendar event completion
+      await ticketEventService.completeEventForTicket(ticket.id);
+      console.log('✅ Calendar event completion handled');
+      
+      // Update the local ticket object to reflect completion
+      const updatedTicket = {
+        ...localTicket,
+        status: 'Complete' as TicketStatus,
+        completedDate: new Date(),
+        finalCost,
+        completionNotes: notes,
+        updatedAt: new Date()
+      };
+
+      console.log('🔄 Updating local state and parent component');
+      // Update local state to immediately reflect changes in the modal
+      setLocalTicket(updatedTicket);
+
+      // Call the onUpdate callback to update the parent component
+      if (onUpdate) {
+        onUpdate(updatedTicket);
+      }
+
+      console.log('🎉 Showing success notification');
+      addNotification({
+        userId: currentUser.id,
+        title: 'Ticket Completed',
+        message: `Ticket marked as complete with final cost £${finalCost.toLocaleString()}`,
+        type: 'success'
+      });
+
+      console.log('✅ Closing completion modal');
+      // Close the completion modal
+      setShowCompletionModal(false);
+      console.log('🎯 Ticket completion workflow finished successfully');
+    } catch (error) {
+      console.error('❌ Failed to complete ticket:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        ticketId: ticket.id,
+        finalCost,
+        userId: currentUser.id
+      });
+      
+      addNotification({
+        userId: currentUser.id,
+        title: 'Error',
+        message: `Failed to complete ticket: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        type: 'error'
+      });
+    } finally {
+      setIsCompletingTicket(false);
+      console.log('🏁 handleCompleteTicket finally block executed');
     }
   };
 
@@ -546,6 +863,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     return parts[0] || 'Unknown';
   };
 
+
   const canUpdateStatus = currentUser?.role === 'manager' || currentUser?.role === 'admin';
   const nextStatusOptions = getNextStatusOptions(localTicket.status);
 
@@ -641,7 +959,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             <button
               onClick={() => handleStatusUpdate('Cancelled')}
               disabled={isUpdatingStatus}
-              className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor('Cancelled', true, localTicket.status === 'Cancelled')}`}
+                className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor('Cancelled', true, false)}`}
             >
               {isUpdatingStatus ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -747,16 +1065,6 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           </div>
         </div>
 
-        {/* Status-specific Information Card - Only show for Completed tickets */}
-        {getActualCompletedDate() && (
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Work Completed</h3>
-            <div className="flex items-center gap-2 text-sm text-success-600">
-              <Calendar className="w-4 h-4" />
-              <span>Completed on {formatDate(getActualCompletedDate())}</span>
-            </div>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Ticket Management - Contextual based on status */}
@@ -803,34 +1111,91 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
               <>
                 {/* Content Area */}
                 <div className="space-y-3 pb-16"> {/* Add bottom padding for buttons */}
-                  <p className="text-sm text-neutral-600">
-                    Request{' '}
-                    <button
-                      onClick={() => setShowQuoteManagement(true)}
-                      className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
-                    >
-                      quotes
-                    </button>
-                    , track responses and select supplier to engage.
-                  </p>
-                  
-                  {/* Quote List with scrolling */}
-                  {localTicket.quotes && localTicket.quotes.length > 0 && (
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-medium text-neutral-700">Received Quotes ({localTicket.quotes.length}):</h5>
-                      <div className="space-y-2 overflow-y-auto max-h-48">
-                        {localTicket.quotes.map((quote, index) => (
-                          <div key={quote.id || index} className="flex items-center justify-between p-2 bg-neutral-50 rounded border flex-shrink-0">
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-neutral-900">
-                                {quote.supplierName || quote.supplier?.name || `Supplier ${index + 1}`}
-                              </p>
+                  {(() => {
+                    const winningQuote = localTicket.quoteRequests?.find(req => req.status === 'Accepted')
+                    
+                    if (winningQuote) {
+                      // Winner selected - ready for scheduling
+                      return (
+                        <>
+                          <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div>
+                              <p className="text-sm font-medium text-green-800">Quote Selected</p>
                             </div>
-                            <div className="text-sm font-semibold text-neutral-900">
-                              £{typeof quote.amount === 'number' ? quote.amount.toLocaleString() : quote.amount}
-                            </div>
+                            <Award className="h-5 w-5 text-green-600" />
                           </div>
-                        ))}
+                        </>
+                      )
+                    } else {
+                      // Regular quoting flow
+                      return (
+                        <>
+                          <p className="text-sm text-neutral-600">
+                            Request{' '}
+                            <button
+                              onClick={() => setShowQuoteManagement(true)}
+                              className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
+                            >
+                              quotes
+                            </button>
+                            , track responses and select supplier to engage.
+                          </p>
+                        </>
+                      )
+                    }
+                  })()}
+                  
+                  {/* Quote Requests Summary - Always show for Quoting status */}
+                  {localTicket.quoteRequests && localTicket.quoteRequests.length > 0 && (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium text-neutral-700">Quote Requests ({localTicket.quoteRequests.length}):</h5>
+                      <div className="space-y-2 overflow-y-auto max-h-48">
+                        {[...localTicket.quoteRequests].sort((a, b) => {
+                          // Sort by status: Accepted first, then others
+                          if (a.status === 'Accepted') return -1;
+                          if (b.status === 'Accepted') return 1;
+                          return 0;
+                        }).map((request, index) => {
+                          const isWinner = request.status === 'Accepted'
+                          const statusColor = request.status === 'Pending' ? 'text-yellow-600' : 
+                                            request.status === 'Received' ? 'text-green-600' : 
+                                            request.status === 'Rejected' ? 'text-red-600' : 
+                                            request.status === 'Accepted' ? 'text-success-700' : 'text-gray-600'
+                          const statusText = request.status === 'Pending' ? 'Pending' :
+                                           request.status === 'Received' ? 'Received' :
+                                           request.status === 'Rejected' ? 'Rejected' :
+                                           request.status === 'Accepted' ? 'Accepted' : request.status
+                          
+                          return (
+                            <div 
+                              key={request.id || index} 
+                              className={`flex items-center justify-between p-3 rounded-lg border flex-shrink-0 ${
+                                isWinner 
+                                  ? 'bg-success-25 border-success-300 ring-2 ring-success-200' 
+                                  : 'bg-neutral-50 border-neutral-200'
+                              }`}
+                            >
+                              <div className="flex items-center flex-1">
+                                {isWinner && <Award className="h-4 w-4 mr-2 text-success-600 flex-shrink-0" />}
+                                <p className={`text-sm font-medium ${
+                                  isWinner ? 'text-success-900' : 'text-neutral-900'
+                                } flex-1`}>
+                                  {request.supplierName || `Supplier ${index + 1}`}
+                                </p>
+                              </div>
+                              <div className="text-right ml-3 flex-shrink-0">
+                                <p className={`text-xs ${statusColor} font-medium`}>
+                                  {statusText}
+                                </p>
+                                {request.quoteAmount && request.quoteAmount > 0 && (
+                                  <p className="text-sm font-semibold text-neutral-800">
+                                    £{request.quoteAmount.toLocaleString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
                   )}
@@ -838,21 +1203,134 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 
                 {/* Sticky Action Buttons at bottom of tile */}
                 <div className="absolute bottom-6 right-6 flex gap-2">
-                  <button
-                    onClick={() => setShowQuoteManagement(true)}
-                    className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
-                  >
-                    Manage
-                  </button>
+                  {(() => {
+                    const winningQuote = localTicket.quoteRequests?.find(req => req.status === 'Accepted')
+                    
+                    if (winningQuote) {
+                      // Show Edit and Schedule buttons when winner is selected
+                      return (
+                        <>
+                          <button
+                            onClick={() => {
+                              console.log('🖱️ Edit button clicked - setting showQuoteManagement to true')
+                              console.log('🔍 Current showQuoteManagement:', showQuoteManagement)
+                              console.log('🎯 Current localTicket.quoteRequests:', localTicket.quoteRequests?.length || 0, 'items')
+                              setShowQuoteManagement(true)
+                              console.log('✅ setShowQuoteManagement(true) called')
+                            }}
+                            className="px-3 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleStatusUpdate('Scheduled')}
+                            disabled={isUpdatingStatus}
+                            className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400 transition-colors duration-200"
+                          >
+                            {isUpdatingStatus ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Scheduling...
+                              </>
+                            ) : (
+                              'Schedule'
+                            )}
+                          </button>
+                        </>
+                      )
+                    } else {
+                      // Show Manage button for regular quoting
+                      return (
+                        <button
+                          onClick={() => {
+                            console.log('🖱️ Manage button clicked - setting showQuoteManagement to true')
+                            console.log('🔍 Current showQuoteManagement:', showQuoteManagement)
+                            console.log('🎯 Current localTicket.quoteRequests:', localTicket.quoteRequests?.length || 0, 'items')
+                            setShowQuoteManagement(true)
+                            console.log('✅ setShowQuoteManagement(true) called')
+                          }}
+                          className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
+                        >
+                          Manage
+                        </button>
+                      )
+                    }
+                  })()}
+                </div>
+              </>
+            )}
+            
+            {/* Ready for Scheduling Ticket (Historic) */}
+            {localTicket.status === 'Ready for Scheduling' && (
+              <>
+                {/* Content Area */}
+                <div className="space-y-3 pb-16"> {/* Add bottom padding for button */}
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Winner Selected (Historic)</p>
+                      <p className="text-xs text-green-600">
+                        Quote winner was selected and work is ready to be scheduled
+                      </p>
+                    </div>
+                    <Award className="h-5 w-5 text-green-600" />
+                  </div>
                   
-                  {localTicket.quotes && localTicket.quotes.length > 0 && (
-                    <button
-                      onClick={() => setShowQuoteComparison(true)}
-                      className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
-                    >
-                      Select
-                    </button>
-                  )}
+                  {/* Selected Winner Summary */}
+                  {(() => {
+                    const winningQuote = localTicket.quoteRequests?.find(req => req.status === 'Accepted')
+                    if (winningQuote) {
+                      return (
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium text-neutral-700">Selected Supplier:</h5>
+                          <div className="p-3 bg-success-25 rounded-lg border border-success-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-neutral-900 flex items-center">
+                                  <Award className="h-4 w-4 mr-2 text-success-600" />
+                                  {winningQuote.supplierName}
+                                </p>
+                                <p className="text-xs text-neutral-600">
+                                  Quote: {winningQuote.quoteAmount ? `£${winningQuote.quoteAmount.toLocaleString()}` : 'Amount not specified'}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
+                    return null
+                  })()}
+                  
+                  <div className="space-y-2">
+                    <p className="text-sm text-neutral-600">
+                      A winning supplier was selected. Ready to{' '}
+                      <button
+                        onClick={() => handleStatusUpdate('Scheduled')}
+                        className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
+                      >
+                        schedule
+                      </button>
+                      {' '}the work.
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Sticky Schedule Button at bottom of tile */}
+                <div className="absolute bottom-6 right-6">
+                  <button
+                    onClick={() => handleStatusUpdate('Scheduled')}
+                    disabled={isUpdatingStatus}
+                    className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400 transition-colors duration-200"
+                  >
+                    {isUpdatingStatus ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Scheduling...
+                      </>
+                    ) : (
+                      'Schedule'
+                    )}
+                  </button>
                 </div>
               </>
             )}
@@ -876,7 +1354,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     <p className="text-sm text-neutral-600">
                       Work has been scheduled.{' '}
                       <button
-                        onClick={() => setShowReschedulePicker(true)}
+                        onClick={() => setShowRescheduleModal(true)}
                         className="text-primary-600 hover:text-primary-700 underline font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1 rounded transition-colors duration-200"
                       >
                         Reschedule
@@ -889,7 +1367,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 {/* Sticky Reschedule Button at bottom of tile */}
                 <div className="absolute bottom-6 right-6">
                   <button
-                    onClick={() => setShowReschedulePicker(true)}
+                    onClick={() => setShowRescheduleModal(true)}
                     disabled={isUpdatingStatus}
                     className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400 transition-colors duration-200"
                   >
@@ -908,45 +1386,198 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             
             {/* Complete Ticket */}
             {localTicket.status === 'Complete' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
-                  <div>
-                    <p className="text-sm font-medium text-green-800">Work Completed</p>
-                    <p className="text-xs text-green-600">
-                      {localTicket.completedDate ? formatDate(localTicket.completedDate) : 'Recently completed'}
-                    </p>
+              <>
+                {/* Content Area */}
+                <div className="space-y-3 pb-16"> {/* Add bottom padding for buttons */}
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Work Completed</p>
+                      <p className="text-xs text-green-600">
+                        {canReopenTicket() ? `Can be reopened for ${getDaysRemainingForReopen()} more days` : 'Auto-closes soon'}
+                      </p>
+                    </div>
+                    <FileText className="h-5 w-5 text-green-600" />
                   </div>
-                  <FileText className="h-5 w-5 text-green-600" />
+                  
+                  {/* Expense Information */}
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-neutral-700">Expense Tracking:</h5>
+                    {loadingExpense ? (
+                      <div className="flex items-center p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin text-neutral-600" />
+                        <span className="text-sm text-neutral-600">Loading expense details...</span>
+                      </div>
+                    ) : linkedExpense ? (
+                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center flex-1">
+                            <DollarSign className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-blue-900">
+                                Expense Record Created
+                              </p>
+                              <p className="text-xs text-blue-700">
+                                Amount: £{linkedExpense.amount?.toLocaleString() || 'N/A'}
+                              </p>
+                              <p className="text-xs text-blue-600">
+                                Status: {linkedExpense.status || 'Committed'}
+                              </p>
+                              {linkedExpense.description && (
+                                <p className="text-xs text-blue-600 mt-1">
+                                  {linkedExpense.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right ml-3 flex-shrink-0">
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                              linkedExpense.status === 'Committed' 
+                                ? 'bg-orange-100 text-orange-800' 
+                                : linkedExpense.status === 'Invoiced'
+                                ? 'bg-red-100 text-red-800'
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {linkedExpense.status || 'Committed'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <DollarSign className="h-4 w-4 mr-2 text-neutral-500 flex-shrink-0" />
+                        <span className="text-sm text-neutral-600">No expense record found for this ticket</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Completion Details */}
+                  {(localTicket as any).finalCost && (
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium text-neutral-700">Completion Details:</h5>
+                      <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <p className="text-sm text-neutral-900">
+                          <span className="font-medium">Final Cost:</span> £{((localTicket as any).finalCost as number).toLocaleString()}
+                        </p>
+                        {(localTicket as any).completionNotes && (
+                          <p className="text-sm text-neutral-700 mt-1">
+                            <span className="font-medium">Notes:</span> {(localTicket as any).completionNotes}
+                          </p>
+                        )}
+                        {getActualCompletedDate() && (
+                          <p className="text-sm text-neutral-600 mt-1">
+                            <span className="font-medium">Completed:</span> {formatDate(new Date(getActualCompletedDate()!))}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Re-open option for managers within 7 days */}
+                  {canReopenTicket() && canUpdateStatus && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start space-x-2">
+                        <div className="flex-shrink-0">
+                          <svg className="w-4 h-4 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-amber-800">Re-open Available</p>
+                          <p className="text-xs text-amber-700">
+                            You can re-open this ticket for {getDaysRemainingForReopen()} more day{getDaysRemainingForReopen() !== 1 ? 's' : ''} if needed.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 
-                <div className="space-y-2">
-                  <p className="text-sm text-neutral-600">
-                    The work has been completed. Close this ticket when you're ready.
-                  </p>
-                  {canUpdateStatus && (
+                {/* Sticky Action Buttons at bottom of tile */}
+                <div className="absolute bottom-6 right-6">
+                  {canReopenTicket() && canUpdateStatus && (
                     <button
-                      onClick={() => handleStatusUpdate('Closed')}
+                      onClick={() => {
+                        // Reopen means go back to a working status, not to 'Complete'
+                        // For this workflow, we'll go back to 'Scheduled' since work was completed
+                        handleStatusUpdate('Scheduled');
+                      }}
                       disabled={isUpdatingStatus}
-                      className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400 transition-colors duration-200"
+                      className="px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                     >
                       {isUpdatingStatus ? (
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 mr-2" />
+                        'Re-Open'
                       )}
-                      Close Ticket
                     </button>
+                  )}
+                </div>
+              </>
+            )}
+            
+            {/* Closed Ticket */}
+            {localTicket.status === 'Closed' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">Closed Ticket</p>
+                    <p className="text-xs text-gray-600">
+                      {canReopenTicket() ? `Can be reopened for ${getDaysRemainingForReopen()} more days` : 'No further actions needed'}
+                    </p>
+                  </div>
+                  <FileText className="h-5 w-5 text-gray-600" />
+                </div>
+                
+                <div className="space-y-2">
+                  <p className="text-sm text-neutral-600">
+                    This ticket has been completed and closed.
+                  </p>
+                  
+                  {/* Re-open option for managers within 7 days */}
+                  {canReopenTicket() && (
+                    <>
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                        <div className="flex items-start space-x-2">
+                          <div className="flex-shrink-0">
+                            <svg className="w-4 h-4 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-amber-800">Re-open Available</p>
+                            <p className="text-xs text-amber-700">
+                              You can re-open this ticket for {getDaysRemainingForReopen()} more day{getDaysRemainingForReopen() !== 1 ? 's' : ''} in case it was closed in error.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={() => handleStatusUpdate('Complete')}
+                        disabled={isUpdatingStatus}
+                        className="inline-flex items-center px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                      >
+                        {isUpdatingStatus ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                          </svg>
+                        )}
+                        Re-open Ticket
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
             )}
             
-            {/* Closed or Cancelled Ticket */}
-            {(localTicket.status === 'Closed' || localTicket.status === 'Cancelled') && (
+            {/* Cancelled Ticket */}
+            {localTicket.status === 'Cancelled' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                   <div>
-                    <p className="text-sm font-medium text-gray-800">{localTicket.status} Ticket</p>
+                    <p className="text-sm font-medium text-gray-800">Cancelled Ticket</p>
                     <p className="text-xs text-gray-600">
                       No further actions needed
                     </p>
@@ -956,9 +1587,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 
                 <div className="space-y-2">
                   <p className="text-sm text-neutral-600">
-                    {localTicket.status === 'Closed' ? 
-                      'This ticket has been completed and closed.' : 
-                      'This ticket has been cancelled and no further action is required.'}
+                    This ticket has been cancelled and no further action is required.
                   </p>
                 </div>
               </div>
@@ -1006,93 +1635,31 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         </div>
       )}
 
-      {/* Schedule Date Picker Modal */}
-      {showSchedulePicker && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Schedule Work</h3>
-            <p className="text-sm text-neutral-600 mb-4">
-              Select the date and time when the work should be performed.
-            </p>
-            <DateTimePicker
-              selectedDate={selectedScheduleDate}
-              onDateTimeChange={setSelectedScheduleDate}
-              minDate={new Date()}
-              label="Scheduled Date & Time"
-              className="mb-4"
-            />
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowSchedulePicker(false);
-                  setSelectedScheduleDate(undefined);
-                }}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleScheduleWithDate}
-                disabled={!selectedScheduleDate || isUpdatingStatus}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isUpdatingStatus ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Scheduling...
-                  </>
-                ) : (
-                  'Schedule Work'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Enhanced Schedule Modal for initial scheduling */}
+      <ScheduleModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        ticket={localTicket}
+        onScheduled={handleScheduleWork}
+        allowDirectScheduling={true}
+        preSelectedSupplier={(() => {
+          const winningQuote = localTicket.quoteRequests?.find(req => req.status === 'Accepted')
+          return winningQuote?.supplierName
+        })()}
+        preSelectedCost={(() => {
+          const winningQuote = localTicket.quoteRequests?.find(req => req.status === 'Accepted')
+          return winningQuote?.quoteAmount
+        })()}
+      />
 
-      {/* Reschedule Date Picker Modal */}
-      {showReschedulePicker && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Reschedule Work</h3>
-            <p className="text-sm text-neutral-600 mb-4">
-              Select the new date and time for the work.
-            </p>
-            <DateTimePicker
-              selectedDate={selectedRescheduleDate}
-              onDateTimeChange={setSelectedRescheduleDate}
-              minDate={new Date()}
-              label="New Scheduled Date & Time"
-              className="mb-4"
-            />
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowReschedulePicker(false);
-                  setSelectedRescheduleDate(undefined);
-                }}
-                className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleRescheduleWithDate}
-                disabled={!selectedRescheduleDate || isUpdatingStatus}
-                className="px-4 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-400 disabled:hover:bg-gray-400"
-              >
-                {isUpdatingStatus ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Rescheduling...
-                  </>
-                ) : (
-                  'Reschedule Work'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Enhanced Schedule Modal for rescheduling */}
+      <ScheduleModal
+        isOpen={showRescheduleModal}
+        onClose={() => setShowRescheduleModal(false)}
+        ticket={localTicket}
+        onScheduled={handleRescheduleWork}
+        allowDirectScheduling={false}
+      />
 
       {/* Supplier Selection Modal */}
       <SupplierSelectionModal
@@ -1116,8 +1683,26 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         isOpen={showQuoteManagement}
         onClose={() => setShowQuoteManagement(false)}
         ticketId={ticket.id}
-        quoteRequests={localTicket.quoteRequests || []}
+        quoteRequests={(() => {
+          console.log('🎯 Passing quoteRequests to modal:', localTicket.quoteRequests?.length || 0, 'items')
+          console.log('📋 LocalTicket status:', localTicket.status)
+          return localTicket.quoteRequests || []
+        })()}
         onQuotesUpdated={handleQuoteManagement}
+      />
+
+      {/* Ticket Completion Modal */}
+      <TicketCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        ticketTitle={localTicket.title}
+        estimatedCost={(() => {
+          // Try to get estimated cost from accepted quote
+          const acceptedQuote = localTicket.quoteRequests?.find(req => req.status === 'Accepted');
+          return acceptedQuote?.quoteAmount || undefined;
+        })()}
+        onComplete={handleCompleteTicket}
+        isSubmitting={isCompletingTicket}
       />
     </Modal>
   );

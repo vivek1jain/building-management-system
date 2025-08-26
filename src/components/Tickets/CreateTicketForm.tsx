@@ -220,7 +220,7 @@ const CreateTicketForm: React.FC<CreateTicketFormProps> = ({ onSuccess, onCancel
           {urgencyOptions.map((option) => (
             <label
               key={option.value}
-              className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none ${
+              className={`relative flex cursor-pointer rounded-lg border p-3 focus:outline-none ${
                 urgency === option.value
                   ? 'border-primary-500 bg-primary-50'
                   : 'border-neutral-300 hover:bg-neutral-50'
@@ -232,8 +232,8 @@ const CreateTicketForm: React.FC<CreateTicketFormProps> = ({ onSuccess, onCancel
                 value={option.value}
                 className="sr-only"
               />
-              <div className="flex flex-col items-center">
-                <span className="text-2xl mb-1">{option.icon}</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-lg">{option.icon}</span>
                 <span className="text-sm font-medium text-neutral-900">{option.label}</span>
               </div>
               {urgency === option.value && (
@@ -328,10 +328,7 @@ const CreateTicketForm: React.FC<CreateTicketFormProps> = ({ onSuccess, onCancel
               Creating...
             </>
           ) : (
-            <>
-              <Clock className="h-4 w-4 mr-2" />
-              Create Ticket
-            </>
+            'Submit'
           )}
         </Button>
       </div>

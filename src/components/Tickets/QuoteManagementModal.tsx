@@ -13,7 +13,12 @@ import {
   X,
   User,
   Phone,
-  Star
+  Star,
+  Award,
+  Calendar,
+  Paperclip,
+  Upload,
+  FileText
 } from 'lucide-react'
 import { Supplier, QuoteRequest, QuoteRequestStatus } from '../../types'
 import { supplierService } from '../../services/supplierService'
@@ -33,10 +38,10 @@ interface QuoteManagementModalProps {
 
 interface QuoteEntry {
   supplierId: string
-  amount: number
+  amount: string
   description: string
-  terms: string
-  validUntil: Date
+  validUntil?: Date
+  quoteFile?: File
 }
 
 const QuoteManagementModal = ({
@@ -56,12 +61,12 @@ const QuoteManagementModal = ({
   const [editingQuote, setEditingQuote] = useState<string | null>(null)
   const [quoteForm, setQuoteForm] = useState<QuoteEntry>({
     supplierId: '',
-    amount: 0,
-    description: '',
-    terms: '',
-    validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days from now
+    amount: '',
+    description: ''
   })
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
+  const [selectedWinnerQuoteId, setSelectedWinnerQuoteId] = useState<string | null>(null)
+  const [selectingWinner, setSelectingWinner] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -118,10 +123,8 @@ const QuoteManagementModal = ({
   const handleAddQuote = (supplierId: string) => {
     setQuoteForm({
       supplierId,
-      amount: 0,
-      description: '',
-      terms: '',
-      validUntil: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      amount: '',
+      description: ''
     })
     setEditingQuote(supplierId)
   }
@@ -129,10 +132,9 @@ const QuoteManagementModal = ({
   const handleEditQuote = (request: QuoteRequest) => {
     setQuoteForm({
       supplierId: request.supplierId,
-      amount: request.quoteAmount || 0,
+      amount: request.quoteAmount ? request.quoteAmount.toString() : '',
       description: request.notes || '',
-      terms: '',
-      validUntil: request.validUntil || new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+      validUntil: request.validUntil
     })
     setEditingQuote(request.supplierId)
   }
@@ -140,7 +142,8 @@ const QuoteManagementModal = ({
   const handleSaveQuote = async () => {
     if (!currentUser) return
 
-    if (quoteForm.amount <= 0) {
+    const amount = parseFloat(quoteForm.amount)
+    if (isNaN(amount) || amount <= 0) {
       addNotification({
         title: 'Invalid Quote',
         message: 'Please enter a valid quote amount',
@@ -153,16 +156,15 @@ const QuoteManagementModal = ({
     setLoading(true)
     try {
       await ticketService.updateQuoteRequest(ticketId, quoteForm.supplierId, {
-        amount: quoteForm.amount,
+        amount: amount,
         description: quoteForm.description,
-        terms: quoteForm.terms,
         validUntil: quoteForm.validUntil
       }, currentUser.id)
 
       // Update the quote request status
       const updatedRequests = quoteRequests.map(req => 
         req.supplierId === quoteForm.supplierId
-          ? { ...req, status: QuoteRequestStatus.RECEIVED, quoteAmount: quoteForm.amount, updatedAt: new Date() }
+          ? { ...req, status: QuoteRequestStatus.RECEIVED, quoteAmount: amount, updatedAt: new Date() }
           : req
       )
       setQuoteRequests(updatedRequests)
@@ -236,6 +238,58 @@ const QuoteManagementModal = ({
     }
   }
 
+  const handleSelectWinner = async () => {
+    if (!selectedWinnerQuoteId) {
+      addNotification({
+        title: 'No Quote Selected',
+        message: 'Please select a quote to proceed.',
+        type: 'warning',
+        userId: currentUser?.id || ''
+      })
+      return
+    }
+
+    setSelectingWinner(true)
+    try {
+      // Find the corresponding quote request to get the supplier ID
+      const selectedRequest = quoteRequests.find(req => req.id === selectedWinnerQuoteId)
+      if (!selectedRequest) {
+        throw new Error('Selected quote request not found')
+      }
+
+      // Use the existing ticketService method
+      await ticketService.selectWinningQuote(ticketId, selectedRequest.supplierId, currentUser?.id || '')
+      
+      addNotification({
+        title: 'Quote Selected',
+        message: 'Winning quote selected successfully. The ticket will now move to scheduling.',
+        type: 'success',
+        userId: currentUser?.id || ''
+      })
+
+      // Update the local state to reflect the selected winner
+      const updatedRequests = quoteRequests.map(req => 
+        req.id === selectedWinnerQuoteId
+          ? { ...req, status: QuoteRequestStatus.ACCEPTED }
+          : req
+      )
+      setQuoteRequests(updatedRequests)
+      
+      onQuotesUpdated()
+      onClose()
+    } catch (error) {
+      console.error('Failed to select winning quote:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to select winning quote. Please try again.',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+    } finally {
+      setSelectingWinner(false)
+    }
+  }
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GB', {
       style: 'currency',
@@ -302,75 +356,36 @@ const QuoteManagementModal = ({
       >
       <div className="space-y-6">
         {/* Progress Summary */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+        <div className="bg-neutral-50 rounded-lg p-4 border border-neutral-200">
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div>
-              <div className="text-2xl font-bold text-gray-900">{quoteRequests.length}</div>
-              <div className="text-sm text-gray-600">Suppliers Contacted</div>
+              <div className="text-xl font-bold text-neutral-900">{quoteRequests.length}</div>
+              <div className="text-xs text-neutral-600">Suppliers Contacted</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {(() => {
-                  console.log('📊 Calculating PENDING count...')
-                  try {
-                    const pendingCount = quoteRequests.filter(r => {
-                      console.log('  - Request status:', r.status, 'Expected:', QuoteRequestStatus.PENDING)
-                      return r.status === QuoteRequestStatus.PENDING
-                    }).length
-                    console.log('  - PENDING count:', pendingCount)
-                    return pendingCount
-                  } catch (error) {
-                    console.error('Error calculating PENDING count:', error)
-                    return 0
-                  }
-                })()}
+              <div className="text-xl font-bold text-warning-600">
+                {quoteRequests.filter(r => r.status === QuoteRequestStatus.PENDING).length}
               </div>
-              <div className="text-sm text-gray-600">Awaiting Response</div>
+              <div className="text-xs text-neutral-600">Awaiting Response</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">
-                {(() => {
-                  console.log('📊 Calculating RECEIVED count...')
-                  try {
-                    const receivedCount = quoteRequests.filter(r => {
-                      console.log('  - Request status:', r.status, 'Expected:', QuoteRequestStatus.RECEIVED)
-                      return r.status === QuoteRequestStatus.RECEIVED
-                    }).length
-                    console.log('  - RECEIVED count:', receivedCount)
-                    return receivedCount
-                  } catch (error) {
-                    console.error('Error calculating RECEIVED count:', error)
-                    return 0
-                  }
-                })()}
+              <div className="text-xl font-bold text-primary-600">
+                {quoteRequests.filter(r => r.status === QuoteRequestStatus.RECEIVED).length}
               </div>
-              <div className="text-sm text-gray-600">Quotes Received</div>
+              <div className="text-xs text-neutral-600">Quotes Received</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-xl font-bold text-primary-600">
                 {(() => {
-                  console.log('💰 Calculating best price...')
-                  try {
-                    const quotesWithAmounts = quoteRequests.filter(r => {
-                      console.log('  - Request quoteAmount:', r.quoteAmount)
-                      return r.quoteAmount && r.quoteAmount > 0
-                    })
-                    console.log('  - Quotes with amounts:', quotesWithAmounts.length)
-                    if (quotesWithAmounts.length > 0) {
-                      const amounts = quotesWithAmounts.map(r => r.quoteAmount!)
-                      console.log('  - Amounts:', amounts)
-                      const minAmount = Math.min(...amounts)
-                      console.log('  - Min amount:', minAmount)
-                      return formatCurrency(minAmount)
-                    }
-                    return '—'
-                  } catch (error) {
-                    console.error('Error calculating best price:', error)
-                    return '—'
+                  const quotesWithAmounts = quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0)
+                  if (quotesWithAmounts.length > 0) {
+                    const minAmount = Math.min(...quotesWithAmounts.map(r => r.quoteAmount!))
+                    return formatCurrency(minAmount)
                   }
+                  return '—'
                 })()}
               </div>
-              <div className="text-sm text-gray-600">Best Price</div>
+              <div className="text-xs text-neutral-600">Best Price</div>
             </div>
           </div>
         </div>
@@ -381,12 +396,10 @@ const QuoteManagementModal = ({
             <h3 className="text-lg font-semibold text-gray-900">Supplier Quotes</h3>
             {availableSuppliers.length > 0 && (
               <Button
-                variant="outline"
+                variant="primary"
                 onClick={() => setShowAddSuppliers(true)}
-                className="flex items-center"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add More Suppliers
+                Add Suppliers
               </Button>
             )}
           </div>
@@ -396,126 +409,100 @@ const QuoteManagementModal = ({
                 try {
                   const supplier = getSupplier(request.supplierId)
                   const isEditing = editingQuote === request.supplierId
+                  const hasQuoteAmount = request.quoteAmount && request.quoteAmount > 0
+                  const isSelected = selectedWinnerQuoteId === request.id
+                  const isLowest = hasQuoteAmount && request.quoteAmount === Math.min(...quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0).map(r => r.quoteAmount!))
                   
                   return (
                     <div
                       key={request.id}
-                      className="border border-gray-200 rounded-lg p-4 bg-white"
+                      className={`border-2 rounded-lg p-4 transition-all duration-200 relative ${
+                        hasQuoteAmount
+                          ? isSelected
+                            ? 'border-success-500 bg-success-50 cursor-pointer'
+                            : isLowest
+                            ? 'border-success-200 bg-success-25 hover:border-success-300 cursor-pointer'
+                            : 'border-neutral-200 bg-white hover:border-neutral-300 hover:shadow-sm cursor-pointer'
+                          : 'border-neutral-200 bg-white hover:shadow-sm'
+                      }`}
+                      onClick={hasQuoteAmount ? () => setSelectedWinnerQuoteId(request.id) : undefined}
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                            <User className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">{request.supplierName}</h4>
-                            <p className="text-sm text-gray-600">{supplier?.companyName}</p>
-                          </div>
+                      {/* Best Price Badge */}
+                      {isLowest && hasQuoteAmount && (
+                        <div className="absolute -top-2 -right-2 bg-success-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center">
+                          <Award className="h-3 w-3 mr-1" />
+                          Best
                         </div>
-                        <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)}`}>
-                          {getStatusIcon(request.status)}
-                          <span className="ml-1">{request.status}</span>
-                        </div>
-                      </div>
+                      )}
 
-                  {/* Supplier Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">{request.supplierEmail}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">
-                        Sent: {(() => {
-                          console.log('  - Formatting sentAt date:', request.sentAt, typeof request.sentAt)
-                          try {
-                            if (!request.sentAt) {
-                              console.log('  - sentAt is null/undefined')
-                              return 'Unknown'
-                            }
-                            // Ensure it's a Date object
-                            const date = request.sentAt instanceof Date ? request.sentAt : new Date(request.sentAt)
-                            console.log('  - Date object:', date)
-                            return formatDate(date)
-                          } catch (error) {
-                            console.error('  - Error formatting sentAt:', error)
-                            return 'Invalid date'
-                          }
-                        })()}
-                      </span>
-                    </div>
-                    {supplier?.phone && (
-                      <div className="flex items-center space-x-2">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">{supplier.phone}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">
-                        Response time: {(() => {
-                          console.log('  - Calculating response time for sentAt:', request.sentAt, 'updatedAt:', request.updatedAt)
-                          try {
-                            if (!request.sentAt) {
-                              console.log('  - sentAt is null/undefined for response time')
-                              return 'Unknown'
-                            }
-                            const sentDate = request.sentAt instanceof Date ? request.sentAt : new Date(request.sentAt)
-                            const updatedDate = request.updatedAt ? (request.updatedAt instanceof Date ? request.updatedAt : new Date(request.updatedAt)) : undefined
-                            console.log('  - Processed dates for response time calculation')
-                            return calculateResponseTime(sentDate, updatedDate)
-                          } catch (error) {
-                            console.error('  - Error calculating response time:', error)
-                            return 'Unknown'
-                          }
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Quote Information */}
-                  {request.quoteAmount ? (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-sm font-medium text-green-800">Quote Received</span>
-                          <div className="text-xl font-bold text-green-900">
-                            {formatCurrency(request.quoteAmount)}
-                          </div>
-                          {request.notes && (
-                            <p className="text-sm text-green-700 mt-1">{request.notes}</p>
-                          )}
+                      {/* Selection Indicator */}
+                      {isSelected && (
+                        <div className="absolute top-1/2 right-3 transform -translate-y-1/2">
+                          <CheckCircle className="h-5 w-5 text-success-600" />
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditQuote(request)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-sm font-medium text-yellow-800">Awaiting Quote</span>
-                          <p className="text-xs text-yellow-600 mt-1">
-                            No response received yet
+                      )}
+
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-neutral-900 truncate">{request.supplierName}</h4>
+                          <p className="text-sm text-neutral-600 truncate">{supplier?.companyName}</p>
+                          <p className="text-xs text-neutral-500 mt-1">
+                            Date Received: {(() => {
+                              try {
+                                if (!request.sentAt) return 'Unknown date'
+                                const date = request.sentAt instanceof Date ? request.sentAt : new Date(request.sentAt)
+                                return new Date(date).toLocaleDateString('en-GB')
+                              } catch (error) {
+                                return 'Invalid date'
+                              }
+                            })()}
                           </p>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleAddQuote(request.supplierId)}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Quote
-                        </Button>
+                        
+                        {/* Always present price area for alignment */}
+                        <div className="flex-1 text-center px-4">
+                          {request.quoteAmount && (
+                            <div className="text-lg font-bold text-neutral-900">
+                              {formatCurrency(request.quoteAmount)}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Right-aligned Status and Action Buttons - adjusted for selection indicator */}
+                        <div className="flex flex-col items-end space-y-2 pr-10">
+                          <div className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(request.status)} border`}>
+                            {getStatusIcon(request.status)}
+                            <span className="ml-1">{request.status}</span>
+                          </div>
+                          <div className="flex gap-2">
+                            {request.quoteAmount ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditQuote(request)
+                                }}
+                                className="text-xs"
+                              >
+                                Edit
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleAddQuote(request.supplierId)
+                                }}
+                                className="text-xs"
+                              >
+                                Add Quote
+                              </Button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
 
                   {/* Quote Entry Form */}
                   {isEditing && (
@@ -527,25 +514,30 @@ const QuoteManagementModal = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Quote Amount (£)
+                            Quote Amount (£) *
                           </label>
                           <input
-                            type="number"
+                            type="text"
                             value={quoteForm.amount}
-                            onChange={(e) => setQuoteForm({...quoteForm, amount: parseFloat(e.target.value) || 0})}
+                            onChange={(e) => {
+                              const value = e.target.value.replace(/[^0-9.]/g, '')
+                              setQuoteForm({...quoteForm, amount: value})
+                            }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="0.00"
-                            step="0.01"
+                            placeholder="Enter amount"
                           />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Valid Until
+                            Valid Until (optional)
                           </label>
                           <input
                             type="date"
-                            value={quoteForm.validUntil.toISOString().split('T')[0]}
-                            onChange={(e) => setQuoteForm({...quoteForm, validUntil: new Date(e.target.value)})}
+                            value={quoteForm.validUntil ? quoteForm.validUntil.toISOString().split('T')[0] : ''}
+                            onChange={(e) => setQuoteForm({
+                              ...quoteForm, 
+                              validUntil: e.target.value ? new Date(e.target.value) : undefined
+                            })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -566,15 +558,35 @@ const QuoteManagementModal = ({
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Terms & Conditions
+                          Quote Document (optional)
                         </label>
-                        <textarea
-                          value={quoteForm.terms}
-                          onChange={(e) => setQuoteForm({...quoteForm, terms: e.target.value})}
-                          rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Payment terms, warranties, etc..."
-                        />
+                        <div className="relative">
+                          <input
+                            type="file"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0]
+                              setQuoteForm({...quoteForm, quoteFile: file})
+                            }}
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                          />
+                          <div className="absolute right-2 top-2 pointer-events-none">
+                            <Paperclip className="h-4 w-4 text-gray-400" />
+                          </div>
+                        </div>
+                        {quoteForm.quoteFile && (
+                          <div className="mt-2 flex items-center text-sm text-gray-600">
+                            <FileText className="h-4 w-4 mr-2" />
+                            <span>{quoteForm.quoteFile.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setQuoteForm({...quoteForm, quoteFile: undefined})}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex justify-end space-x-2">
@@ -588,10 +600,8 @@ const QuoteManagementModal = ({
                         <Button
                           onClick={handleSaveQuote}
                           disabled={loading}
-                          className="flex items-center"
                         >
-                          <Save className="h-4 w-4 mr-2" />
-                          {loading ? 'Saving...' : 'Save Quote'}
+                          {loading ? 'Saving...' : 'Save'}
                         </Button>
                       </div>
                     </div>
@@ -610,6 +620,7 @@ const QuoteManagementModal = ({
               })}
           </div>
         </div>
+
 
         {/* Add Suppliers Modal would go here */}
         {showAddSuppliers && (
@@ -716,16 +727,13 @@ const QuoteManagementModal = ({
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
-          {quoteRequests.some(r => r.quoteAmount) && (
+          {quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0).length > 1 && (
             <Button
-              onClick={() => {
-                onClose()
-                // This would open the quote comparison modal
-              }}
+              onClick={handleSelectWinner}
+              disabled={!selectedWinnerQuoteId || selectingWinner}
               className="flex items-center"
             >
-              <DollarSign className="h-4 w-4 mr-2" />
-              Compare Quotes ({quoteRequests.filter(r => r.quoteAmount).length})
+              {selectingWinner ? 'Selecting...' : 'Select'}
             </Button>
           )}
         </ModalFooter>

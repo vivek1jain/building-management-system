@@ -28,6 +28,7 @@ import {
 } from '../services/serviceChargeService'
 import { getInvoicesByBuilding } from '../services/invoiceService'
 import { getFlatsByBuilding } from '../services/flatService'
+import { expenseService } from '../services/expenseService'
 import { 
   Building,
   DollarSign, 
@@ -45,9 +46,13 @@ import {
   Send,
   ChevronDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Receipt,
+  AlertTriangle,
+  CheckCircle,
+  ExternalLink
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter } from '../components/UI'
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption } from '../components/UI'
 
 // UK-specific budget categories
 const UK_INCOME_CATEGORIES = [
@@ -67,9 +72,17 @@ const Finances: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
+
+  // Dropdown options
+  const quarterOptions: DropdownOption[] = [
+    { value: 'Q1-2024', label: 'Q1 2024 (Apr-Jun)', description: 'First quarter 2024' },
+    { value: 'Q2-2024', label: 'Q2 2024 (Jul-Sep)', description: 'Second quarter 2024' },
+    { value: 'Q3-2024', label: 'Q3 2024 (Oct-Dec)', description: 'Third quarter 2024' },
+    { value: 'Q4-2024', label: 'Q4 2024 (Jan-Mar)', description: 'Fourth quarter 2024' }
+  ];
   
   // Core state
-  const [activeTab, setActiveTab] = useState<'budget' | 'demands' | 'invoices' | 'reports'>('budget')
+  const [activeTab, setActiveTab] = useState<'budget' | 'demands' | 'invoices' | 'expenses' | 'reports'>('budget')
   const [loading, setLoading] = useState(false)
   
   // Sorting state
@@ -80,6 +93,7 @@ const Finances: React.FC = () => {
   const [budget, setBudget] = useState<Budget | null>(null)
   const [serviceCharges, setServiceCharges] = useState<ServiceChargeDemand[]>([])
   const [invoices, setInvoices] = useState<Invoice[]>([])
+  const [expenses, setExpenses] = useState<any[]>([])
   const [flats, setFlats] = useState<Flat[]>([])
   
   // Service Charges state
@@ -121,7 +135,9 @@ const Finances: React.FC = () => {
         totalIncome: 0,
         totalExpenditure: 0,
         netPosition: 0,
-        outstanding: 0
+        outstanding: 0,
+        forecastExpenses: 0,
+        adjustedCashPosition: 0
       }
     }
 
@@ -147,11 +163,21 @@ const Finances: React.FC = () => {
                                       .reduce((sum, inv) => sum + (inv.amount || 0), 0)
     const outstanding = outstandingServiceCharges + outstandingInvoices
     
+    // Calculate forecast expenses (expenses in forecast status)
+    const forecastExpenses = expenses
+      .filter(expense => expense.status === 'forecast')
+      .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+    
+    // Calculate adjusted cash position (current cash position minus committed forecast expenses)
+    const adjustedCashPosition = netPosition - forecastExpenses
+    
     return {
       totalIncome,
       totalExpenditure,
       netPosition,
-      outstanding
+      outstanding,
+      forecastExpenses,
+      adjustedCashPosition
     }
   }
 
@@ -169,16 +195,18 @@ const Finances: React.FC = () => {
     
     try {
       setLoading(true)
-      const [budgetData, demandsData, invoicesData, flatsData] = await Promise.all([
+      const [budgetData, demandsData, invoicesData, expensesData, flatsData] = await Promise.all([
         budgetService.getBudgetsByBuilding(selectedBuildingId),
         getServiceChargeDemands(selectedBuildingId),
         getInvoicesByBuilding(selectedBuildingId),
+        expenseService.getExpensesByBuilding(selectedBuildingId),
         getFlatsByBuilding(selectedBuildingId)
       ])
       
       setBudget(budgetData.length > 0 ? budgetData[0] : null)
       setServiceCharges(demandsData)
       setInvoices(invoicesData)
+      setExpenses(expensesData)
       // Financial summary is now calculated dynamically
       setFlats(flatsData)
     } catch (error) {
@@ -740,56 +768,136 @@ const Finances: React.FC = () => {
 
       {/* Financial Summary Cards */}
 {financialSummary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 font-inter">Total Income</p>
-                <p className="text-2xl font-bold text-success-600 font-inter">
-                  {formatCurrency(financialSummary.totalIncome)}
-                </p>
-              </div>
-              <TrendingUp className="h-8 w-8 text-success-600" />
-            </CardHeader>
-          </Card>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 font-inter">Total Income</p>
+                  <p className="text-2xl font-bold text-success-600 font-inter">
+                    {formatCurrency(financialSummary.totalIncome)}
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-success-600" />
+              </CardHeader>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 font-inter">Total Expenditure</p>
-                <p className="text-2xl font-bold text-red-600 font-inter">
-                  {formatCurrency(financialSummary.totalExpenditure)}
-                </p>
-              </div>
-              <TrendingDown className="h-8 w-8 text-red-600" />
-            </CardHeader>
-          </Card>
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 font-inter">Total Expenditure</p>
+                  <p className="text-2xl font-bold text-red-600 font-inter">
+                    {formatCurrency(financialSummary.totalExpenditure)}
+                  </p>
+                </div>
+                <TrendingDown className="h-8 w-8 text-red-600" />
+              </CardHeader>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 font-inter">Net Position</p>
-                <p className={`text-2xl font-bold font-inter ${
-                  financialSummary.netPosition >= 0 ? 'text-success-600' : 'text-red-600'
-                }`}>
-                  {formatCurrency(financialSummary.netPosition)}
-                </p>
-              </div>
-              <DollarSign className="h-8 w-8 text-primary-600" />
-            </CardHeader>
-          </Card>
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 font-inter">Net Position</p>
+                  <p className={`text-2xl font-bold font-inter ${
+                    financialSummary.netPosition >= 0 ? 'text-success-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(financialSummary.netPosition)}
+                  </p>
+                </div>
+                <DollarSign className="h-8 w-8 text-primary-600" />
+              </CardHeader>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 font-inter">Outstanding</p>
-                <p className="text-2xl font-bold text-orange-600 font-inter">
-                  {formatCurrency(financialSummary?.outstanding || 0)}
-                </p>
+            <Card>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-600 font-inter">Outstanding</p>
+                  <p className="text-2xl font-bold text-orange-600 font-inter">
+                    {formatCurrency(financialSummary?.outstanding || 0)}
+                  </p>
+                </div>
+                <Clock className="h-8 w-8 text-orange-600" />
+              </CardHeader>
+            </Card>
+          </div>
+
+          {/* Enhanced Cash Flow Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-orange-800 font-inter">Forecast Expenses</p>
+                  <p className="text-2xl font-bold text-orange-600 font-inter">
+                    {formatCurrency(financialSummary.forecastExpenses)}
+                  </p>
+                  <p className="text-xs text-orange-700 font-inter mt-1">
+                    Committed but not yet invoiced
+                  </p>
+                </div>
+                <AlertTriangle className="h-8 w-8 text-orange-600" />
+              </CardHeader>
+            </Card>
+
+            <Card className={`border-2 ${
+              financialSummary.adjustedCashPosition >= 0 
+                ? 'border-success-200 bg-success-50' 
+                : 'border-red-200 bg-red-50'
+            }`}>
+              <CardHeader className="flex items-center justify-between">
+                <div>
+                  <p className={`text-sm font-medium font-inter ${
+                    financialSummary.adjustedCashPosition >= 0 ? 'text-success-800' : 'text-red-800'
+                  }`}>
+                    Available Cash
+                  </p>
+                  <p className={`text-2xl font-bold font-inter ${
+                    financialSummary.adjustedCashPosition >= 0 ? 'text-success-600' : 'text-red-600'
+                  }`}>
+                    {formatCurrency(financialSummary.adjustedCashPosition)}
+                  </p>
+                  <p className={`text-xs font-inter mt-1 ${
+                    financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
+                  }`}>
+                    Net position minus forecast expenses
+                  </p>
+                </div>
+                {financialSummary.adjustedCashPosition >= 0 ? (
+                  <CheckCircle className="h-8 w-8 text-success-600" />
+                ) : (
+                  <AlertTriangle className="h-8 w-8 text-red-600" />
+                )}
+              </CardHeader>
+            </Card>
+          </div>
+
+          {/* Cash Flow Alert */}
+          {financialSummary.forecastExpenses > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <div className="flex-shrink-0">
+                  <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-medium text-primary-900 font-inter">Cash Flow Analysis</h3>
+                  <div className="mt-2 text-sm text-primary-700 font-inter">
+                    <p className="mb-2">
+                      Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
+                      but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
+                      committed expenses from completed tickets awaiting invoices.
+                    </p>
+                    <p className={`font-medium ${
+                      financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
+                    }`}>
+                      {financialSummary.adjustedCashPosition >= 0 
+                        ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
+                        : `⚠️  You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
+                      }
+                    </p>
+                  </div>
+                </div>
               </div>
-              <Clock className="h-8 w-8 text-orange-600" />
-            </CardHeader>
-          </Card>
+            </div>
+          )}
         </div>
       )}
 
@@ -801,6 +909,7 @@ const Finances: React.FC = () => {
               { id: 'budget', name: 'Budget', icon: BarChart3 },
               { id: 'demands', name: 'Service Charges', icon: FileText },
               { id: 'invoices', name: 'Invoices', icon: FileText },
+              { id: 'expenses', name: 'Expenses', icon: Receipt },
               { id: 'reports', name: 'Reports', icon: BarChart3 }
             ].map((tab) => {
               const Icon = tab.icon
@@ -893,16 +1002,14 @@ const Finances: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-neutral-900 font-inter">Service Charge Management</h2>
                 <div className="flex items-center space-x-3">
-                  <select
+                  <Dropdown
+                    options={quarterOptions}
                     value={selectedQuarter}
-                    onChange={(e) => setSelectedQuarter(e.target.value)}
-                    className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                  >
-                    <option value="Q1-2024">Q1 2024 (Apr-Jun)</option>
-                    <option value="Q2-2024">Q2 2024 (Jul-Sep)</option>
-                    <option value="Q3-2024">Q3 2024 (Oct-Dec)</option>
-                    <option value="Q4-2024">Q4 2024 (Jan-Mar)</option>
-                  </select>
+                    onChange={(value) => setSelectedQuarter(value)}
+                    placeholder="Select quarter..."
+                    size="md"
+                    className="min-w-[200px]"
+                  />
 <Button
                     variant="danger"
                     size="sm"
@@ -1054,6 +1161,214 @@ const Finances: React.FC = () => {
               <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-neutral-900 font-inter">Invoices</h3>
               <p className="text-gray-600 font-inter">Invoice management features will be available soon</p>
+            </div>
+          )}
+
+          {activeTab === 'expenses' && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-neutral-900 font-inter">Expense Forecasts</h2>
+                <div className="flex items-center space-x-3">
+                  <div className="text-sm text-gray-600 font-inter">
+                    Showing forecast expenses from completed tickets
+                  </div>
+                </div>
+              </div>
+
+              {/* Expenses Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="font-medium text-blue-900 font-inter">Total Forecasts</h3>
+                  <p className="text-2xl font-bold text-primary-600 font-inter">{expenses.length}</p>
+                </div>
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <h3 className="font-medium text-orange-900 font-inter">Pending Invoices</h3>
+                  <p className="text-2xl font-bold text-orange-600 font-inter">
+                    {expenses.filter(e => e.status === 'forecast').length}
+                  </p>
+                </div>
+                <div className="bg-success-50 border border-success-200 rounded-lg p-4">
+                  <h3 className="font-medium text-success-900 font-inter">Total Amount</h3>
+                  <p className="text-2xl font-bold text-success-600 font-inter">
+                    {formatCurrency(expenses.reduce((sum, e) => sum + (e.amount || 0), 0))}
+                  </p>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h3 className="font-medium text-red-900 font-inter">Invoiced</h3>
+                  <p className="text-2xl font-bold text-red-600 font-inter">
+                    {expenses.filter(e => e.status === 'invoiced').length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Expenses Table */}
+              <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                <div className="px-6 py-4 border-b border-neutral-200">
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Forecast Expenses</h3>
+                  <p className="text-sm text-gray-600 font-inter mt-1">
+                    Expenses automatically created from completed maintenance tickets
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-neutral-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Ticket/Description
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Supplier
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Amount
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Category
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Status
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Date Created
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {expenses.map((expense) => (
+                        <tr key={expense.id} className="hover:bg-neutral-50">
+                          <td className="px-6 py-4 text-sm text-neutral-900 font-inter">
+                            <div>
+                              <div className="font-medium">{expense.description}</div>
+                              {expense.ticketId && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                  Ticket: {expense.ticketId.substring(0, 8)}...
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                            {expense.vendorName || expense.supplierName || 'Unknown Supplier'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                            <div className="font-medium">
+                              {formatCurrency(expense.amount || 0)}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                            <span className="capitalize">{expense.category?.replace('_', ' ')}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${
+                              expense.status === 'forecast'
+                                ? 'bg-orange-100 text-orange-800'
+                                : expense.status === 'invoiced'
+                                ? 'bg-red-100 text-red-800'
+                                : expense.status === 'paid'
+                                ? 'bg-success-100 text-success-800'
+                                : 'bg-neutral-100 text-gray-800'
+                            }`}>
+                              {expense.status === 'forecast' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                              {expense.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
+                              {expense.status === 'forecast' ? 'Pending Invoice' : expense.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                            {new Date(expense.createdAt).toLocaleDateString('en-GB')}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center space-x-2">
+                              {expense.ticketId && (
+                                <button
+                                  onClick={() => {
+                                    // TODO: Navigate to ticket detail
+                                    addNotification({
+                                      userId: currentUser?.id || '',
+                                      title: 'Info',
+                                      message: `Ticket ${expense.ticketId.substring(0, 8)}... linked to this expense`,
+                                      type: 'info'
+                                    })
+                                  }}
+                                  className="text-primary-600 hover:text-blue-800 font-inter"
+                                  title="View Ticket"
+                                >
+                                  <ExternalLink className="h-4 w-4" />
+                                </button>
+                              )}
+                              {expense.status === 'forecast' && (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await expenseService.markAsInvoiced(expense.id, currentUser?.id || '')
+                                      addNotification({
+                                        userId: currentUser?.id || '',
+                                        title: 'Success',
+                                        message: 'Expense marked as invoiced',
+                                        type: 'success'
+                                      })
+                                      await loadFinancialData()
+                                    } catch (error) {
+                                      addNotification({
+                                        userId: currentUser?.id || '',
+                                        title: 'Error',
+                                        message: 'Failed to update expense status',
+                                        type: 'error'
+                                      })
+                                    }
+                                  }}
+                                  className="text-success-600 hover:text-success-800 font-inter"
+                                  title="Mark as Invoiced"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {expenses.length === 0 && (
+                    <div className="text-center py-12">
+                      <Receipt className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-neutral-900 font-inter">No Expense Forecasts</h3>
+                      <p className="text-gray-600 font-inter">
+                        Complete some tickets with final costs to see expense forecasts here
+                      </p>
+                      <div className="mt-4">
+                        <p className="text-sm text-gray-500 font-inter">
+                          💡 Tip: When you mark tickets as complete with a final cost, forecast expenses are automatically created here
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {expenses.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0">
+                      <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-primary-900 font-inter">About Expense Forecasts</h3>
+                      <div className="mt-2 text-sm text-primary-700 font-inter">
+                        <p className="mb-2">
+                          These forecasts are automatically created when maintenance tickets are completed with a final cost.
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li><strong>Pending Invoice:</strong> Work completed, waiting for supplier invoice</li>
+                          <li><strong>Invoiced:</strong> Invoice received and processed</li>
+                          <li><strong>Paid:</strong> Invoice has been paid</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

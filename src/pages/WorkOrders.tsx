@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { getAllBuildings } from '../services/buildingService'
-import { getWorkOrderStats } from '../services/workOrderService'
+import { getWorkOrderStats, updateWorkOrderFinalPrice } from '../services/workOrderService'
 import { WorkOrder, WorkOrderStatus, WorkOrderPriority, Building } from '../types'
+import WorkOrderDetailModal from '../components/WorkOrders/WorkOrderDetailModal'
+import { Dropdown, DropdownOption } from '../components/UI'
 
 // This interface is for the mock data used in this component
 interface MockWorkOrder {
@@ -60,6 +62,8 @@ const WorkOrdersPage: React.FC = () => {
   const [workOrders, setWorkOrders] = useState<MockWorkOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateWorkOrder, setShowCreateWorkOrder] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<MockWorkOrder | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
@@ -295,6 +299,62 @@ const WorkOrdersPage: React.FC = () => {
     }
   }
 
+  // Modal handlers
+  const handleViewWorkOrder = (workOrder: MockWorkOrder) => {
+    setSelectedWorkOrder(workOrder)
+    setShowDetailModal(true)
+  }
+
+  const handleMarkComplete = async (finalPrice: number) => {
+    if (!selectedWorkOrder || !currentUser) return
+    
+    try {
+      // Update work order status and final price
+      const updatedWorkOrders = workOrders.map(wo => 
+        wo.id === selectedWorkOrder.id 
+          ? { ...wo, status: WorkOrderStatus.RESOLVED, cost: finalPrice, completedDate: new Date() }
+          : wo
+      )
+      setWorkOrders(updatedWorkOrders)
+      setShowDetailModal(false)
+      setSelectedWorkOrder(null)
+      
+      addNotification({
+        title: 'Work Order Completed',
+        message: `Work order completed with final cost of ${formatCurrency(finalPrice)}`,
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error completing work order:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to complete work order',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
+  }
+
+  const handleStatusChange = (newStatus: WorkOrderStatus) => {
+    if (!selectedWorkOrder) return
+    
+    const updatedWorkOrders = workOrders.map(wo => 
+      wo.id === selectedWorkOrder.id 
+        ? { ...wo, status: newStatus, updatedAt: new Date() }
+        : wo
+    )
+    setWorkOrders(updatedWorkOrders)
+    setSelectedWorkOrder({ ...selectedWorkOrder, status: newStatus })
+    
+    addNotification({
+      title: 'Status Updated',
+      message: `Work order status changed to ${newStatus.replace('_', ' ')}`,
+      type: 'success',
+      userId: currentUser?.id || ''
+    })
+  }
+
   const getStatusColor = (status: WorkOrderStatus) => {
     switch (status) {
       case WorkOrderStatus.TRIAGE: return 'bg-neutral-100 text-gray-800'
@@ -342,6 +402,33 @@ const WorkOrdersPage: React.FC = () => {
       default: return <Clock className="h-4 w-4 text-gray-600" />
     }
   }
+
+  // Dropdown options
+  const buildingOptions: DropdownOption[] = buildings.map(building => ({
+    value: building.id,
+    label: building.name,
+    icon: <MapPin className="h-4 w-4" />
+  }));
+
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Status', description: 'Show all work orders' },
+    { value: WorkOrderStatus.TRIAGE, label: 'Triage', description: 'Work orders in triage' },
+    { value: WorkOrderStatus.QUOTING, label: 'Quoting', description: 'Getting quotes from suppliers' },
+    { value: WorkOrderStatus.AWAITING_USER_FEEDBACK, label: 'With User', description: 'Awaiting user feedback' },
+    { value: WorkOrderStatus.SCHEDULED, label: 'Scheduled', description: 'Work has been scheduled' },
+    { value: WorkOrderStatus.IN_PROGRESS, label: 'In Progress', description: 'Work is in progress' },
+    { value: WorkOrderStatus.RESOLVED, label: 'Resolved', description: 'Work has been completed' },
+    { value: WorkOrderStatus.CLOSED, label: 'Closed', description: 'Work order is closed' },
+    { value: WorkOrderStatus.CANCELLED, label: 'Cancelled', description: 'Work order cancelled' }
+  ];
+
+  const priorityOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Priority', description: 'Show all priorities' },
+    { value: WorkOrderPriority.LOW, label: 'Low', description: 'Low priority work orders' },
+    { value: WorkOrderPriority.MEDIUM, label: 'Medium', description: 'Medium priority work orders' },
+    { value: WorkOrderPriority.HIGH, label: 'High', description: 'High priority work orders' },
+    { value: WorkOrderPriority.URGENT, label: 'Urgent', description: 'Urgent work orders' }
+  ];
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -404,17 +491,14 @@ const WorkOrdersPage: React.FC = () => {
         <label className="block text-sm font-medium text-neutral-700 mb-2">
           Select Building
         </label>
-        <select
+        <Dropdown
+          options={buildingOptions}
           value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setSelectedBuilding(value)}
+          placeholder="Select a building..."
+          size="md"
+          className="w-full"
+        />
       </div>
 
       {/* Summary Cards */}
@@ -492,32 +576,22 @@ const WorkOrdersPage: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <select
+            <Dropdown
+              options={statusOptions}
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">All Status</option>
-              <option value={WorkOrderStatus.TRIAGE}>Triage</option>
-              <option value={WorkOrderStatus.QUOTING}>Quoting</option>
-              <option value={WorkOrderStatus.AWAITING_USER_FEEDBACK}>With User</option>
-              <option value={WorkOrderStatus.SCHEDULED}>Scheduled</option>
-              <option value={WorkOrderStatus.IN_PROGRESS}>In Progress</option>
-              <option value={WorkOrderStatus.RESOLVED}>Resolved</option>
-              <option value={WorkOrderStatus.CLOSED}>Closed</option>
-              <option value={WorkOrderStatus.CANCELLED}>Cancelled</option>
-            </select>
-            <select
+              onChange={(value) => setFilterStatus(value)}
+              placeholder="Filter by status..."
+              size="md"
+              className="min-w-[160px]"
+            />
+            <Dropdown
+              options={priorityOptions}
               value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-            >
-              <option value="all">All Priority</option>
-              <option value={WorkOrderPriority.LOW}>Low</option>
-              <option value={WorkOrderPriority.MEDIUM}>Medium</option>
-              <option value={WorkOrderPriority.HIGH}>High</option>
-              <option value={WorkOrderPriority.URGENT}>Urgent</option>
-            </select>
+              onChange={(value) => setFilterPriority(value)}
+              placeholder="Filter by priority..."
+              size="md"
+              className="min-w-[160px]"
+            />
           </div>
         </div>
       </div>
@@ -587,13 +661,23 @@ const WorkOrdersPage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-primary-600 hover:text-blue-900">
+                      <button 
+                        onClick={() => handleViewWorkOrder(order)}
+                        className="text-primary-600 hover:text-blue-900"
+                        title="View details"
+                      >
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button className="text-success-600 hover:text-success-700">
+                      <button 
+                        className="text-success-600 hover:text-success-700"
+                        title="Edit work order"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button 
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete work order"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -730,6 +814,40 @@ const WorkOrdersPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Work Order Detail Modal */}
+      {selectedWorkOrder && (
+        <WorkOrderDetailModal
+          isOpen={showDetailModal}
+          onClose={() => {
+            setShowDetailModal(false)
+            setSelectedWorkOrder(null)
+          }}
+          workOrder={{
+            id: selectedWorkOrder.id,
+            title: selectedWorkOrder.title,
+            description: selectedWorkOrder.description,
+            status: selectedWorkOrder.status,
+            priority: selectedWorkOrder.priority,
+            createdByUid: 'user-id',
+            createdByUserEmail: selectedWorkOrder.requestedBy,
+            createdAt: selectedWorkOrder.createdAt,
+            updatedAt: selectedWorkOrder.updatedAt,
+            buildingId: selectedWorkOrder.buildingId,
+            flatId: selectedWorkOrder.flatId,
+            flatNumber: selectedWorkOrder.flatId,
+            assignedToUserEmail: selectedWorkOrder.assignedTo,
+            scheduledDate: selectedWorkOrder.scheduledDate,
+            completedDate: selectedWorkOrder.completedDate,
+            estimatedPrice: selectedWorkOrder.estimatedCost,
+            finalPrice: selectedWorkOrder.cost || null,
+            priceSource: selectedWorkOrder.cost ? 'manual' : undefined,
+          } as WorkOrder}
+          currentUser={currentUser}
+          onMarkComplete={handleMarkComplete}
+          onStatusChange={handleStatusChange}
+        />
       )}
     </div>
   )

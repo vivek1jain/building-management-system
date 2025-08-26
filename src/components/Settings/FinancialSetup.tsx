@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Save, Calendar, DollarSign, Building, ChevronDown } from 'lucide-react';
 import { useBuilding } from '../../contexts/BuildingContext';
 import { updateBuilding } from '../../services/buildingService';
+import { Dropdown, DropdownOption } from '../UI';
 
 interface BuildingFinancialSettings {
   startMonth: number;
@@ -144,6 +145,25 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
     setHasChanges(true);
   };
 
+  // Dropdown options
+  const monthOptions: DropdownOption[] = months.map(month => ({
+    value: month.value.toString(),
+    label: month.label,
+    icon: <Calendar className="h-4 w-4" />
+  }));
+
+  const frequencyOptions: DropdownOption[] = [
+    { value: 'monthly', label: 'Monthly', description: 'Charged every month' },
+    { value: 'quarterly', label: 'Quarterly', description: 'Charged every 3 months' },
+    { value: 'annually', label: 'Annually', description: 'Charged once per year' }
+  ];
+
+  const currencyOptions: DropdownOption[] = [
+    { value: 'GBP', label: 'GBP (£) - British Pound', icon: <DollarSign className="h-4 w-4" /> },
+    { value: 'EUR', label: 'EUR (€) - Euro', icon: <DollarSign className="h-4 w-4" /> },
+    { value: 'USD', label: 'USD ($) - US Dollar', icon: <DollarSign className="h-4 w-4" /> }
+  ];
+
   // Building switcher component
   const BuildingSwitcher = () => {
     if (buildingsLoading) {
@@ -267,18 +287,15 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
                   Start Month
                 </label>
-                <select
-                  value={financialSettings.startMonth}
-                  onChange={(e) => updateFinancialSettings({ startMonth: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                <Dropdown
+                  options={monthOptions}
+                  value={financialSettings.startMonth.toString()}
+                  onChange={(value) => updateFinancialSettings({ startMonth: parseInt(value) })}
                   disabled={!selectedBuilding}
-                >
-                  {months.map(month => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="Select month..."
+                  size="md"
+                  className="w-full"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-2">
@@ -339,16 +356,15 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Service Charge Frequency
               </label>
-              <select
+              <Dropdown
+                options={frequencyOptions}
                 value={financialSettings.serviceChargeFrequency}
-                onChange={(e) => updateFinancialSettings({ serviceChargeFrequency: e.target.value as any })}
+                onChange={(value) => updateFinancialSettings({ serviceChargeFrequency: value as any })}
                 disabled={!selectedBuilding}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="annually">Annually</option>
-              </select>
+                placeholder="Select frequency..."
+                size="md"
+                className="w-full"
+              />
               <p className="text-xs text-neutral-500 mt-1">
                 How often service charges are collected from residents
               </p>
@@ -358,16 +374,15 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Ground Rent Frequency
               </label>
-              <select
+              <Dropdown
+                options={frequencyOptions}
                 value={financialSettings.groundRentFrequency}
-                onChange={(e) => updateFinancialSettings({ groundRentFrequency: e.target.value as any })}
+                onChange={(value) => updateFinancialSettings({ groundRentFrequency: value as any })}
                 disabled={!selectedBuilding}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="annually">Annually</option>
-              </select>
+                placeholder="Select frequency..."
+                size="md"
+                className="w-full"
+              />
               <p className="text-xs text-neutral-500 mt-1">
                 How often ground rent is collected from residents
               </p>
@@ -384,16 +399,15 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Default Currency
               </label>
-              <select 
+              <Dropdown
+                options={currencyOptions}
                 value={financialSettings.currency}
-                onChange={(e) => updateFinancialSettings({ currency: e.target.value })}
+                onChange={(value) => updateFinancialSettings({ currency: value })}
                 disabled={!selectedBuilding}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="GBP">GBP (£) - British Pound</option>
-                <option value="EUR">EUR (€) - Euro</option>
-                <option value="USD">USD ($) - US Dollar</option>
-              </select>
+                placeholder="Select currency..."
+                size="md"
+                className="w-full"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">

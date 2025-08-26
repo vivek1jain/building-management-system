@@ -23,6 +23,11 @@ export {
   type Column, 
   type TableAction 
 } from './DataTable'
+export { 
+  default as Dropdown, 
+  type DropdownProps, 
+  type DropdownOption 
+} from './Dropdown'
 
 // Re-export utility functions
 export { cn } from '../../utils/cn'

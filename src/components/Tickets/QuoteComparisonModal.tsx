@@ -21,6 +21,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import Modal, { ModalFooter } from '../UI/Modal'
 import Button from '../UI/Button'
+import ScheduleModal from '../Scheduling/ScheduleModal'
 
 interface QuoteComparisonModalProps {
   isOpen: boolean
@@ -28,6 +29,7 @@ interface QuoteComparisonModalProps {
   ticketId: string
   quotes: EnhancedQuote[]
   onQuoteSelected: (quoteId: string) => void
+  ticket?: any // For scheduling integration
 }
 
 const QuoteComparisonModal = ({
@@ -35,17 +37,25 @@ const QuoteComparisonModal = ({
   onClose,
   ticketId,
   quotes,
-  onQuoteSelected
+  onQuoteSelected,
+  ticket
 }: QuoteComparisonModalProps) => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null)
   const [selecting, setSelecting] = useState(false)
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
 
   useEffect(() => {
     if (isOpen && quotes.length > 0) {
       loadSuppliers()
+      // Set the initially selected quote if there's a winner
+      const winnerQuote = quotes.find(q => q.status === 'accepted' || q.isWinner === true)
+      console.log('🎯 Setting initial selection:', { winnerQuote, selectedId: winnerQuote?.id })
+      if (winnerQuote) {
+        setSelectedQuoteId(winnerQuote.id)
+      }
     }
   }, [isOpen, quotes])
 
@@ -151,6 +161,31 @@ const QuoteComparisonModal = ({
   if (!isOpen) return null
 
   const sortedQuotes = [...quotes].sort((a, b) => a.amount - b.amount)
+  const hasWinner = quotes.some(q => q.status === 'accepted' || q.isWinner === true)
+  const winnerQuote = quotes.find(q => q.status === 'accepted' || q.isWinner === true)
+  
+  // Debug logging
+  console.log('🔍 Quote states debug:', {
+    quotesCount: quotes.length,
+    hasWinner,
+    winnerQuote: winnerQuote ? { id: winnerQuote.id, status: winnerQuote.status, isWinner: winnerQuote.isWinner, supplierName: winnerQuote.supplierName } : null,
+    allQuoteStates: quotes.map(q => ({ id: q.id, status: q.status, isWinner: q.isWinner, supplierName: q.supplierName }))
+  })
+  
+  // Log individual quote details
+  quotes.forEach((quote, index) => {
+    console.log(`🔍 Quote ${index + 1} details:`, {
+      id: quote.id,
+      supplierName: quote.supplierName,
+      status: quote.status,
+      statusType: typeof quote.status,
+      statusCheck: quote.status === 'accepted',
+      isWinner: quote.isWinner,
+      isWinnerType: typeof quote.isWinner,
+      isWinnerCheck: quote.isWinner === true,
+      allProperties: Object.keys(quote)
+    })
+  })
 
   return (
     <Modal
@@ -158,39 +193,39 @@ const QuoteComparisonModal = ({
       onClose={onClose}
       title="Compare Quotes"
       description="Review and select the best quote for this ticket"
-      size="full"
+      size="md"
     >
-      <div className="space-y-6">
-        {/* Summary Bar */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-center">
+      <div className="space-y-4">
+        {/* Compact Summary Bar */}
+        <div className="bg-neutral-50 rounded-lg p-3 border border-neutral-200">
+          <div className="grid grid-cols-4 gap-3 text-center">
             <div>
-              <div className="text-2xl font-bold text-gray-900">{quotes.length}</div>
-              <div className="text-sm text-gray-600">Quotes Received</div>
+              <div className="text-lg font-bold text-neutral-900">{quotes.length}</div>
+              <div className="text-xs text-neutral-600">Quotes</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-lg font-bold text-success-600">
                 {formatCurrency(Math.min(...quotes.map(q => q.amount)))}
               </div>
-              <div className="text-sm text-gray-600">Lowest Price</div>
+              <div className="text-xs text-neutral-600">Lowest</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-red-600">
+              <div className="text-lg font-bold text-red-600">
                 {formatCurrency(Math.max(...quotes.map(q => q.amount)))}
               </div>
-              <div className="text-sm text-gray-600">Highest Price</div>
+              <div className="text-xs text-neutral-600">Highest</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-lg font-bold text-primary-600">
                 {formatCurrency(quotes.reduce((sum, q) => sum + q.amount, 0) / quotes.length)}
               </div>
-              <div className="text-sm text-gray-600">Average Price</div>
+              <div className="text-xs text-neutral-600">Average</div>
             </div>
           </div>
         </div>
 
-        {/* Quote Comparison Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 max-h-96 overflow-y-auto">
+        {/* Compact Quote Cards */}
+        <div className="space-y-3 max-h-96 overflow-y-auto">
           {sortedQuotes.map((quote, index) => {
             const supplier = getSupplierInfo(quote.supplierId)
             const isLowest = quote.amount === Math.min(...quotes.map(q => q.amount))
@@ -199,121 +234,62 @@ const QuoteComparisonModal = ({
             return (
               <div
                 key={quote.id}
-                className={`relative border-2 rounded-lg p-6 cursor-pointer transition-all duration-200 ${
+                className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 hover:shadow-md ${
                   isSelected
-                    ? 'border-green-500 bg-green-50'
+                    ? 'border-success-500 bg-success-50'
                     : isLowest
-                    ? 'border-green-200 bg-green-25'
-                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                    ? 'border-success-200 bg-success-25'
+                    : 'border-neutral-200 hover:border-neutral-300 bg-white'
                 }`}
                 onClick={() => setSelectedQuoteId(quote.id)}
               >
                 {/* Best Price Badge */}
                 {isLowest && (
-                  <div className="absolute -top-2 -right-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center">
+                  <div className="absolute -top-2 -right-2 bg-success-500 text-white px-2 py-1 rounded-full text-xs font-semibold flex items-center">
                     <Award className="h-3 w-3 mr-1" />
-                    Best Price
+                    Best
                   </div>
                 )}
 
                 {/* Selection Indicator */}
                 {isSelected && (
-                  <div className="absolute top-4 right-4">
-                    <CheckCircle className="h-6 w-6 text-green-500" />
+                  <div className="absolute top-1/2 right-3 transform -translate-y-1/2">
+                    <CheckCircle className="h-5 w-5 text-success-600" />
                   </div>
                 )}
 
-                {/* Supplier Header */}
-                <div className="flex items-center space-x-3 mb-4">
-                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                    <User className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-gray-900">{quote.supplierName}</h3>
-                    <div className="flex items-center space-x-1">
-                      {supplier?.rating && renderStars(supplier.rating)}
-                      <span className="text-sm text-gray-600 ml-1">
-                        {supplier?.rating ? `(${supplier.rating})` : 'No rating'}
-                      </span>
+                <div className="flex items-center justify-between pr-10">
+                  {/* Left: Supplier Info */}
+                  <div className="flex items-center space-x-2 flex-1 min-w-0 overflow-hidden">
+                    <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                      <User className="h-4 w-4 text-primary-600" />
+                    </div>
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <h3 className="font-semibold text-neutral-900 truncate">{quote.supplierName}</h3>
+                      <div className="flex items-center mt-1 overflow-hidden">
+                        {supplier?.rating && (
+                          <>
+                            <div className="flex items-center space-x-0.5 flex-shrink-0">
+                              {renderStars(supplier.rating)}
+                            </div>
+                            <span className="text-xs text-neutral-600 ml-1 flex-shrink-0">
+                              ({supplier.rating})
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Quote Details */}
-                <div className="space-y-4">
-                  {/* Price */}
-                  <div className="text-center p-3 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-bold text-gray-900">
+                  {/* Right: Price & Validity (stacked) */}
+                  <div className="text-right flex-shrink-0 w-28 overflow-hidden">
+                    <div className="text-base font-bold text-neutral-900 mb-1 truncate">
                       {formatCurrency(quote.amount)}
                     </div>
-                    <div className="text-sm text-gray-600">{quote.currency} Total</div>
-                  </div>
-
-                  {/* Key Details */}
-                  <div className="space-y-2 text-sm">
-                    {quote.estimatedDuration && (
-                      <div className="flex items-center space-x-2">
-                        <Clock className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">Duration:</span>
-                        <span className="font-medium">{quote.estimatedDuration}</span>
-                      </div>
-                    )}
-
-                    {quote.warranty && (
-                      <div className="flex items-center space-x-2">
-                        <Zap className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">Warranty:</span>
-                        <span className="font-medium">{quote.warranty}</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center space-x-2">
-                      <Calendar className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">Valid until:</span>
-                      <span className="font-medium">{formatDate(quote.validUntil)}</span>
+                    <div className="flex items-center justify-end text-xs text-neutral-600">
+                      <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
+                      <span className="truncate">{new Date(quote.validUntil).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}</span>
                     </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">Response time:</span>
-                      <span className="font-medium">{calculateResponseTime(quote)}</span>
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <div className="bg-gray-50 rounded-lg p-3">
-                    <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                    <p className="text-sm text-gray-600 line-clamp-3">{quote.description}</p>
-                  </div>
-
-                  {/* Terms Preview */}
-                  {quote.terms && (
-                    <div className="bg-blue-50 rounded-lg p-3">
-                      <h4 className="font-medium text-gray-900 mb-2">Terms & Conditions</h4>
-                      <p className="text-sm text-gray-600 line-clamp-2">{quote.terms}</p>
-                    </div>
-                  )}
-
-                  {/* Attachments */}
-                  {quote.attachments && quote.attachments.length > 0 && (
-                    <div className="flex items-center space-x-2 text-sm text-blue-600">
-                      <FileText className="h-4 w-4" />
-                      <span>{quote.attachments.length} attachment(s)</span>
-                    </div>
-                  )}
-
-                  {/* Contact Info */}
-                  <div className="border-t pt-3 space-y-1">
-                    <div className="flex items-center space-x-2 text-sm">
-                      <Mail className="h-4 w-4 text-gray-400" />
-                      <span className="text-gray-600">{quote.supplierEmail}</span>
-                    </div>
-                    {supplier?.phone && (
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <span className="text-gray-600">{supplier.phone}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
@@ -339,16 +315,51 @@ const QuoteComparisonModal = ({
           Close
         </Button>
         {quotes.length > 0 && (
-          <Button
-            onClick={handleSelectWinner}
-            disabled={!selectedQuoteId || selecting}
-            className="flex items-center"
-          >
-            <Award className="h-4 w-4 mr-2" />
-            {selecting ? 'Selecting...' : 'Select Winner & Proceed'}
-          </Button>
+          <>
+            <Button
+              onClick={handleSelectWinner}
+              disabled={!selectedQuoteId || selecting}
+              className="flex items-center"
+            >
+              {selecting ? 'Selecting...' : hasWinner ? 'Edit Selection' : 'Select Winner'}
+            </Button>
+            {hasWinner && winnerQuote && (
+              <Button
+                onClick={() => setShowScheduleModal(true)}
+                variant="primary"
+                className="flex items-center"
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Schedule
+              </Button>
+            )}
+          </>
         )}
       </ModalFooter>
+      
+      {/* Schedule Modal */}
+      {ticket && (
+        <ScheduleModal
+          isOpen={showScheduleModal}
+          onClose={() => setShowScheduleModal(false)}
+          ticket={ticket}
+          onScheduled={(event, supplierInfo) => {
+            const message = supplierInfo 
+              ? `Work scheduled with ${supplierInfo.supplier.name} for ${event.startDate.toLocaleDateString()}`
+              : `Work scheduled for ${event.startDate.toLocaleDateString()}`
+            
+            addNotification({
+              title: 'Work Scheduled',
+              message,
+              type: 'success',
+              userId: currentUser?.id || ''
+            })
+            setShowScheduleModal(false)
+            onClose() // Close the quote comparison modal too
+          }}
+          allowDirectScheduling={true}
+        />
+      )}
     </Modal>
   )
 }

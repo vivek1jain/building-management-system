@@ -1,24 +1,18 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { 
   User, 
-  Building, 
   Star, 
-  Mail, 
-  Clock, 
-  CheckCircle,
   Search,
-  Filter,
-  Send,
-  Calendar,
-  Award,
-  AlertCircle
+  ChevronDown
 } from 'lucide-react'
-import { Supplier, AssetCategory } from '../../types'
+import { Supplier } from '../../types'
 import { supplierService } from '../../services/supplierService'
+import { ticketService } from '../../services/ticketService'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import Modal, { ModalFooter } from '../UI/Modal'
 import Button from '../UI/Button'
+import DataTable, { Column } from '../UI/DataTable'
 
 interface SupplierSelectionModalProps {
   isOpen: boolean
@@ -67,15 +61,17 @@ const SupplierSelectionModal = ({
 
   const specialties = ['All', 'Plumbing', 'HVAC', 'Electrical', 'General Maintenance', 'Cleaning', 'Landscaping', 'Emergency Repairs', 'Lighting', 'Security Systems']
 
-  const filteredSuppliers = suppliers.filter(supplier => {
-    const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
-    
-    const matchesSpecialty = filterSpecialty === 'All' || supplier.specialties.includes(filterSpecialty)
-    
-    return matchesSearch && matchesSpecialty && supplier.isActive
-  })
+  const filteredSuppliers = useMemo(() => {
+    return suppliers.filter(supplier => {
+      const matchesSearch = supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+      
+      const matchesSpecialty = filterSpecialty === 'All' || supplier.specialties.includes(filterSpecialty)
+      
+      return matchesSearch && matchesSpecialty && supplier.isActive
+    })
+  }, [suppliers, searchTerm, filterSpecialty])
 
   const handleSupplierSelection = (supplierId: string) => {
     setSelectedSuppliers(prev => 
@@ -98,7 +94,7 @@ const SupplierSelectionModal = ({
 
     setRequesting(true)
     try {
-      await supplierService.requestQuotes(ticketId, selectedSuppliers, currentUser?.id || '')
+      await ticketService.requestQuotesFromSuppliers(ticketId, selectedSuppliers, currentUser?.id || '')
       
       addNotification({
         title: 'Quote Requests Sent',
@@ -121,14 +117,138 @@ const SupplierSelectionModal = ({
     }
   }
 
-  const renderStars = (rating: number) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${i < Math.floor(rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
-      />
-    ))
+  const getSpecialtyColor = (specialty: string | undefined) => {
+    if (!specialty) return 'text-gray-600 bg-neutral-100'
+    switch (specialty.toLowerCase()) {
+      case 'plumbing': return 'text-primary-600 bg-blue-100'
+      case 'electrical': return 'text-yellow-600 bg-yellow-100'
+      case 'hvac': return 'text-success-600 bg-success-100'
+      case 'cleaning': return 'text-purple-600 bg-purple-100'
+      case 'security': return 'text-red-600 bg-red-100'
+      case 'landscaping': return 'text-emerald-600 bg-emerald-100'
+      default: return 'text-gray-600 bg-neutral-100'
+    }
   }
+
+  const renderStars = (rating: number) => {
+    const stars = []
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 >= 0.5
+    
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars.push(
+          <Star
+            key={i}
+            className="h-4 w-4 text-yellow-400 fill-yellow-400 drop-shadow-sm"
+          />
+        )
+      } else if (i === fullStars && hasHalfStar) {
+        stars.push(
+          <div key={i} className="relative h-4 w-4">
+            <Star className="h-4 w-4 text-gray-300 fill-gray-200 absolute" />
+            <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+            </div>
+          </div>
+        )
+      } else {
+        stars.push(
+          <Star
+            key={i}
+            className="h-4 w-4 text-gray-300 fill-gray-200"
+          />
+        )
+      }
+    }
+    
+    return (
+      <div className="flex items-center gap-0.5">
+        <div className="flex items-center">
+          {stars}
+        </div>
+        <span className="ml-1.5 text-xs text-gray-600 font-medium font-inter">
+          {rating.toFixed(1)}
+        </span>
+      </div>
+    )
+  }
+
+  // Define table columns
+  const columns: Column<Supplier>[] = useMemo(() => [
+    {
+      key: 'select',
+      title: '',
+      dataIndex: 'id',
+      width: '50px',
+      render: (value, supplier) => (
+        <input
+          type="checkbox"
+          checked={selectedSuppliers.includes(supplier.id)}
+          onChange={() => handleSupplierSelection(supplier.id)}
+          className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
+        />
+      )
+    },
+    {
+      key: 'supplierInfo',
+      title: 'Supplier',
+      dataIndex: 'name',
+      sortable: true,
+      render: (value, supplier) => (
+        <div>
+          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.name}</div>
+          {supplier.companyName && (
+            <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'phone',
+      title: 'Phone',
+      dataIndex: 'phone',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900 font-inter">{supplier.phone || 'N/A'}</div>
+      )
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      dataIndex: 'email',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900 font-inter">{supplier.email}</div>
+      )
+    },
+    {
+      key: 'specialty',
+      title: 'Specialty',
+      dataIndex: 'specialties',
+      sortable: false,
+      render: (value, supplier) => (
+        <div className="flex flex-wrap gap-1">
+          {supplier.specialties.map((specialty, index) => (
+            <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+              {specialty}
+            </span>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'rating',
+      title: 'Rating',
+      dataIndex: 'rating',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900">
+          {supplier.rating ? renderStars(supplier.rating) : 'No rating'}
+        </div>
+      )
+    }
+  ], [selectedSuppliers])
 
   if (!isOpen) return null
 
@@ -141,131 +261,55 @@ const SupplierSelectionModal = ({
       size="xl"
     >
       {/* Filters */}
-      <div className="mb-6 pb-6 border-b border-neutral-200">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="relative">
+      <div className="mb-6 space-y-4">
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
             <input
               type="text"
               placeholder="Search suppliers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
             />
           </div>
-          <select
-            value={filterSpecialty}
-            onChange={(e) => setFilterSpecialty(e.target.value)}
-            className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            {specialties.map(specialty => (
-              <option key={specialty} value={specialty}>{specialty}</option>
-            ))}
-          </select>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSearchTerm('')
-              setFilterSpecialty('All')
-            }}
-            className="flex items-center justify-center"
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Clear Filters
-          </Button>
+          <div className="relative flex items-center gap-2">
+            <select
+              value={filterSpecialty}
+              onChange={(e) => setFilterSpecialty(e.target.value)}
+              className="appearance-none bg-white border border-neutral-200 rounded-lg pl-3 pr-8 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200 min-w-[200px]"
+            >
+              {specialties.map(specialty => (
+                <option key={specialty} value={specialty}>
+                  {specialty === 'All' ? 'All Specialties' : specialty}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 h-4 w-4 text-neutral-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
-      {/* Content */}
+      {/* Suppliers Table */}
       <div className="mb-6">
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-            {filteredSuppliers.map((supplier) => (
-              <div
-                key={supplier.id}
-                className={`p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                  selectedSuppliers.includes(supplier.id)
-                    ? 'ring-2 ring-green-500 bg-green-50 border-green-200'
-                    : 'hover:shadow-md border-neutral-200'
-                }`}
-                onClick={() => handleSupplierSelection(supplier.id)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <User className="h-6 w-6 text-success-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-neutral-900">{supplier.name}</h3>
-                      <p className="text-sm text-gray-600">{supplier.companyName}</p>
-                    </div>
-                  </div>
-                  {selectedSuppliers.includes(supplier.id) && (
-                    <CheckCircle className="h-5 w-5 text-success-600" />
-                  )}
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Building className="h-4 w-4 text-neutral-400" />
-                    <span className="text-sm text-gray-600">{supplier.companyName}</span>
-                  </div>
-
-                  <div className="flex items-center space-x-1">
-                    {renderStars(supplier.rating ?? 0)}
-                    <span className="text-sm text-gray-600 ml-1">
-                      {supplier.rating ? `(${supplier.rating}) • ${supplier.totalJobs} jobs` : `${supplier.totalJobs} jobs`}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1">
-                    {supplier.specialties.map((specialty) => (
-                      <span
-                        key={specialty}
-                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-neutral-100 text-gray-800"
-                      >
-                        {specialty}
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
-                    <div className="flex items-center space-x-1">
-                      <Mail className="h-4 w-4" />
-                      <span>{supplier.email}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <Clock className="h-4 w-4" />
-                      <span>Active</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && filteredSuppliers.length === 0 && (
-          <div className="text-center py-12">
-            <User className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-neutral-900 mb-2">No suppliers found</h3>
-            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
-          </div>
-        )}
+        <DataTable
+          data={filteredSuppliers}
+          columns={columns}
+          loading={loading}
+          searchable={false}
+          paginated={true}
+          pageSize={10}
+          emptyMessage="No suppliers found. Try adjusting your search or filter criteria."
+          className="max-h-96"
+        />
       </div>
 
-      {/* Footer with selection count and actions */}
-      <div className="pt-4 border-t border-neutral-200">
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-sm text-gray-600">
-            {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
-          </div>
+      {/* Footer */}
+      <ModalFooter>
+        <div className="text-sm text-gray-600">
+          {selectedSuppliers.length} supplier{selectedSuppliers.length !== 1 ? 's' : ''} selected
         </div>
-        <ModalFooter>
+        <div className="flex gap-3">
           <Button
             variant="outline"
             onClick={onClose}
@@ -275,13 +319,11 @@ const SupplierSelectionModal = ({
           <Button
             onClick={handleRequestQuotes}
             disabled={selectedSuppliers.length === 0 || requesting}
-            className="flex items-center"
           >
-            <Send className="h-4 w-4 mr-2" />
-            {requesting ? 'Sending...' : `Request Quotes (${selectedSuppliers.length})`}
+            {requesting ? 'Sending...' : 'Request Quote'}
           </Button>
-        </ModalFooter>
-      </div>
+        </div>
+      </ModalFooter>
     </Modal>
   )
 }

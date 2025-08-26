@@ -41,7 +41,7 @@ import ScheduleModal from '../components/Scheduling/ScheduleModal'
 import EmailNotification from '../components/EmailNotification'
 import SupplierSelectionModal from '../components/Suppliers/SupplierSelectionModal'
 import QuoteComparisonModal from '../components/Tickets/QuoteComparisonModal'
-import NewQuoteManagementModal from '../components/Tickets/NewQuoteManagementModal'
+import QuoteManagementModal from '../components/Tickets/QuoteManagementModal'
 
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>()
@@ -943,6 +943,7 @@ const TicketDetail = () => {
         onClose={() => setShowScheduleModal(false)}
         ticket={ticket!}
         onScheduled={handleScheduleWork}
+        allowDirectScheduling={true}
       />
 
       {/* Show scheduled events */}
@@ -966,7 +967,7 @@ const TicketDetail = () => {
       
       {/* Quote Management Modal */}
       {showQuoteManagement && ticket && ticket.id && (
-        <NewQuoteManagementModal
+        <QuoteManagementModal
           isOpen={showQuoteManagement}
           onClose={() => {
             console.log('Closing quote management modal')

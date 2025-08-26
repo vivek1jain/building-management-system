@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
-import { getAllBuildings } from '../services/buildingService'
-import { Asset, Building, AssetStatus, AssetCategory } from '../types'
+import { useBuilding } from '../contexts/BuildingContext'
+import { createAsset, getAllAssets } from '../services/assetService'
+import { Dropdown, DropdownOption } from '../components/UI'
 import { 
   Package, 
   Plus, 
@@ -243,6 +244,21 @@ const AssetsPage: React.FC = () => {
     return date.toLocaleDateString()
   }
 
+  // Dropdown options
+  const buildingOptions: DropdownOption[] = buildings.map(building => ({
+    value: building.id,
+    label: `${building.name} - ${building.address}`,
+    icon: <Package className="h-4 w-4" />
+  }));
+
+  const statusOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Status', description: 'Show all assets' },
+    { value: 'operational', label: 'Operational', description: 'Currently operational' },
+    { value: 'needs_repair', label: 'Needs Repair', description: 'Requires repairs' },
+    { value: 'in_repair', label: 'In Repair', description: 'Currently being repaired' },
+    { value: 'decommissioned', label: 'Decommissioned', description: 'No longer in use' }
+  ];
+
   const filteredAssets = assets.filter(asset => {
     const matchesSearch = asset.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (asset.description && asset.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -284,17 +300,14 @@ const AssetsPage: React.FC = () => {
       {/* Building Selector */}
       <div className="flex items-center gap-4">
         <label className="text-sm font-medium text-neutral-700">Building:</label>
-        <select
+        <Dropdown
+          options={buildingOptions}
           value={selectedBuilding}
-          onChange={(e) => setSelectedBuilding(e.target.value)}
-          className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          {buildings.map((building) => (
-            <option key={building.id} value={building.id}>
-              {building.name} - {building.address}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setSelectedBuilding(value)}
+          placeholder="Select a building..."
+          size="md"
+          className="min-w-[300px]"
+        />
       </div>
 
       {/* Filters */}
@@ -309,17 +322,14 @@ const AssetsPage: React.FC = () => {
             className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
-        <select
+        <Dropdown
+          options={statusOptions}
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          <option value="all">All Status</option>
-          <option value="operational">Operational</option>
-          <option value="needs_repair">Needs Repair</option>
-          <option value="in_repair">In Repair</option>
-          <option value="decommissioned">Decommissioned</option>
-        </select>
+          onChange={(value) => setFilterStatus(value)}
+          placeholder="Filter by status..."
+          size="md"
+          className="min-w-[180px]"
+        />
       </div>
 
       {/* Assets Table */}
