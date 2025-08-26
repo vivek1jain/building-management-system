@@ -53,6 +53,7 @@ import {
   ExternalLink
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption } from '../components/UI'
+import { ServiceChargePeriodDropdown } from '../components/ServiceCharges/ServiceChargePeriodDropdown'
 
 // UK-specific budget categories
 const UK_INCOME_CATEGORIES = [
@@ -73,16 +74,9 @@ const Finances: React.FC = () => {
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
 
-  // Dropdown options
-  const quarterOptions: DropdownOption[] = [
-    { value: 'Q1-2024', label: 'Q1 2024 (Apr-Jun)', description: 'First quarter 2024' },
-    { value: 'Q2-2024', label: 'Q2 2024 (Jul-Sep)', description: 'Second quarter 2024' },
-    { value: 'Q3-2024', label: 'Q3 2024 (Oct-Dec)', description: 'Third quarter 2024' },
-    { value: 'Q4-2024', label: 'Q4 2024 (Jan-Mar)', description: 'Fourth quarter 2024' }
-  ];
   
   // Core state
-  const [activeTab, setActiveTab] = useState<'budget' | 'demands' | 'invoices' | 'expenses' | 'reports'>('budget')
+  const [activeTab, setActiveTab] = useState<'budget' | 'demands' | 'invoices' | 'expenses'>('expenses')
   const [loading, setLoading] = useState(false)
   
   // Sorting state
@@ -97,7 +91,7 @@ const Finances: React.FC = () => {
   const [flats, setFlats] = useState<Flat[]>([])
   
   // Service Charges state
-  const [selectedQuarter, setSelectedQuarter] = useState('Q1-2024')
+  const [selectedPeriod, setSelectedPeriod] = useState('')
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showDemandDetails, setShowDemandDetails] = useState(false)
   const [selectedDemand, setSelectedDemand] = useState<ServiceChargeDemand | null>(null)
@@ -602,6 +596,11 @@ const Finances: React.FC = () => {
       addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Please select a building first', type: 'error' })
       return
     }
+    
+    if (!selectedPeriod) {
+      addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Please select a period first', type: 'error' })
+      return
+    }
 
     // Check if flats exist, if not, offer to create sample flats
     if (!flats.length) {
@@ -630,19 +629,19 @@ const Finances: React.FC = () => {
       
       console.log('Generating service charge demands for:', {
         buildingId: selectedBuildingId,
-        quarter: selectedQuarter,
+        period: selectedPeriod,
         rate,
         flatsCount: flats.length
       })
       
-      const demands = await generateServiceChargeDemands(selectedBuildingId, selectedQuarter, rate, flats)
+      const demands = await generateServiceChargeDemands(selectedBuildingId, selectedPeriod, rate, flats)
       
       console.log('Generated demands:', demands)
       
       addNotification({ 
         userId: currentUser?.id || '', 
         title: 'Success', 
-        message: `Generated ${demands.length} service charge demands for ${selectedQuarter}`, 
+        message: `Generated ${demands.length} service charge demands for selected period`, 
         type: 'success' 
       })
       
@@ -766,172 +765,67 @@ const Finances: React.FC = () => {
           </div>
         </div>
 
-      {/* Financial Summary Cards */}
-{financialSummary && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 font-inter">Total Income</p>
-                  <p className="text-2xl font-bold text-success-600 font-inter">
-                    {formatCurrency(financialSummary.totalIncome)}
+        {/* Cash Flow Alert - moved to top */}
+        {financialSummary && financialSummary.forecastExpenses > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0">
+                <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-sm font-medium text-primary-900 font-inter">Cash Flow Analysis</h3>
+                <div className="mt-2 text-sm text-primary-700 font-inter">
+                  <p className="mb-2">
+                    Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
+                    but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
+                    committed expenses from completed tickets awaiting invoices.
                   </p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-success-600" />
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 font-inter">Total Expenditure</p>
-                  <p className="text-2xl font-bold text-red-600 font-inter">
-                    {formatCurrency(financialSummary.totalExpenditure)}
-                  </p>
-                </div>
-                <TrendingDown className="h-8 w-8 text-red-600" />
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 font-inter">Net Position</p>
-                  <p className={`text-2xl font-bold font-inter ${
-                    financialSummary.netPosition >= 0 ? 'text-success-600' : 'text-red-600'
-                  }`}>
-                    {formatCurrency(financialSummary.netPosition)}
-                  </p>
-                </div>
-                <DollarSign className="h-8 w-8 text-primary-600" />
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 font-inter">Outstanding</p>
-                  <p className="text-2xl font-bold text-orange-600 font-inter">
-                    {formatCurrency(financialSummary?.outstanding || 0)}
-                  </p>
-                </div>
-                <Clock className="h-8 w-8 text-orange-600" />
-              </CardHeader>
-            </Card>
-          </div>
-
-          {/* Enhanced Cash Flow Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-orange-200 bg-orange-50">
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-orange-800 font-inter">Forecast Expenses</p>
-                  <p className="text-2xl font-bold text-orange-600 font-inter">
-                    {formatCurrency(financialSummary.forecastExpenses)}
-                  </p>
-                  <p className="text-xs text-orange-700 font-inter mt-1">
-                    Committed but not yet invoiced
-                  </p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-orange-600" />
-              </CardHeader>
-            </Card>
-
-            <Card className={`border-2 ${
-              financialSummary.adjustedCashPosition >= 0 
-                ? 'border-success-200 bg-success-50' 
-                : 'border-red-200 bg-red-50'
-            }`}>
-              <CardHeader className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium font-inter ${
-                    financialSummary.adjustedCashPosition >= 0 ? 'text-success-800' : 'text-red-800'
-                  }`}>
-                    Available Cash
-                  </p>
-                  <p className={`text-2xl font-bold font-inter ${
-                    financialSummary.adjustedCashPosition >= 0 ? 'text-success-600' : 'text-red-600'
-                  }`}>
-                    {formatCurrency(financialSummary.adjustedCashPosition)}
-                  </p>
-                  <p className={`text-xs font-inter mt-1 ${
+                  <p className={`font-medium ${
                     financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
                   }`}>
-                    Net position minus forecast expenses
+                    {financialSummary.adjustedCashPosition >= 0 
+                      ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
+                      : `⚠️  You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
+                    }
                   </p>
-                </div>
-                {financialSummary.adjustedCashPosition >= 0 ? (
-                  <CheckCircle className="h-8 w-8 text-success-600" />
-                ) : (
-                  <AlertTriangle className="h-8 w-8 text-red-600" />
-                )}
-              </CardHeader>
-            </Card>
-          </div>
-
-          {/* Cash Flow Alert */}
-          {financialSummary.forecastExpenses > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start space-x-3">
-                <div className="flex-shrink-0">
-                  <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium text-primary-900 font-inter">Cash Flow Analysis</h3>
-                  <div className="mt-2 text-sm text-primary-700 font-inter">
-                    <p className="mb-2">
-                      Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
-                      but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
-                      committed expenses from completed tickets awaiting invoices.
-                    </p>
-                    <p className={`font-medium ${
-                      financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
-                    }`}>
-                      {financialSummary.adjustedCashPosition >= 0 
-                        ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
-                        : `⚠️  You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
-                      }
-                    </p>
-                  </div>
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Tabs */}
-      <div className="bg-white rounded-lg shadow-sm border border-neutral-200">
+        {/* Tab Navigation */}
         <div className="border-b border-neutral-200">
-          <nav className="flex space-x-8 px-6">
+          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
             {[
-              { id: 'budget', name: 'Budget', icon: BarChart3 },
-              { id: 'demands', name: 'Service Charges', icon: FileText },
-              { id: 'invoices', name: 'Invoices', icon: FileText },
               { id: 'expenses', name: 'Expenses', icon: Receipt },
-              { id: 'reports', name: 'Reports', icon: BarChart3 }
+              { id: 'invoices', name: 'Invoices', icon: FileText },
+              { id: 'demands', name: 'Service Charges', icon: FileText },
+              { id: 'budget', name: 'Budget', icon: BarChart3 }
             ].map((tab) => {
               const Icon = tab.icon
+              const isActive = activeTab === tab.id
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm font-inter ${
-                    activeTab === tab.id
+                  className={`${
+                    isActive
                       ? 'border-blue-500 text-primary-600'
                       : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                  }`}
+                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors font-inter`}
+                  aria-current={isActive ? 'page' : undefined}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{tab.name}</span>
+                  <Icon className="h-4 w-4" />
+                  {tab.name}
                 </button>
               )
             })}
           </nav>
         </div>
 
-        <div className="p-6">
+        {/* Tab Content */}
+        <div className="space-y-6">
           {activeTab === 'budget' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -1002,13 +896,11 @@ const Finances: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-neutral-900 font-inter">Service Charge Management</h2>
                 <div className="flex items-center space-x-3">
-                  <Dropdown
-                    options={quarterOptions}
-                    value={selectedQuarter}
-                    onChange={(value) => setSelectedQuarter(value)}
-                    placeholder="Select quarter..."
-                    size="md"
-                    className="min-w-[200px]"
+                  <ServiceChargePeriodDropdown
+                    value={selectedPeriod}
+                    onChange={(value) => setSelectedPeriod(value)}
+                    placeholder="Select period..."
+                    className="min-w-[350px]"
                   />
 <Button
                     variant="danger"
@@ -1065,7 +957,7 @@ const Finances: React.FC = () => {
               {/* Demands Table */}
               <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
                 <div className="px-6 py-4 border-b border-neutral-200">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands - {selectedQuarter}</h3>
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands</h3>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
@@ -1148,7 +1040,7 @@ const Finances: React.FC = () => {
                     <div className="text-center py-12">
                       <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
-                      <p className="text-gray-600 font-inter">Generate demands for {selectedQuarter} to get started</p>
+                      <p className="text-gray-600 font-inter">Generate demands for the selected period to get started</p>
                     </div>
                   )}
                 </div>
@@ -1369,14 +1261,6 @@ const Finances: React.FC = () => {
                   </div>
                 </div>
               )}
-            </div>
-          )}
-
-          {activeTab === 'reports' && (
-            <div className="text-center py-12">
-              <BarChart3 className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-neutral-900 font-inter">Financial Reports</h3>
-              <p className="text-gray-600 font-inter">Financial reporting features will be available soon</p>
             </div>
           )}
         </div>
@@ -1845,7 +1729,6 @@ const Finances: React.FC = () => {
           </div>
         </Modal>
       )}
-      </div>
     </div>
   )
 }

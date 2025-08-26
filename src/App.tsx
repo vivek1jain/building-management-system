@@ -19,6 +19,7 @@ import BuildingDataManagement from './pages/BuildingDataManagement'
 import ServiceChargesPage from './pages/ServiceCharges'
 import Tickets from './pages/Tickets'
 import Finances from './pages/Finances' // Unified Financial Management
+import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import DensityTest from './components/DensityTest'
 import './utils/testPermissions' // Load test functions for development
@@ -45,6 +46,7 @@ function App() {
               {/* New Comprehensive Features */}
               <Route path="building-data" element={<BuildingDataManagement />} />
               <Route path="finances" element={<Finances />} />
+              <Route path="reports" element={<Reports />} />
               
               {/* Unified Tickets & Work Orders */}
               <Route path="tickets" element={<Tickets />} />

@@ -15,6 +15,7 @@ interface BuildingFinancialSettings {
   latePaymentInterestRate: number;
   paymentGracePeriod: number;
   reminderDays: number;
+  serviceChargeRatePerSqFt: number;
 }
 
 // Legacy interface for compatibility
@@ -59,7 +60,8 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
     currency: 'GBP',
     latePaymentInterestRate: 1.5,
     paymentGracePeriod: 7,
-    reminderDays: 14
+    reminderDays: 14,
+    serviceChargeRatePerSqFt: 2.5
   });
 
   const months = [
@@ -90,7 +92,8 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
         currency: selectedBuilding.financialSettings.currency || 'GBP',
         latePaymentInterestRate: selectedBuilding.financialSettings.latePaymentInterestRate || 1.5,
         paymentGracePeriod: selectedBuilding.financialSettings.paymentGracePeriod || 7,
-        reminderDays: selectedBuilding.financialSettings.reminderDays || 14
+        reminderDays: selectedBuilding.financialSettings.reminderDays || 14,
+        serviceChargeRatePerSqFt: selectedBuilding.financialSettings.serviceChargeRatePerSqFt || 2.5
       });
     }
     setHasChanges(false);
@@ -395,6 +398,23 @@ export const FinancialSetup: React.FC<FinancialSetupProps> = ({
         <div className="lg:col-span-2 bg-white border border-neutral-200 rounded-lg p-6">
           <h3 className="text-lg font-medium text-neutral-900 mb-4">Additional Financial Settings</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-2">
+                Service Charge Rate (per sq ft)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={financialSettings.serviceChargeRatePerSqFt}
+                onChange={(e) => updateFinancialSettings({ serviceChargeRatePerSqFt: parseFloat(e.target.value) || 0 })}
+                disabled={!selectedBuilding}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              <p className="text-xs text-neutral-500 mt-1">
+                Rate charged per square foot for service charges
+              </p>
+            </div>
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
                 Default Currency

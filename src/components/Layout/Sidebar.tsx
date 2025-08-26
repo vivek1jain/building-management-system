@@ -6,7 +6,8 @@ import {
   Plus,
   DollarSign,
   Building,
-  Wrench
+  Wrench,
+  BarChart3
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useCreateTicket } from '../../contexts/CreateTicketContext'
@@ -19,6 +20,7 @@ const Sidebar = () => {
     { name: 'Dashboard', href: '/', icon: Home },
     { name: 'Building Data', href: '/building-data', icon: Building },
     { name: 'Finances', href: '/finances', icon: DollarSign },
+    { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Ticketing', href: '/tickets', icon: Wrench },
     { name: 'Events', href: '/events', icon: Calendar },
     { name: 'Settings', href: '/settings', icon: Settings },

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { TestTube, Database, Settings, ChevronRight } from 'lucide-react';
+import { TestTube, Database, Settings, ChevronRight, Calendar } from 'lucide-react';
 import { User, Notification } from '../../types';
 import UITestSuite from '../Testing/UITestSuite';
 import DiagnosticTest from '../Testing/DiagnosticTest';
 import DataCleanup from '../Testing/DataCleanup';
 import TestingUtilities from '../Testing/TestingUtilities';
+import { FinancialYearTest } from '../Testing/FinancialYearTest';
 import { Card, CardContent } from '../UI';
 
 interface TestingSettingsProps {
@@ -16,7 +17,7 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({
   currentUser, 
   addNotification 
 }) => {
-  const [activeSection, setActiveSection] = useState<'diagnostics' | 'ui-tests' | 'data-cleanup' | 'utilities'>('diagnostics');
+  const [activeSection, setActiveSection] = useState<'diagnostics' | 'ui-tests' | 'data-cleanup' | 'utilities' | 'financial-year'>('financial-year');
   
   // Allow admin and manager users to access testing features
   const canAccessTesting = currentUser?.role === 'admin' || currentUser?.role === 'manager';
@@ -33,6 +34,12 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({
   }
 
   const sections = [
+    {
+      id: 'financial-year' as const,
+      title: 'Financial Year Test',
+      description: 'Test financial year and period calculations',
+      icon: <Calendar className="w-5 h-5" />
+    },
     {
       id: 'diagnostics' as const,
       title: 'Quick Diagnostics',
@@ -106,6 +113,10 @@ export const TestingSettings: React.FC<TestingSettingsProps> = ({
 
       {/* Active Section Content */}
       <div className="bg-white p-6 rounded-lg border border-neutral-200">
+        {activeSection === 'financial-year' && (
+          <FinancialYearTest />
+        )}
+        
         {activeSection === 'diagnostics' && (
           <DiagnosticTest />
         )}

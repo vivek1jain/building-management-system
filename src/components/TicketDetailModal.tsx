@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign } from 'lucide-react';
-import { Ticket, TicketComment, TicketStatus, EnhancedQuote } from '../types';
+import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign, Receipt, ExternalLink } from 'lucide-react';
+import { Ticket, TicketComment, TicketStatus, EnhancedQuote, Invoice } from '../types';
 import { TicketCommentService } from '../services/ticketCommentService';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -9,6 +9,7 @@ import { ticketEventService } from '../services/ticketEventService';
 import { expenseService } from '../services/expenseService';
 import { UserBuildingService } from '../services/userBuildingService';
 import { getUserDisplayNames } from '../services/userLookupService';
+import { getInvoicesByBuilding } from '../services/invoiceService';
 import Modal from './UI/Modal';
 import SupplierSelectionModal from './Suppliers/SupplierSelectionModal';
 import QuoteComparisonModal from './Tickets/QuoteComparisonModal';
@@ -54,6 +55,12 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   // Expense tracking state
   const [linkedExpense, setLinkedExpense] = useState<any>(null);
   const [loadingExpense, setLoadingExpense] = useState(false);
+  const [markingInvoiceReceived, setMarkingInvoiceReceived] = useState(false);
+  const [showInvoiceReceivedConfirm, setShowInvoiceReceivedConfirm] = useState(false);
+  const [showInvoiceSelection, setShowInvoiceSelection] = useState(false);
+  const [availableInvoices, setAvailableInvoices] = useState<Invoice[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
 
   // Debug: Track showQuoteManagement state changes
   useEffect(() => {
@@ -71,12 +78,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       if (localTicket.status === 'Complete' && isOpen) {
         setLoadingExpense(true);
         try {
-          const expenses = await expenseService.getExpensesByTicketId(localTicket.id);
-          if (expenses && expenses.length > 0) {
-            setLinkedExpense(expenses[0]); // Take the first/main expense linked to this ticket
-          } else {
-            setLinkedExpense(null);
-          }
+          const expense = await expenseService.getExpenseByTicketId(localTicket.id);
+          setLinkedExpense(expense);
         } catch (error) {
           console.error('Failed to load linked expense:', error);
         } finally {
@@ -89,21 +92,6 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
     // Load immediately
     loadLinkedExpense();
-
-    // Set up periodic refresh for expense data every 10 seconds when modal is open and ticket is complete
-    let intervalId: NodeJS.Timeout | null = null;
-    if (localTicket.status === 'Complete' && isOpen) {
-      intervalId = setInterval(() => {
-        loadLinkedExpense();
-      }, 10000); // Refresh every 10 seconds
-    }
-
-    // Cleanup interval on unmount or status/modal change
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
   }, [localTicket.status, localTicket.id, isOpen]);
 
   useEffect(() => {
@@ -890,6 +878,75 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
   };
 
+  // Handle showing invoice selection modal
+  const handleShowInvoiceSelection = async () => {
+    setLoadingInvoices(true);
+    try {
+      console.log('🔍 Loading invoices for building:', localTicket.buildingId);
+      const invoices = await getInvoicesByBuilding(localTicket.buildingId);
+      setAvailableInvoices(invoices);
+      setShowInvoiceSelection(true);
+      console.log('📋 Loaded', invoices.length, 'invoices');
+    } catch (error) {
+      console.error('❌ Failed to load invoices:', error);
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to load invoices. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setLoadingInvoices(false);
+    }
+  };
+
+  // Handle marking invoice as received with selected invoice
+  const handleMarkInvoiceReceived = async () => {
+    if (!currentUser || !linkedExpense || !selectedInvoice) {
+      console.error('Missing user, expense or invoice data for invoice marking');
+      return;
+    }
+
+    setMarkingInvoiceReceived(true);
+    try {
+      console.log('📧 Marking invoice as received for expense:', linkedExpense.id);
+      console.log('📄 Selected invoice:', selectedInvoice.invoiceNumber);
+      
+      // Mark the expense as invoiced using the expense service
+      // TODO: Update this to also link the selected invoice ID to the expense
+      await expenseService.markAsInvoiced(linkedExpense.id, currentUser.id);
+      console.log('✅ Expense marked as invoiced successfully');
+
+      // Refresh the expense data to show updated status
+      const updatedExpense = await expenseService.getExpenseByTicketId(localTicket.id);
+      setLinkedExpense(updatedExpense);
+      console.log('🔄 Expense data refreshed');
+
+      // Show success notification
+      addNotification({
+        userId: currentUser.id,
+        title: 'Invoice Received',
+        message: `Expense linked to invoice ${selectedInvoice.invoiceNumber} successfully.`,
+        type: 'success'
+      });
+
+      // Close modals and reset state
+      setShowInvoiceReceivedConfirm(false);
+      setShowInvoiceSelection(false);
+      setSelectedInvoice(null);
+    } catch (error) {
+      console.error('❌ Failed to mark invoice as received:', error);
+      addNotification({
+        userId: currentUser.id,
+        title: 'Error',
+        message: 'Failed to mark invoice as received. Please try again.',
+        type: 'error'
+      });
+    } finally {
+      setMarkingInvoiceReceived(false);
+    }
+  };
+
   // Load user names for display
   const loadUserNames = async () => {
     try {
@@ -1474,115 +1531,113 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             
             {/* Complete Ticket */}
             {localTicket.status === 'Complete' && (
-              <>
-                {/* Content Area */}
-                <div className="space-y-3 pb-16"> {/* Add bottom padding for buttons */}
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="space-y-3">
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center justify-between mb-2">
                     <div>
                       <p className="text-sm font-medium text-green-800">Work Completed</p>
                       <p className="text-xs text-green-600">
-                        {canReopenTicket() ? `Can be reopened for ${getDaysRemainingForReopen()} more days` : 'Auto-closes soon'}
+                        {canReopenTicket() && canUpdateStatus ? (
+                          <>
+                            Can be re-opened for {getDaysRemainingForReopen()} more days.{' '}
+                            <button
+                              onClick={() => {
+                                // Reopen means go back to a working status, not to 'Complete'
+                                // For this workflow, we'll go back to 'Scheduled' since work was completed
+                                handleStatusUpdate('Scheduled');
+                              }}
+                              disabled={isUpdatingStatus}
+                              className="text-green-700 hover:text-green-800 underline font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-1 rounded transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isUpdatingStatus ? 'Re-opening...' : 'Re-open?'}
+                            </button>
+                          </>
+                        ) : (
+                          'Auto-closes soon'
+                        )}
                       </p>
                     </div>
                     <FileText className="h-5 w-5 text-green-600" />
                   </div>
                   
-                  {/* Expense Information */}
-                  <div className="space-y-2">
-                    <h5 className="text-sm font-medium text-neutral-700">Expense Tracking:</h5>
-                    {loadingExpense ? (
-                      <div className="flex items-center p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin text-neutral-600" />
-                        <span className="text-sm text-neutral-600">Loading expense details...</span>
-                      </div>
-                    ) : linkedExpense ? (
-                      <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center flex-1">
-                            <DollarSign className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
-                            <div>
-                              <p className="text-sm font-medium text-blue-900">
-                                Expense Record Created
-                              </p>
-                              <p className="text-xs text-blue-700">
-                                Amount: £{linkedExpense.amount?.toLocaleString() || 'N/A'}
-                              </p>
-                              <p className="text-xs text-blue-600">
-                                Status: {linkedExpense.status || 'Committed'}
-                              </p>
-                              {linkedExpense.description && (
-                                <p className="text-xs text-blue-600 mt-1">
-                                  {linkedExpense.description}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                          <div className="text-right ml-3 flex-shrink-0">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              linkedExpense.status === 'Committed' 
-                                ? 'bg-orange-100 text-orange-800' 
-                                : linkedExpense.status === 'Invoiced'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {linkedExpense.status || 'Committed'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                        <DollarSign className="h-4 w-4 mr-2 text-neutral-500 flex-shrink-0" />
-                        <span className="text-sm text-neutral-600">No expense record found for this ticket</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Completion Details */}
-                  {(localTicket as any).finalCost && (
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-medium text-neutral-700">Completion Details:</h5>
-                      <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                        <p className="text-sm text-neutral-900">
-                          <span className="font-medium">Final Cost:</span> £{((localTicket as any).finalCost as number).toLocaleString()}
+                  {/* Completion Details merged into the green box (excluding final cost to avoid duplication) */}
+                  {((localTicket as any).completionNotes || getActualCompletedDate()) && (
+                    <div className="border-t border-green-200 pt-2 mt-2">
+                      {(localTicket as any).completionNotes && (
+                        <p className="text-sm text-green-800 mb-1">
+                          <span className="font-medium">Notes:</span> {(localTicket as any).completionNotes}
                         </p>
-                        {(localTicket as any).completionNotes && (
-                          <p className="text-sm text-neutral-700 mt-1">
-                            <span className="font-medium">Notes:</span> {(localTicket as any).completionNotes}
-                          </p>
-                        )}
-                        {getActualCompletedDate() && (
-                          <p className="text-sm text-neutral-600 mt-1">
-                            <span className="font-medium">Completed:</span> {formatDate(new Date(getActualCompletedDate()!))}
-                          </p>
-                        )}
-                      </div>
+                      )}
+                      {getActualCompletedDate() && (
+                        <p className="text-sm text-green-700">
+                          <span className="font-medium">Completed:</span> {formatDate(new Date(getActualCompletedDate()!))}
+                        </p>
+                      )}
                     </div>
                   )}
-                  
                 </div>
                 
-                {/* Sticky Action Buttons at bottom of tile */}
-                <div className="absolute bottom-6 right-6">
-                  {canReopenTicket() && canUpdateStatus && (
-                    <button
-                      onClick={() => {
-                        // Reopen means go back to a working status, not to 'Complete'
-                        // For this workflow, we'll go back to 'Scheduled' since work was completed
-                        handleStatusUpdate('Scheduled');
-                      }}
-                      disabled={isUpdatingStatus}
-                      className="px-3 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 rounded-md hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                    >
-                      {isUpdatingStatus ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        'Re-Open'
+                {/* Expense Information */}
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-neutral-700">Expense Tracking:</h5>
+                  {loadingExpense ? (
+                    <div className="flex items-center p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin text-neutral-600" />
+                      <span className="text-sm text-neutral-600">Loading expense details...</span>
+                    </div>
+                  ) : linkedExpense ? (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 relative">
+                      <div className="flex items-center">
+                        <DollarSign className="h-4 w-4 mr-2 text-blue-600 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-blue-900">
+                            £{linkedExpense.amount?.toLocaleString() || 'N/A'}
+                          </p>
+                        </div>
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          linkedExpense.status === 'forecast' 
+                            ? 'bg-amber-100 text-amber-800' 
+                            : linkedExpense.status === 'invoiced'
+                            ? 'bg-green-100 text-green-800'
+                            : linkedExpense.status === 'paid'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-neutral-100 text-neutral-800'
+                        }`}>
+                          {linkedExpense.status === 'forecast' ? 'Forecast' : 
+                           linkedExpense.status === 'invoiced' ? 'Invoiced' :
+                           linkedExpense.status === 'paid' ? 'Paid' : 
+                           linkedExpense.status || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      {/* Invoice Received Button - only show for forecast expenses, positioned bottom right */}
+                      {linkedExpense.status === 'forecast' && canUpdateStatus && (
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            onClick={handleShowInvoiceSelection}
+                            disabled={loadingInvoices}
+                            className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                          >
+                            {loadingInvoices ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              'Invoice Received?'
+                            )}
+                          </button>
+                        </div>
                       )}
-                    </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                      <DollarSign className="h-4 h-4 mr-2 text-neutral-500 flex-shrink-0" />
+                      <span className="text-sm text-neutral-600">No expense record found for this ticket</span>
+                    </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
             
             {/* Closed Ticket */}
@@ -1774,6 +1829,221 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
         onComplete={handleCompleteTicket}
         isSubmitting={isCompletingTicket}
       />
+
+      {/* Invoice Selection Modal */}
+      <Modal
+        isOpen={showInvoiceSelection}
+        onClose={() => {
+          setShowInvoiceSelection(false);
+          setSelectedInvoice(null);
+        }}
+        title="Select Invoice"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                <Receipt className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-medium text-neutral-900">Link Expense to Invoice</h3>
+              <p className="text-sm text-neutral-600 mt-1">
+                Select an invoice from the Invoices tab to link to this expense. This will mark the expense as invoiced.
+              </p>
+            </div>
+          </div>
+
+          {/* Expense Details */}
+          {linkedExpense && (
+            <div className="bg-neutral-50 rounded-lg p-3">
+              <div className="text-sm">
+                <p className="font-medium text-neutral-900">
+                  Expense: £{linkedExpense.amount?.toLocaleString() || 'N/A'}
+                </p>
+                <p className="text-neutral-600 mt-1">
+                  {linkedExpense.description || 'No description'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Invoice List */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-medium text-neutral-700">Available Invoices</h4>
+              <div className="flex items-center space-x-2">
+                <ExternalLink className="w-4 h-4 text-neutral-400" />
+                <span className="text-xs text-neutral-500">From Invoices tab</span>
+              </div>
+            </div>
+            
+            <div className="border border-neutral-200 rounded-lg max-h-64 overflow-y-auto">
+              {availableInvoices.length === 0 ? (
+                <div className="p-6 text-center">
+                  <Receipt className="w-8 h-8 mx-auto text-neutral-300 mb-2" />
+                  <p className="text-sm text-neutral-500">No invoices found</p>
+                  <p className="text-xs text-neutral-400 mt-1">
+                    Create invoices in the Finances → Invoices tab first
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-neutral-200">
+                  {availableInvoices.map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className={`p-3 cursor-pointer hover:bg-neutral-50 transition-colors ${
+                        selectedInvoice?.id === invoice.id ? 'bg-blue-50 border-blue-200' : ''
+                      }`}
+                      onClick={() => setSelectedInvoice(invoice)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="radio"
+                              checked={selectedInvoice?.id === invoice.id}
+                              onChange={() => setSelectedInvoice(invoice)}
+                              className="text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                              <p className="text-sm font-medium text-neutral-900">
+                                {invoice.invoiceNumber}
+                              </p>
+                              <p className="text-xs text-neutral-600">
+                                {invoice.description}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-neutral-900">
+                            £{invoice.amount.toLocaleString()}
+                          </p>
+                          <p className={`text-xs px-2 py-1 rounded-full ${
+                            invoice.status === 'approved' ? 'bg-green-100 text-green-800' :
+                            invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-neutral-100 text-neutral-800'
+                          }`}>
+                            {invoice.status}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex space-x-3 justify-end">
+            <button
+              onClick={() => {
+                setShowInvoiceSelection(false);
+                setSelectedInvoice(null);
+              }}
+              disabled={markingInvoiceReceived}
+              className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => setShowInvoiceReceivedConfirm(true)}
+              disabled={!selectedInvoice || availableInvoices.length === 0}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              Link Invoice
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Invoice Received Confirmation Dialog */}
+      <Modal
+        isOpen={showInvoiceReceivedConfirm}
+        onClose={() => setShowInvoiceReceivedConfirm(false)}
+        title="Confirm Invoice Linking"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start space-x-3">
+            <div className="flex-shrink-0">
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                <DollarSign className="w-5 h-5 text-blue-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-medium text-neutral-900">Confirm Invoice Linking</h3>
+              <div className="mt-2">
+                <p className="text-sm text-neutral-600">
+                  You're about to link this expense to the selected invoice. This will:
+                </p>
+                <ul className="mt-2 ml-4 text-sm text-neutral-600 list-disc space-y-1">
+                  <li>Mark the expense as "Invoiced"</li>
+                  <li>Link the expense to invoice {selectedInvoice?.invoiceNumber}</li>
+                  <li>Update the expense tracking status</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          
+          {/* Show both expense and selected invoice */}
+          <div className="space-y-3">
+            {linkedExpense && (
+              <div className="bg-neutral-50 rounded-lg p-3">
+                <p className="text-xs font-medium text-neutral-700 mb-1">Expense</p>
+                <div className="text-sm">
+                  <p className="font-medium text-neutral-900">
+                    £{linkedExpense.amount?.toLocaleString() || 'N/A'}
+                  </p>
+                  <p className="text-neutral-600">
+                    {linkedExpense.description || 'No description'}
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {selectedInvoice && (
+              <div className="bg-blue-50 rounded-lg p-3">
+                <p className="text-xs font-medium text-blue-700 mb-1">Selected Invoice</p>
+                <div className="text-sm">
+                  <p className="font-medium text-blue-900">
+                    {selectedInvoice.invoiceNumber} - £{selectedInvoice.amount.toLocaleString()}
+                  </p>
+                  <p className="text-blue-700">
+                    {selectedInvoice.description}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+          
+          <div className="flex space-x-3 justify-end">
+            <button
+              onClick={() => setShowInvoiceReceivedConfirm(false)}
+              disabled={markingInvoiceReceived}
+              className="px-4 py-2 text-sm font-medium text-neutral-700 bg-white border border-neutral-300 rounded-md hover:bg-neutral-50 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleMarkInvoiceReceived}
+              disabled={markingInvoiceReceived}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+            >
+              {markingInvoiceReceived ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Linking...
+                </>
+              ) : (
+                'Confirm Link'
+              )}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </Modal>
   );
 };

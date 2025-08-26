@@ -848,6 +848,7 @@ export interface Building {
     latePaymentInterestRate: number;
     paymentGracePeriod: number;
     reminderDays: number;
+    serviceChargeRatePerSqFt: number;
   };
   createdAt: Date;
   updatedAt: Date;
