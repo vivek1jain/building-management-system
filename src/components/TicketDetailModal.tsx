@@ -65,7 +65,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     setLocalTicket(ticket);
   }, [ticket]);
 
-  // Load linked expense when ticket is complete
+  // Load linked expense when ticket is complete (with periodic refresh)
   useEffect(() => {
     const loadLinkedExpense = async () => {
       if (localTicket.status === 'Complete' && isOpen) {
@@ -74,6 +74,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           const expenses = await expenseService.getExpensesByTicketId(localTicket.id);
           if (expenses && expenses.length > 0) {
             setLinkedExpense(expenses[0]); // Take the first/main expense linked to this ticket
+          } else {
+            setLinkedExpense(null);
           }
         } catch (error) {
           console.error('Failed to load linked expense:', error);
@@ -85,7 +87,23 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       }
     };
 
+    // Load immediately
     loadLinkedExpense();
+
+    // Set up periodic refresh for expense data every 10 seconds when modal is open and ticket is complete
+    let intervalId: NodeJS.Timeout | null = null;
+    if (localTicket.status === 'Complete' && isOpen) {
+      intervalId = setInterval(() => {
+        loadLinkedExpense();
+      }, 10000); // Refresh every 10 seconds
+    }
+
+    // Cleanup interval on unmount or status/modal change
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
   }, [localTicket.status, localTicket.id, isOpen]);
 
   useEffect(() => {
@@ -1074,8 +1092,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   // Custom header with status and priority badges
   const customHeader = (
     <div className="flex items-center justify-between w-full">
-      <h2 className="text-xl font-semibold text-neutral-900 truncate flex-1 mr-4">
-        {localTicket.title}
+      <h2 className="text-xl font-semibold text-neutral-900 flex-1 mr-4" title={localTicket.title}>
+        {localTicket.title.length > 30 ? `${localTicket.title.substring(0, 30)}...` : localTicket.title}
       </h2>
       <div className="flex items-center gap-2 flex-shrink-0">
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(localTicket.status)}`}>
@@ -1542,24 +1560,6 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     </div>
                   )}
                   
-                  {/* Re-open option for managers within 7 days */}
-                  {canReopenTicket() && canUpdateStatus && (
-                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                      <div className="flex items-start space-x-2">
-                        <div className="flex-shrink-0">
-                          <svg className="w-4 h-4 text-amber-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-amber-800">Re-open Available</p>
-                          <p className="text-xs text-amber-700">
-                            You can re-open this ticket for {getDaysRemainingForReopen()} more day{getDaysRemainingForReopen() !== 1 ? 's' : ''} if needed.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
                 
                 {/* Sticky Action Buttons at bottom of tile */}
