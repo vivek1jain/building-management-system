@@ -30,7 +30,7 @@ const SupplierSelectionModal = ({
   onQuotesRequested,
   excludeSupplierIds = []
 }: SupplierSelectionModalProps) => {
-  console.log('🏗️ SupplierSelectionModal render called', { isOpen, ticketId })
+  // console.log('🏗️ SupplierSelectionModal render called', { isOpen, ticketId })
   
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
@@ -68,15 +68,39 @@ const SupplierSelectionModal = ({
   const specialties = ['All', 'Plumbing', 'HVAC', 'Electrical', 'General Maintenance', 'Cleaning', 'Landscaping', 'Emergency Repairs', 'Lighting', 'Security Systems']
 
   const filteredSuppliers = useMemo(() => {
-    return suppliers.filter(supplier => {
-      const matchesSearch = supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           supplier.companyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           supplier.specialties.some(s => s.toLowerCase().includes(searchTerm.toLowerCase()))
+    if (!suppliers || suppliers.length === 0) {
+      return []
+    }
+    
+    try {
+      const filtered = suppliers.filter(supplier => {
+        // Safety checks
+        if (!supplier || !supplier.companyName || !supplier.specialties) {
+          console.warn('⚠️ Invalid supplier data:', supplier)
+          return false
+        }
+        
+        // Search filter - safer string operations
+        const searchLower = (searchTerm || '').toLowerCase().trim()
+        const matchesSearch = searchLower === '' || 
+          supplier.companyName.toLowerCase().includes(searchLower) ||
+          supplier.specialties.some(s => s && s.toLowerCase().includes(searchLower))
+        
+        // Specialty filter
+        const matchesSpecialty = filterSpecialty === 'All' || 
+          supplier.specialties.includes(filterSpecialty)
+        
+        // Only active suppliers
+        const isActive = supplier.isActive !== false // Default to true if undefined
+        
+        return matchesSearch && matchesSpecialty && isActive
+      })
       
-      const matchesSpecialty = filterSpecialty === 'All' || supplier.specialties.includes(filterSpecialty)
-      
-      return matchesSearch && matchesSpecialty && supplier.isActive
-    })
+      return filtered
+    } catch (error) {
+      console.error('❌ Error in filtering:', error)
+      return suppliers.slice(0, 10) // Fallback to first 10
+    }
   }, [suppliers, searchTerm, filterSpecialty])
 
   const handleSupplierSelection = (supplierId: string) => {
@@ -180,7 +204,16 @@ const SupplierSelectionModal = ({
     )
   }
 
-  // Define table columns
+  // Stabilize callback functions to prevent re-renders
+  const handleSelectionChange = useMemo(() => (supplierId: string) => {
+    setSelectedSuppliers(prev => 
+      prev.includes(supplierId) 
+        ? prev.filter(id => id !== supplierId)
+        : [...prev, supplierId]
+    )
+  }, [])
+
+  // Define table columns with stabilized dependencies
   const columns: Column<Supplier>[] = useMemo(() => [
     {
       key: 'select',
@@ -191,7 +224,7 @@ const SupplierSelectionModal = ({
         <input
           type="checkbox"
           checked={selectedSuppliers.includes(supplier.id)}
-          onChange={() => handleSupplierSelection(supplier.id)}
+          onChange={() => handleSelectionChange(supplier.id)}
           className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
         />
       )
@@ -261,12 +294,104 @@ const SupplierSelectionModal = ({
         </div>
       )
     }
-  ], [selectedSuppliers, excludeSupplierIds])
+  ], [selectedSuppliers, excludeSupplierIds, handleSelectionChange])
+      {
+        key: 'select',
+        title: '',
+        dataIndex: 'id',
+        width: '50px',
+        render: (value, supplier) => (
+          <input
+            type="checkbox"
+            checked={selectedSuppliers.includes(supplier.id)}
+            onChange={() => handleSelectionChange(supplier.id)}
+            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-neutral-300 rounded"
+          />
+        )
+      },
+      {
+        key: 'supplierInfo',
+        title: 'Supplier',
+        dataIndex: 'name',
+        sortable: true,
+        render: (value, supplier) => (
+          <div>
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.companyName || 'Unknown Supplier'}</div>
+              {excludeSupplierIds.includes(supplier.id) && (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                  Already contacted
+                </span>
+              )}
+            </div>
+            {supplier.companyName && (
+              <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
+            )}
+          </div>
+        )
+      },
+      {
+        key: 'phone',
+        title: 'Phone',
+        dataIndex: 'phone',
+        sortable: true,
+        render: (value, supplier) => (
+          <div className="text-sm text-neutral-900 font-inter">{supplier.phone || 'N/A'}</div>
+        )
+      },
+      {
+        key: 'email',
+        title: 'Email',
+        dataIndex: 'email',
+        sortable: true,
+        render: (value, supplier) => (
+          <div className="text-sm text-neutral-900 font-inter">{supplier.email}</div>
+        )
+      },
+      {
+        key: 'specialty',
+        title: 'Specialty',
+        dataIndex: 'specialties',
+        sortable: false,
+        render: (value, supplier) => (
+          <div className="flex flex-wrap gap-1">
+            {supplier.specialties.map((specialty, index) => (
+              <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+                {specialty}
+              </span>
+            ))}
+          </div>
+        )
+      },
+      {
+        key: 'rating',
+        title: 'Rating',
+        dataIndex: 'rating',
+        sortable: true,
+        render: (value, supplier) => (
+          <div className="text-sm text-neutral-900">
+            {supplier.rating ? renderStars(supplier.rating) : 'No rating'}
+          </div>
+        )
+      }
+    ]
+  }, [selectedSuppliers, excludeSupplierIds, handleSelectionChange])
 
   if (!isOpen) return null
 
   try {
     console.log('🔧 SupplierSelectionModal about to render modal content')
+    console.log('📊 Current state:', {
+      suppliers: suppliers.length,
+      filteredSuppliers: filteredSuppliers.length,
+      selectedSuppliers: selectedSuppliers.length,
+      loading,
+      requesting,
+      searchTerm,
+      filterSpecialty
+    })
+    
+    console.log('🎯 About to render Modal component')
     return (
       <Modal
         isOpen={isOpen}
@@ -276,9 +401,17 @@ const SupplierSelectionModal = ({
         size="xl"
       >
         <div className="flex flex-col h-full">
+        {(() => {
+          console.log('🎯 About to render Filters section')
+          return null
+        })()}
         {/* Filters */}
         <div className="mb-6 space-y-4 flex-shrink-0">
           <div className="flex items-center gap-4">
+            {(() => {
+              console.log('🎯 About to render Search input')
+              return null
+            })()}
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
@@ -289,6 +422,10 @@ const SupplierSelectionModal = ({
                 className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
               />
             </div>
+            {(() => {
+              console.log('🎯 About to render Dropdown component')
+              return null
+            })()}
             <Dropdown
               value={filterSpecialty}
               onChange={setFilterSpecialty}
@@ -300,9 +437,17 @@ const SupplierSelectionModal = ({
               className="min-w-[200px]"
               size="md"
             />
+            {(() => {
+              console.log('✅ Dropdown component rendered successfully')
+              return null
+            })()}
           </div>
         </div>
 
+        {(() => {
+          console.log('🎯 About to render Suppliers Table section')
+          return null
+        })()}
         {/* Suppliers Table */}
         <div className="mb-6 min-h-0 flex-1">
           <div className="h-full overflow-auto">
