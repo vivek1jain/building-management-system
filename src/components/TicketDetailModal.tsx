@@ -1257,35 +1257,6 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     {' '}with a preferred supplier.
                   </p>
                   
-                  {/* TEST BUTTON FOR DEBUGGING */}
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => {
-                        console.log('🧪 TEST BUTTON clicked')
-                        console.log('🔍 Before: showQuoteManagement =', showQuoteManagement)
-                        setShowQuoteManagement(prev => {
-                          console.log('🔄 Setting showQuoteManagement from', prev, 'to', !prev)
-                          return !prev
-                        })
-                        console.log('✅ setShowQuoteManagement called')
-                      }}
-                      className="px-2 py-1 text-xs font-medium text-white bg-red-600 border border-transparent rounded hover:bg-red-700"
-                    >
-                      TEST MODAL
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        console.log('🖱️ DIRECT SET button clicked')
-                        console.log('🔍 Before: showQuoteManagement =', showQuoteManagement)
-                        setShowQuoteManagement(true)
-                        console.log('✅ setShowQuoteManagement(true) called')
-                      }}
-                      className="px-2 py-1 text-xs font-medium text-white bg-blue-600 border border-transparent rounded hover:bg-blue-700"
-                    >
-                      DIRECT SET
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
@@ -1423,48 +1394,14 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         </>
                       )
                     } else {
-                      // Show Manage button for regular quoting + TEST button
+                      // Show Manage button for regular quoting
                       return (
-                        <div className="flex gap-2">
-                          {/* TEST BUTTON - Simple state toggle */}
-                          <button
-                            onClick={() => {
-                              console.log('🧪 TEST BUTTON clicked')
-                              console.log('🔍 Before: showQuoteManagement =', showQuoteManagement)
-                              setShowQuoteManagement(prev => {
-                                console.log('🔄 Setting showQuoteManagement from', prev, 'to', !prev)
-                                return !prev
-                              })
-                              console.log('✅ setShowQuoteManagement called')
-                            }}
-                            className="px-2 py-1 text-xs font-medium text-white bg-red-600 border border-transparent rounded hover:bg-red-700"
-                          >
-                            TEST
-                          </button>
-                          
-                          <button
-                            onClick={() => {
-                              console.log('🖱️ Manage button clicked - setting showQuoteManagement to true')
-                              console.log('🔍 Current showQuoteManagement:', showQuoteManagement)
-                              console.log('🎯 Current localTicket.quoteRequests:', localTicket.quoteRequests?.length || 0, 'items')
-                              console.log('🕰️ About to call setShowQuoteManagement(true)...')
-                              setShowQuoteManagement(true)
-                              console.log('✅ setShowQuoteManagement(true) called')
-                              
-                              // Add a small delay to check if state persists
-                              setTimeout(() => {
-                                console.log('🕰️ 100ms later - showQuoteManagement is:', showQuoteManagement)
-                              }, 100)
-                              
-                              setTimeout(() => {
-                                console.log('🕰️ 500ms later - showQuoteManagement is:', showQuoteManagement)
-                              }, 500)
-                            }}
-                            className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
-                          >
-                            Manage
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => setShowQuoteManagement(true)}
+                          className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
+                        >
+                          Manage
+                        </button>
                       )
                     }
                   })()}
