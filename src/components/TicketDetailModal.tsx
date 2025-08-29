@@ -1256,6 +1256,36 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     </button>
                     {' '}with a preferred supplier.
                   </p>
+                  
+                  {/* TEST BUTTON FOR DEBUGGING */}
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      onClick={() => {
+                        console.log('🧪 TEST BUTTON clicked')
+                        console.log('🔍 Before: showQuoteManagement =', showQuoteManagement)
+                        setShowQuoteManagement(prev => {
+                          console.log('🔄 Setting showQuoteManagement from', prev, 'to', !prev)
+                          return !prev
+                        })
+                        console.log('✅ setShowQuoteManagement called')
+                      }}
+                      className="px-2 py-1 text-xs font-medium text-white bg-red-600 border border-transparent rounded hover:bg-red-700"
+                    >
+                      TEST MODAL
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        console.log('🖱️ DIRECT SET button clicked')
+                        console.log('🔍 Before: showQuoteManagement =', showQuoteManagement)
+                        setShowQuoteManagement(true)
+                        console.log('✅ setShowQuoteManagement(true) called')
+                      }}
+                      className="px-2 py-1 text-xs font-medium text-white bg-blue-600 border border-transparent rounded hover:bg-blue-700"
+                    >
+                      DIRECT SET
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1393,8 +1423,25 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                         </>
                       )
                     } else {
-                      // Show Manage button for regular quoting
+                      // Show Manage button for regular quoting + TEST button
                       return (
+                        <div className="flex gap-2">
+                          {/* TEST BUTTON - Simple state toggle */}
+                          <button
+                            onClick={() => {
+                              console.log('🧪 TEST BUTTON clicked')
+                              console.log('🔍 Before: showQuoteManagement =', showQuoteManagement)
+                              setShowQuoteManagement(prev => {
+                                console.log('🔄 Setting showQuoteManagement from', prev, 'to', !prev)
+                                return !prev
+                              })
+                              console.log('✅ setShowQuoteManagement called')
+                            }}
+                            className="px-2 py-1 text-xs font-medium text-white bg-red-600 border border-transparent rounded hover:bg-red-700"
+                          >
+                            TEST
+                          </button>
+                          
                           <button
                             onClick={() => {
                               console.log('🖱️ Manage button clicked - setting showQuoteManagement to true')
@@ -1417,6 +1464,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                           >
                             Manage
                           </button>
+                        </div>
                       )
                     }
                   })()}

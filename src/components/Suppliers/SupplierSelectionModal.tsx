@@ -30,6 +30,8 @@ const SupplierSelectionModal = ({
   onQuotesRequested,
   excludeSupplierIds = []
 }: SupplierSelectionModalProps) => {
+  console.log('🏗️ SupplierSelectionModal render called', { isOpen, ticketId })
+  
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
@@ -38,6 +40,7 @@ const SupplierSelectionModal = ({
   const [filterSpecialty, setFilterSpecialty] = useState('All')
   const [loading, setLoading] = useState(false)
   const [requesting, setRequesting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -262,15 +265,17 @@ const SupplierSelectionModal = ({
 
   if (!isOpen) return null
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Request Quotes from Suppliers"
-      description="Select suppliers to request quotes for this ticket"
-      size="xl"
-    >
-      <div className="flex flex-col h-full">
+  try {
+    console.log('🔧 SupplierSelectionModal about to render modal content')
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Request Quotes from Suppliers"
+        description="Select suppliers to request quotes for this ticket"
+        size="xl"
+      >
+        <div className="flex flex-col h-full">
         {/* Filters */}
         <div className="mb-6 space-y-4 flex-shrink-0">
           <div className="flex items-center gap-4">
@@ -336,6 +341,39 @@ const SupplierSelectionModal = ({
       </div>
     </Modal>
   )
+  } catch (error) {
+    console.error('❌ Error in SupplierSelectionModal:', error)
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Error Loading Suppliers"
+        size="md"
+      >
+        <div className="p-6 text-center">
+          <div className="mb-4">
+            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+              <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Something went wrong</h3>
+          <p className="text-sm text-gray-500 mb-4">
+            There was an error loading the supplier selection. Please try again.
+          </p>
+          <p className="text-xs text-gray-400 font-mono">
+            {error instanceof Error ? error.message : String(error)}
+          </p>
+          <div className="mt-6">
+            <Button onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    )
+  }
 }
 
 export default SupplierSelectionModal 
