@@ -65,6 +65,15 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   // Debug: Track showQuoteManagement state changes
   useEffect(() => {
     console.log('🔄 showQuoteManagement state changed:', showQuoteManagement)
+    if (showQuoteManagement) {
+      console.log('✅ QuoteManagement modal should be OPEN now')
+      console.log('🎯 Current ticket ID:', ticket.id)
+      console.log('🎯 Current localTicket quoteRequests:', localTicket.quoteRequests?.length || 0)
+    } else {
+      console.log('❌ QuoteManagement modal should be CLOSED')
+    }
+    // Get stack trace to see what's causing the state change
+    console.trace('State change trace:')
   }, [showQuoteManagement])
 
   // Update local ticket when prop changes
@@ -1386,18 +1395,28 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                     } else {
                       // Show Manage button for regular quoting
                       return (
-                        <button
-                          onClick={() => {
-                            console.log('🖱️ Manage button clicked - setting showQuoteManagement to true')
-                            console.log('🔍 Current showQuoteManagement:', showQuoteManagement)
-                            console.log('🎯 Current localTicket.quoteRequests:', localTicket.quoteRequests?.length || 0, 'items')
-                            setShowQuoteManagement(true)
-                            console.log('✅ setShowQuoteManagement(true) called')
-                          }}
-                          className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
-                        >
-                          Manage
-                        </button>
+                          <button
+                            onClick={() => {
+                              console.log('🖱️ Manage button clicked - setting showQuoteManagement to true')
+                              console.log('🔍 Current showQuoteManagement:', showQuoteManagement)
+                              console.log('🎯 Current localTicket.quoteRequests:', localTicket.quoteRequests?.length || 0, 'items')
+                              console.log('🕰️ About to call setShowQuoteManagement(true)...')
+                              setShowQuoteManagement(true)
+                              console.log('✅ setShowQuoteManagement(true) called')
+                              
+                              // Add a small delay to check if state persists
+                              setTimeout(() => {
+                                console.log('🕰️ 100ms later - showQuoteManagement is:', showQuoteManagement)
+                              }, 100)
+                              
+                              setTimeout(() => {
+                                console.log('🕰️ 500ms later - showQuoteManagement is:', showQuoteManagement)
+                              }, 500)
+                            }}
+                            className="px-3 py-2 text-sm font-medium text-white bg-primary-600 border border-transparent rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200"
+                          >
+                            Manage
+                          </button>
                       )
                     }
                   })()}
