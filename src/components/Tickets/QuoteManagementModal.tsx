@@ -330,12 +330,20 @@ const QuoteManagementModal = ({
             <div>
               <div className="text-xl font-bold text-primary-600">
                 {(() => {
-                  const quotesWithAmounts = quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0)
-                  if (quotesWithAmounts.length > 0) {
-                    const minAmount = Math.min(...quotesWithAmounts.map(r => r.quoteAmount!))
-                    return formatCurrency(minAmount)
+                  try {
+                    const quotesWithAmounts = quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0)
+                    if (quotesWithAmounts.length > 0) {
+                      const amounts = quotesWithAmounts.map(r => r.quoteAmount).filter(Boolean) as number[]
+                      if (amounts.length > 0) {
+                        const minAmount = Math.min(...amounts)
+                        return formatCurrency(minAmount)
+                      }
+                    }
+                    return '—'
+                  } catch (error) {
+                    console.error('Error calculating best price:', error)
+                    return '—'
                   }
-                  return '—'
                 })()}
               </div>
               <div className="text-xs text-neutral-600">Best Price</div>
@@ -362,7 +370,24 @@ const QuoteManagementModal = ({
                   const isEditing = editingQuote === request.supplierId
                   const hasQuoteAmount = request.quoteAmount && request.quoteAmount > 0
                   const isSelected = selectedWinnerQuoteId === request.id
-                  const isLowest = hasQuoteAmount && request.quoteAmount === Math.min(...quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0).map(r => r.quoteAmount!))
+                  
+                  // Calculate isLowest safely
+                  let isLowest = false
+                  if (hasQuoteAmount) {
+                    try {
+                      const quotesWithAmounts = quoteRequests.filter(r => r.quoteAmount && r.quoteAmount > 0)
+                      if (quotesWithAmounts.length > 1) {
+                        const amounts = quotesWithAmounts.map(r => r.quoteAmount).filter(Boolean) as number[]
+                        if (amounts.length > 0) {
+                          const minAmount = Math.min(...amounts)
+                          isLowest = request.quoteAmount === minAmount
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Error calculating isLowest:', error)
+                      isLowest = false
+                    }
+                  }
                   
                   return (
                     <div
@@ -394,20 +419,12 @@ const QuoteManagementModal = ({
                       )}
 
                       <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-neutral-900 truncate">{request.supplierName}</h4>
-                          <p className="text-xs text-neutral-500 mt-1">
-                            Date Received: {(() => {
-                              try {
-                                if (!request.sentAt) return 'Unknown date'
-                                const date = request.sentAt instanceof Date ? request.sentAt : new Date(request.sentAt)
-                                return new Date(date).toLocaleDateString('en-GB')
-                              } catch (error) {
-                                return 'Invalid date'
-                              }
-                            })()}
-                          </p>
-                        </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-semibold text-neutral-900 truncate">{request.supplierName || 'Unknown Supplier'}</h4>
+                        <p className="text-xs text-neutral-500 mt-1">
+                          Date Received: {request.sentAt ? formatDate(request.sentAt) : 'Unknown date'}
+                        </p>
+                      </div>
                         
                         {/* Always present price area for alignment */}
                         <div className="flex-1 text-center px-4">
