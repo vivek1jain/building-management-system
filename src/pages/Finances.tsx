@@ -29,7 +29,7 @@ import {
 import { getInvoicesByBuilding } from '../services/invoiceService'
 import { getFlatsByBuilding } from '../services/flatService'
 import { expenseService } from '../services/expenseService'
-import { 
+import {
   Building,
   DollarSign, 
   TrendingUp, 
@@ -50,7 +50,10 @@ import {
   Receipt,
   AlertTriangle,
   CheckCircle,
-  ExternalLink
+  ExternalLink,
+  Users,
+  Search,
+  Filter
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption, PageLoading, SectionLoading, TabLoadingSkeleton, TableRowSkeleton, WidgetSkeleton } from '../components/UI'
 import { ServiceChargePeriodDropdown } from '../components/ServiceCharges/ServiceChargePeriodDropdown'
@@ -98,6 +101,7 @@ const Finances: React.FC = () => {
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentDate, setPaymentDate] = useState<Date>(new Date())
   const [expandedPeriods, setExpandedPeriods] = useState<Set<string>>(new Set())
+  
   
   // UI state
   const [showBudgetSetup, setShowBudgetSetup] = useState(false)
@@ -190,7 +194,10 @@ const Finances: React.FC = () => {
     
     try {
       setLoading(true)
-      const [budgetData, demandsData, invoicesData, expensesData, flatsData] = await Promise.all([
+      console.log('Loading financial data for building:', selectedBuildingId)
+      
+      // Load data with individual error handling
+      const results = await Promise.allSettled([
         budgetService.getBudgetsByBuilding(selectedBuildingId),
         getServiceChargeDemands(selectedBuildingId),
         getInvoicesByBuilding(selectedBuildingId),
@@ -198,15 +205,75 @@ const Finances: React.FC = () => {
         getFlatsByBuilding(selectedBuildingId)
       ])
       
-      setBudget(budgetData.length > 0 ? budgetData[0] : null)
-      setServiceCharges(demandsData)
-      setInvoices(invoicesData)
-      setExpenses(expensesData)
-      // Financial summary is now calculated dynamically
-      setFlats(flatsData)
+      const [budgetResult, demandsResult, invoicesResult, expensesResult, flatsResult] = results
+      
+      // Process budget data
+      if (budgetResult.status === 'fulfilled') {
+        setBudget(budgetResult.value.length > 0 ? budgetResult.value[0] : null)
+        console.log('✅ Budget data loaded:', budgetResult.value.length, 'budgets')
+      } else {
+        console.error('❌ Budget loading failed:', budgetResult.reason)
+        setBudget(null)
+      }
+      
+      // Process service charges
+      if (demandsResult.status === 'fulfilled') {
+        setServiceCharges(demandsResult.value)
+        console.log('✅ Service charges loaded:', demandsResult.value.length, 'demands')
+      } else {
+        console.error('❌ Service charges loading failed:', demandsResult.reason)
+        setServiceCharges([])
+      }
+      
+      // Process invoices
+      if (invoicesResult.status === 'fulfilled') {
+        setInvoices(invoicesResult.value)
+        console.log('✅ Invoices loaded:', invoicesResult.value.length, 'invoices')
+      } else {
+        console.error('❌ Invoices loading failed:', invoicesResult.reason)
+        setInvoices([])
+      }
+      
+      // Process expenses
+      if (expensesResult.status === 'fulfilled') {
+        setExpenses(expensesResult.value)
+        console.log('✅ Expenses loaded:', expensesResult.value.length, 'expenses')
+      } else {
+        console.error('❌ Expenses loading failed:', expensesResult.reason)
+        setExpenses([])
+      }
+      
+      // Process flats
+      if (flatsResult.status === 'fulfilled') {
+        setFlats(flatsResult.value)
+        console.log('✅ Flats loaded:', flatsResult.value.length, 'flats')
+      } else {
+        console.error('❌ Flats loading failed:', flatsResult.reason)
+        setFlats([])
+      }
+      
+      // Check if any critical data failed to load
+      const failedServices = results.filter(result => result.status === 'rejected').length
+      if (failedServices > 0) {
+        console.warn(`${failedServices} financial data services failed to load`)
+        addNotification({ 
+          userId: currentUser?.id || '', 
+          title: 'Partial Load', 
+          message: `Financial data partially loaded. ${failedServices} services had errors.`, 
+          type: 'warning' 
+        })
+      } else {
+        console.log('✅ All financial data loaded successfully')
+      }
+      
     } catch (error) {
-      console.error('Error loading financial data:', error)
-      addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Error loading financial data', type: 'error' })
+      console.error('Error in loadFinancialData:', error)
+      addNotification({ 
+        userId: currentUser?.id || '', 
+        title: 'Error', 
+        message: `Error loading financial data: ${error instanceof Error ? error.message : 'Unknown error'}`, 
+        type: 'error' 
+      })
     } finally {
       setLoading(false)
     }
@@ -1296,9 +1363,23 @@ const Finances: React.FC = () => {
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
                                         {demand.residentName}
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                                        {formatCurrency(demand.totalAmountDue || 0)}
-                                      </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                            {demand.hasCreditApplied ? (
+                              <div>
+                                <div className="text-gray-500 line-through text-sm">
+                                  {formatCurrency((demand.originalAmountBeforeCredit || demand.totalAmountDue) || 0)}
+                                </div>
+                                <div className="text-green-600 font-medium">
+                                  {formatCurrency(demand.totalAmountDue || 0)}
+                                  <span className="text-xs ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
+                                    Credit: £{(demand.creditAppliedAmount || 0).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>{formatCurrency(demand.totalAmountDue || 0)}</div>
+                            )}
+                          </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
                                         {formatCurrency(demand.outstandingAmount || 0)}
                                       </td>
@@ -1541,6 +1622,7 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
               </div>
             </div>
           )}
+
 
           {activeTab === 'expenses' && (
             <div className="space-y-6">
@@ -2215,6 +2297,7 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
           </div>
         </Modal>
       )}
+
     </div>
   )
 }

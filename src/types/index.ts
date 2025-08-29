@@ -520,6 +520,16 @@ export interface ServiceChargeDemand {
   cancelledAt?: Date;
   cancelledBy?: string;
   cancelReason?: string;
+  
+  // Credit Management Integration
+  accountLedgerId?: string;
+  chargeTransactionId?: string;
+  hasCreditApplied?: boolean;
+  creditAppliedAmount?: number;
+  creditApplications?: CreditApplication[];
+  originalAmountBeforeCredit?: number;
+  paymentAllocations?: PaymentAllocation[];
+  unallocatedPayments?: number;
 }
 
 export interface ChargeBreakdownItem {
@@ -1021,4 +1031,220 @@ export interface ComprehensiveDashboardStats {
   // Reminder stats
   activeReminders: number;
   highPriorityReminders: number;
-} 
+}
+
+// ===== RESIDENT ACCOUNT MANAGEMENT & CREDIT SYSTEM =====
+
+// Payment Allocation for tracking how payments are distributed
+export interface PaymentAllocation {
+  demandId: string;
+  demandPeriod: string;
+  allocatedAmount: number;
+  description: string;
+}
+
+// Enhanced Payment Record with account integration
+export interface EnhancedPaymentRecord extends PaymentRecord {
+  // Account Integration
+  accountLedgerId: string;
+  transactionId: string;
+  
+  // Payment Allocation
+  allocations: PaymentAllocation[];
+  overpaymentAmount?: number;
+  isOverpayment: boolean;
+  
+  // Refund Handling
+  refundableAmount: number;
+  refundRequested?: boolean;
+  refundProcessed?: boolean;
+}
+
+// Resident Account Ledger - Main account tracking per resident
+export interface ResidentAccountLedger {
+  id: string;
+  buildingId: string;
+  flatId: string;
+  flatNumber: string;
+  residentUid?: string;
+  residentName: string;
+  
+  // Running Balance Tracking
+  currentBalance: number; // Negative = credit balance, Positive = amount owed
+  totalChargedLifetime: number;
+  totalPaidLifetime: number;
+  
+  // Credit Management
+  availableCredit: number; // Current credit balance available for future charges
+  pendingCreditApplications: CreditApplication[];
+  creditHistory: CreditHistoryEntry[];
+  
+  // Auto-Application Settings
+  autoApplyCreditToFutureCharges: boolean; // Default: true
+  creditApplicationPreference: 'full' | 'partial' | 'manual';
+  minimumCreditThreshold: number; // Don't auto-apply if credit below this amount
+  
+  // Transaction References
+  lastTransactionId?: string;
+  lastTransactionDate?: Date;
+  lastStatementDate?: Date;
+  
+  // Account Settings
+  isActive: boolean;
+  accountOpenedDate: Date;
+  accountClosedDate?: Date;
+  
+  // Metadata
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Account Transactions - Comprehensive ledger for all financial activity
+export interface AccountTransaction {
+  id: string;
+  accountLedgerId: string;
+  buildingId: string;
+  flatNumber: string;
+  residentName: string;
+  
+  // Transaction Details
+  type: 'charge' | 'payment' | 'credit' | 'adjustment' | 'penalty' | 'refund';
+  amount: number; // Always positive - type determines debit/credit
+  description: string;
+  reference: string; // e.g., "Q1 2024 Service Charge", "Payment Ref: PAY-123"
+  
+  // Running Balance After Transaction
+  balanceAfter: number;
+  
+  // Related Documents
+  relatedDemandId?: string;
+  relatedPaymentId?: string;
+  relatedInvoiceId?: string;
+  
+  // Transaction Metadata
+  processedAt: Date;
+  processedBy: string;
+  reversalOf?: string; // If this transaction reverses another
+  isReversed: boolean;
+  
+  createdAt: Date;
+}
+
+// Credit Application Tracking - When credits are applied to future charges
+export interface CreditApplication {
+  id: string;
+  accountLedgerId: string;
+  
+  // Credit Source
+  sourcePeriod: string; // e.g., "Q1 2024" where overpayment occurred
+  sourcePaymentId: string;
+  originalCreditAmount: number;
+  
+  // Application Target
+  targetDemandId: string;
+  targetPeriod: string; // e.g., "Q2 2024" where credit is applied
+  appliedAmount: number;
+  
+  // Application Details
+  applicationMethod: 'automatic' | 'manual';
+  appliedAt: Date;
+  appliedBy: string;
+  
+  // Status
+  status: 'pending' | 'applied' | 'reversed';
+  notes?: string;
+  
+  createdAt: Date;
+}
+
+// Credit History for Audit Trail
+export interface CreditHistoryEntry {
+  id: string;
+  accountLedgerId: string;
+  
+  action: 'credit_created' | 'credit_applied' | 'credit_reversed' | 'credit_refunded';
+  amount: number;
+  relatedPeriod: string;
+  relatedTransactionId: string;
+  
+  description: string;
+  processedAt: Date;
+  processedBy: string;
+}
+
+// Account Statement Generation
+export interface AccountStatement {
+  id: string;
+  accountLedgerId: string;
+  buildingId: string;
+  flatNumber: string;
+  residentName: string;
+  
+  // Statement Period
+  statementPeriod: string; // e.g., "Q1 2024"
+  fromDate: Date;
+  toDate: Date;
+  
+  // Balance Information
+  openingBalance: number;
+  closingBalance: number;
+  totalCharges: number;
+  totalPayments: number;
+  
+  // Transactions
+  transactions: AccountTransaction[];
+  
+  // Statement Status
+  isGenerated: boolean;
+  generatedAt?: Date;
+  generatedBy?: string;
+  
+  createdAt: Date;
+}
+
+// Report Data Structure
+export interface ReportData {
+  id: string;
+  type: string;
+  title: string;
+  generatedAt: Date;
+  generatedBy: string;
+  buildingId: string;
+  parameters: Record<string, any>;
+  data: any;
+  summary: Record<string, any>;
+}
+
+// Date Range Helper
+export interface DateRange {
+  fromDate: Date;
+  toDate: Date;
+}
+
+// Statement Options
+export interface StatementOptions {
+  includeTransactionDetails: boolean;
+  includeCreditApplications: boolean;
+  includePaymentHistory: boolean;
+  format: 'pdf' | 'excel' | 'csv';
+}
+
+// Scheduled Report Configuration
+export interface ScheduledReportConfig {
+  id: string;
+  buildingId: string;
+  reportType: string;
+  parameters: Record<string, any>;
+  schedule: {
+    frequency: 'daily' | 'weekly' | 'monthly' | 'quarterly';
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+    time: string;
+  };
+  recipients: string[];
+  isActive: boolean;
+  lastRun?: Date;
+  nextRun: Date;
+  createdAt: Date;
+  createdBy: string;
+}

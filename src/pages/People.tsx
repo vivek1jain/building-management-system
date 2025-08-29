@@ -5,6 +5,7 @@ import { useBuilding } from '../contexts/BuildingContext'
 import { createPerson } from '../services/personService'
 import { PersonStatus, PersonRole } from '../types'
 import { Dropdown, DropdownOption } from '../components/UI'
+import { useNavigate } from 'react-router-dom'
 import { 
   Users, 
   UserPlus, 
@@ -19,13 +20,16 @@ import {
   MapPin,
   Star,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  CreditCard,
+  FileText
 } from 'lucide-react'
 
 const PeoplePage: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData } = useBuilding()
+  const navigate = useNavigate()
   const [people, setPeople] = useState<Person[]>([])
   const [loading, setLoading] = useState(false)
   const [showCreatePerson, setShowCreatePerson] = useState(false)
@@ -220,6 +224,22 @@ const PeoplePage: React.FC = () => {
     }).format(date)
   }
 
+  const handleViewAccount = (person: Person) => {
+    // Navigate to Reports page with the account statements tab active
+    // We'll use the flat number to help identify the resident account
+    navigate('/reports', { 
+      state: { 
+        activeTab: 'account_statements',
+        searchQuery: person.flatId || person.name,
+        residentInfo: {
+          flatId: person.flatId,
+          name: person.name,
+          email: person.email
+        }
+      }
+    })
+  }
+
   // Status filter options
   const statusOptions: DropdownOption[] = [
     { value: 'all', label: 'All Status', description: 'Show people with all statuses' },
@@ -368,13 +388,29 @@ const PeoplePage: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button className="text-primary-600 hover:text-blue-900">
+                      <button 
+                        className="text-primary-600 hover:text-blue-900"
+                        title="View Details"
+                      >
                         <Eye className="h-4 w-4" />
                       </button>
-                      <button className="text-success-600 hover:text-green-900">
+                      <button 
+                        onClick={() => handleViewAccount(person)}
+                        className="text-green-600 hover:text-green-900"
+                        title="View Account Statement"
+                      >
+                        <CreditCard className="h-4 w-4" />
+                      </button>
+                      <button 
+                        className="text-success-600 hover:text-success-900"
+                        title="Edit Person"
+                      >
                         <Edit className="h-4 w-4" />
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button 
+                        className="text-red-600 hover:text-red-900"
+                        title="Delete Person"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>

@@ -18,7 +18,9 @@ import {
   ServiceChargeDemand, 
   ServiceChargeDemandStatus,
   Income,
-  Expenditure
+  Expenditure,
+  Flat,
+  ResidentAccountLedger
 } from '../types'
 
 // Service Charge Demands
@@ -661,28 +663,33 @@ export const bulkUpdateServiceChargeDemands = async (updates: Array<{ id: string
   }
 }
 
-export const generateServiceChargeDemands = async (
+/**
+ * Generate basic service charge demands (without credit application)
+ * This is the core demand generation logic
+ */
+export const generateBasicServiceChargeDemands = async (
   buildingId: string, 
   quarter: string, 
   rate: number,
-  flats: any[]
-): Promise<string[]> => {
+  flats: Flat[],
+  issuedByUid: string = 'system'
+): Promise<ServiceChargeDemand[]> => {
   try {
-    const batch = writeBatch(db)
-    const demandIds: string[] = []
+    const demands: ServiceChargeDemand[] = []
     
     for (const flat of flats) {
-      const demandRef = doc(collection(db, 'serviceChargeDemands'))
-      const baseAmount = flat.areaSqFt * rate
+      const baseAmount = (flat.areaSqFt || 0) * rate
       const groundRentAmount = flat.groundRent || 0
       const totalAmountDue = baseAmount + groundRentAmount
       
-      const demand: Omit<ServiceChargeDemand, 'id' | 'createdAt' | 'updatedAt'> = {
+      // Create demand object with temporary ID
+      const demand: ServiceChargeDemand = {
+        id: `temp-${Date.now()}-${Math.random()}`, // Temporary ID, will be replaced when saved
         buildingId,
-        flatId: flat.id || `flat-${flat.flatNumber}`,
-        flatNumber: flat.flatNumber || 'Unknown',
-        residentUid: flat.residentUid || '',
-        residentName: flat.residentName || `Resident of ${flat.flatNumber}`,
+        flatId: flat.id,
+        flatNumber: flat.flatNumber,
+        residentUid: undefined,
+        residentName: `Resident of ${flat.flatNumber}`,
         financialQuarterDisplayString: quarter,
         areaSqFt: flat.areaSqFt || 0,
         rateApplied: rate,
@@ -697,7 +704,7 @@ export const generateServiceChargeDemands = async (
         status: ServiceChargeDemandStatus.ISSUED,
         paymentHistory: [],
         notes: `Service charge for ${quarter} - ${flat.flatNumber}`,
-        issuedByUid: 'system',
+        issuedByUid,
         penaltyAppliedAt: null,
         invoiceGrouping: 'per_unit',
         showBreakdown: true,
@@ -716,7 +723,7 @@ export const generateServiceChargeDemands = async (
           }] : [])
         ],
         penaltyConfig: {
-          type: 'flat',
+          type: 'flat' as const,
           flatAmount: 50,
           gracePeriodDays: 7
         },
@@ -724,22 +731,151 @@ export const generateServiceChargeDemands = async (
           reminderDays: [7, 3, 1],
           maxReminders: 3
         },
-        remindersSent: 0
+        remindersSent: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        
+        // Initialize credit-related fields
+        hasCreditApplied: false,
+        creditAppliedAmount: 0,
+        creditApplications: [],
+        paymentAllocations: [],
+        unallocatedPayments: 0
       }
       
+      demands.push(demand)
+    }
+    
+    return demands
+    
+  } catch (error) {
+    console.error('Error generating basic service charge demands:', error)
+    throw error
+  }
+}
+
+/**
+ * Enhanced service charge generation with credit application integration
+ */
+export const generateServiceChargeDemands = async (
+  buildingId: string, 
+  quarter: string, 
+  rate: number,
+  flats: Flat[],
+  issuedByUid: string = 'system'
+): Promise<ServiceChargeDemand[]> => {
+  try {
+    console.log('Starting enhanced service charge generation...', {
+      buildingId, 
+      quarter, 
+      rate, 
+      flatsCount: flats.length,
+      issuedByUid
+    })
+    
+    // Step 1: Generate basic demands
+    const basicDemands = await generateBasicServiceChargeDemands(
+      buildingId, 
+      quarter, 
+      rate, 
+      flats,
+      issuedByUid
+    )
+    
+    console.log('Generated basic demands:', basicDemands.length)
+    
+    // Step 2: Apply available credits to the demands
+    let finalDemands = basicDemands
+    
+    try {
+      // Import credit application service
+      const { applyCreditsToNewDemands } = await import('./creditApplicationService')
+      
+      console.log('Applying credits to demands...')
+      finalDemands = await applyCreditsToNewDemands(
+        buildingId,
+        quarter,
+        basicDemands,
+        issuedByUid
+      )
+      
+      const demandsWithCredits = finalDemands.filter(d => d.hasCreditApplied)
+      console.log(`Applied credits to ${demandsWithCredits.length} demands`)
+      
+    } catch (creditError) {
+      console.error('Error applying credits, proceeding with basic demands:', creditError)
+      // Continue with basic demands if credit application fails
+    }
+    
+    // Step 3: Save demands to Firestore
+    const batch = writeBatch(db)
+    const savedDemands: ServiceChargeDemand[] = []
+    
+    for (const demand of finalDemands) {
+      const demandRef = doc(collection(db, 'serviceChargeDemands'))
+      
+      // Remove temporary ID and prepare for Firestore
+      const { id, ...demandData } = demand
+      
       batch.set(demandRef, {
-        ...demand,
+        ...demandData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
       
-      demandIds.push(demandRef.id)
+      // Add the real ID to our response
+      savedDemands.push({
+        ...demand,
+        id: demandRef.id
+      })
     }
     
     await batch.commit()
-    return demandIds
+    
+    console.log(`Successfully saved ${savedDemands.length} service charge demands`)
+    
+    // Step 4: Create account ledgers for any flats that don't have them
+    try {
+      const { getOrCreateResidentAccount } = await import('./residentAccountService')
+      
+      for (const demand of savedDemands) {
+        await getOrCreateResidentAccount(
+          demand.flatId,
+          demand.buildingId,
+          demand.flatNumber,
+          demand.residentName || `Resident of ${demand.flatNumber}`,
+          demand.residentUid
+        )
+      }
+      
+    } catch (accountError) {
+      console.warn('Error creating account ledgers:', accountError)
+      // This is not critical, continue
+    }
+    
+    return savedDemands
+    
   } catch (error) {
-    console.error('Error generating service charge demands:', error)
+    console.error('Error in enhanced service charge generation:', error)
+    throw error
+  }
+}
+
+/**
+ * Legacy function for backward compatibility
+ * Returns just the IDs as the original function did
+ */
+export const generateServiceChargeDemandsLegacy = async (
+  buildingId: string, 
+  quarter: string, 
+  rate: number,
+  flats: any[]
+): Promise<string[]> => {
+  try {
+    const demands = await generateServiceChargeDemands(buildingId, quarter, rate, flats)
+    return demands.map(d => d.id)
+  } catch (error) {
+    console.error('Error in legacy service charge generation:', error)
     throw error
   }
 }
