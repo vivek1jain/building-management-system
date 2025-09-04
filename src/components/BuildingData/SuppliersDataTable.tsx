@@ -1,0 +1,780 @@
+import React, { useState, useEffect, useMemo } from 'react'
+import { Search, Plus, Star, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Truck } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { useNotifications } from '../../contexts/NotificationContext'
+import { useBuilding } from '../../contexts/BuildingContext'
+import { getAllBuildings } from '../../services/buildingService'
+import { supplierService } from '../../services/supplierService'
+import { Supplier, Building } from '../../types'
+import BuildingSelector from './BuildingSelector'
+import DataTable, { Column, TableAction } from '../UI/DataTable'
+import Button from '../UI/Button'
+import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
+
+const SuppliersDataTable: React.FC = () => {
+  const { currentUser } = useAuth()
+  const { addNotification } = useNotifications()
+  const { selectedBuildingId, selectedBuilding } = useBuilding()
+  const [suppliers, setSuppliers] = useState<(Supplier & { buildingId: string })[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showCreateSupplier, setShowCreateSupplier] = useState(false)
+  const [showViewSupplier, setShowViewSupplier] = useState(false)
+  const [showEditSupplier, setShowEditSupplier] = useState(false)
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all')
+
+  // Supplier specialty dropdown options
+  const specialtyOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Specialties', description: 'Show all suppliers' },
+    { value: 'plumbing', label: 'Plumbing', description: 'Plumbing and water systems' },
+    { value: 'electrical', label: 'Electrical', description: 'Electrical systems and wiring' },
+    { value: 'hvac', label: 'HVAC', description: 'Heating, ventilation, and air conditioning' },
+    { value: 'cleaning', label: 'Cleaning', description: 'Cleaning and janitorial services' },
+    { value: 'security', label: 'Security', description: 'Security systems and services' },
+    { value: 'landscaping', label: 'Landscaping', description: 'Landscaping and gardening' }
+  ];
+
+  // Form states
+  const [supplierForm, setSupplierForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    companyName: '',
+    specialty: '',
+    rating: 0,
+    notes: '',
+    buildingId: ''
+  })
+
+  // Load suppliers on component mount
+  useEffect(() => {
+    const loadInitialSuppliers = async () => {
+      try {
+        setLoading(true)
+        console.log('🔥 Loading suppliers from Firebase...')
+        const suppliersData = await supplierService.getSuppliers()
+        console.log('🔥 Suppliers loaded:', suppliersData.length)
+        // Add buildingId to suppliers for compatibility with existing code
+        const suppliersWithBuilding = suppliersData.map(supplier => ({
+          ...supplier,
+          buildingId: selectedBuildingId || ''
+        }))
+        setSuppliers(suppliersWithBuilding)
+      } catch (error) {
+        console.error('🚨 Error loading suppliers:', error)
+        if (currentUser) {
+          addNotification({
+            title: 'Error',
+            message: 'Failed to load suppliers',
+            type: 'error',
+            userId: currentUser.id
+          })
+        }
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadInitialSuppliers()
+  }, [])
+
+  // Subscribe to real-time supplier updates
+  useEffect(() => {
+    if (!selectedBuildingId) return
+
+    console.log('🔥 Setting up real-time supplier subscription...')
+    const unsubscribe = supplierService.subscribeToSuppliers((suppliersData) => {
+      console.log('🔥 Received real-time supplier update:', suppliersData.length)
+      // Add buildingId to suppliers for compatibility with existing code
+      const suppliersWithBuilding = suppliersData.map(supplier => ({
+        ...supplier,
+        buildingId: selectedBuildingId
+      }))
+      setSuppliers(suppliersWithBuilding)
+    })
+
+    return () => {
+      console.log('🔥 Unsubscribing from supplier updates')
+      unsubscribe()
+    }
+  }, [selectedBuildingId])
+
+  useEffect(() => {
+    if (selectedBuildingId) {
+      // Initialize form with selected building if not already set
+      if (!supplierForm.buildingId) {
+        setSupplierForm(prev => ({ ...prev, buildingId: selectedBuildingId }))
+      }
+    }
+  }, [selectedBuildingId])
+
+
+
+  const handleCreateSupplier = async () => {
+    if (!supplierForm.buildingId || !currentUser) {
+      addNotification({
+        title: 'Error',
+        message: 'Please select a building and ensure you are logged in',
+        type: 'error',
+        userId: currentUser?.id || ''
+      })
+      return
+    }
+
+    // Validate required fields
+    if (!supplierForm.name || !supplierForm.email || !supplierForm.companyName || !supplierForm.specialty) {
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all required fields (Name, Email, Company, Specialty)',
+        type: 'error',
+        userId: currentUser.id
+      })
+      return
+    }
+    
+    try {
+      console.log('🔥 Creating supplier in Firebase...')
+      const supplierData = {
+        name: supplierForm.name,
+        email: supplierForm.email,
+        phone: supplierForm.phone,
+        role: 'supplier' as const,
+        companyName: supplierForm.companyName,
+        specialties: [supplierForm.specialty],
+        rating: supplierForm.rating || 0,
+        isActive: true,
+      }
+
+      const supplierId = await supplierService.createSupplier(supplierData)
+      console.log('🔥 Supplier created with ID:', supplierId)
+      
+      // Add to local state with the Firebase-generated ID
+      const newSupplier: Supplier & { buildingId: string } = {
+        id: supplierId,
+        ...supplierData,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        buildingId: selectedBuildingId,
+      }
+
+      setSuppliers(prev => [...prev, newSupplier])
+      setShowCreateSupplier(false)
+      
+      // Reset form
+      setSupplierForm({
+        name: '',
+        email: '',
+        phone: '',
+        companyName: '',
+        specialty: '',
+        rating: 0,
+        notes: '',
+        buildingId: selectedBuildingId || ''
+      })
+
+      addNotification({
+        title: 'Success',
+        message: 'Supplier created successfully',
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error creating supplier:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to create supplier',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
+  }
+
+  const handleViewSupplier = (supplier: Supplier) => {
+    console.log('View supplier clicked:', supplier)
+    setSelectedSupplier(supplier)
+    setShowViewSupplier(true)
+  }
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    console.log('Edit supplier clicked:', supplier)
+    setSelectedSupplier(supplier)
+    setSupplierForm({
+      name: supplier.companyName || 'Unknown Supplier',
+      email: supplier.email,
+      phone: supplier.phone || '',
+      companyName: supplier.companyName,
+      specialty: (supplier.specialties || [])[0] || '',
+      rating: supplier.rating || 0,
+      notes: '',
+      buildingId: (supplier as any).buildingId || selectedBuildingId || ''
+    })
+    setShowEditSupplier(true)
+  }
+
+  const handleDeleteSupplier = async (supplierId: string) => {
+    console.log('Delete supplier clicked:', supplierId)
+    if (!currentUser) return
+    
+    if (window.confirm('Are you sure you want to delete this supplier? This will hide the supplier but it can be restored later.')) {
+      try {
+        // Soft delete: mark as inactive instead of removing
+        setSuppliers(prev => prev.map(s => 
+          s.id === supplierId 
+            ? { ...s, isActive: false, updatedAt: new Date() }
+            : s
+        ))
+        addNotification({
+          title: 'Success',
+          message: 'Supplier deleted successfully (can be restored)',
+          type: 'success',
+          userId: currentUser.id
+        })
+      } catch (error) {
+        console.error('Error deleting supplier:', error)
+        addNotification({
+          title: 'Error',
+          message: 'Failed to delete supplier',
+          type: 'error',
+          userId: currentUser.id
+        })
+      }
+    }
+  }
+
+  const handleUpdateSupplier = async () => {
+    if (!selectedSupplier || !currentUser) return
+
+    // Validate required fields
+    if (!supplierForm.name || !supplierForm.email || !supplierForm.companyName || !supplierForm.specialty) {
+      addNotification({
+        title: 'Error',
+        message: 'Please fill in all required fields (Name, Email, Company, Specialty)',
+        type: 'error',
+        userId: currentUser.id
+      })
+      return
+    }
+    
+    try {
+      console.log('🔥 Updating supplier in Firebase...')
+      const supplierUpdates = {
+        name: supplierForm.name,
+        email: supplierForm.email,
+        phone: supplierForm.phone,
+        companyName: supplierForm.companyName,
+        specialties: [supplierForm.specialty],
+        rating: supplierForm.rating || 0,
+      }
+
+      await supplierService.updateSupplier(selectedSupplier.id, supplierUpdates)
+      console.log('🔥 Supplier updated successfully')
+
+      // Update local state
+      const updatedSupplier: Supplier & { buildingId: string } = {
+        ...selectedSupplier as (Supplier & { buildingId: string }),
+        ...supplierUpdates,
+        updatedAt: new Date(),
+      }
+
+      setSuppliers(prev => prev.map(s => s.id === selectedSupplier.id ? updatedSupplier : s))
+      setShowEditSupplier(false)
+      setSelectedSupplier(null)
+      
+      // Reset form
+      setSupplierForm({
+        name: '',
+        email: '',
+        phone: '',
+        companyName: '',
+        specialty: '',
+        rating: 0,
+        notes: '',
+        buildingId: selectedBuildingId || ''
+      })
+
+      addNotification({
+        title: 'Success',
+        message: 'Supplier updated successfully',
+        type: 'success',
+        userId: currentUser.id
+      })
+    } catch (error) {
+      console.error('Error updating supplier:', error)
+      addNotification({
+        title: 'Error',
+        message: 'Failed to update supplier',
+        type: 'error',
+        userId: currentUser.id
+      })
+    }
+  }
+
+  const getSpecialtyColor = (specialty: string | undefined) => {
+    if (!specialty) return 'text-gray-600 bg-neutral-100'
+    switch (specialty.toLowerCase()) {
+      case 'plumbing': return 'text-primary-600 bg-blue-100'
+      case 'electrical': return 'text-yellow-600 bg-yellow-100'
+      case 'hvac': return 'text-success-600 bg-success-100'
+      case 'cleaning': return 'text-purple-600 bg-purple-100'
+      case 'security': return 'text-red-600 bg-red-100'
+      case 'landscaping': return 'text-emerald-600 bg-emerald-100'
+      default: return 'text-gray-600 bg-neutral-100'
+    }
+  }
+
+
+  const renderStars = (rating: number) => {
+    const stars = []
+    const fullStars = Math.floor(rating)
+    const hasHalfStar = rating % 1 >= 0.5
+    
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        // Full star
+        stars.push(
+          <Star
+            key={i}
+            className="h-4 w-4 text-yellow-400 fill-yellow-400 drop-shadow-sm"
+          />
+        )
+      } else if (i === fullStars && hasHalfStar) {
+        // Half star
+        stars.push(
+          <div key={i} className="relative h-4 w-4">
+            <Star className="h-4 w-4 text-gray-300 fill-gray-200 absolute" />
+            <div className="absolute inset-0 overflow-hidden" style={{ width: '50%' }}>
+              <Star className="h-4 w-4 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+            </div>
+          </div>
+        )
+      } else {
+        // Empty star
+        stars.push(
+          <Star
+            key={i}
+            className="h-4 w-4 text-gray-300 fill-gray-200"
+          />
+        )
+      }
+    }
+    
+    return (
+      <div className="flex items-center gap-0.5">
+        <div className="flex items-center">
+          {stars}
+        </div>
+        <span className="ml-1.5 text-xs text-gray-600 font-medium font-inter">
+          {rating.toFixed(1)}
+        </span>
+      </div>
+    )
+  }
+
+  // Filter suppliers with memoization
+  const filteredSuppliers = useMemo(() => {
+    return suppliers.filter(supplier => {
+      // Only show active suppliers (soft delete implementation)
+      const isActive = supplier.isActive
+      
+      // Building-scoped filtering: only show suppliers for the selected building
+      const matchesBuilding = !selectedBuildingId || supplier.buildingId === selectedBuildingId
+      
+      const matchesSearch = (supplier.companyName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            supplier.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (supplier.specialties || []).some(s => s.toLowerCase().includes(searchTerm.toLowerCase())))
+      
+      const matchesSpecialty = selectedSpecialty === 'all' || 
+                              (supplier.specialties || []).some(s => s.toLowerCase() === selectedSpecialty.toLowerCase())
+      
+      return isActive && matchesBuilding && matchesSearch && matchesSpecialty
+    })
+  }, [suppliers, selectedBuildingId, searchTerm, selectedSpecialty])
+
+  // Define table columns
+  const columns: Column<Supplier & { buildingId: string }>[] = useMemo(() => [
+    {
+      key: 'supplierInfo',
+      title: 'Supplier',
+      dataIndex: 'name',
+      sortable: true,
+      render: (value, supplier) => (
+        <div>
+          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.companyName || 'Unknown Supplier'}</div>
+          {supplier.companyName && (
+            <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'phone',
+      title: 'Phone',
+      dataIndex: 'phone',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900 font-inter">{supplier.phone || 'N/A'}</div>
+      )
+    },
+    {
+      key: 'email',
+      title: 'Email',
+      dataIndex: 'email',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900 font-inter">{supplier.email}</div>
+      )
+    },
+    {
+      key: 'specialty',
+      title: 'Specialty',
+      dataIndex: 'specialties',
+      sortable: false,
+      render: (value, supplier) => (
+        <div className="flex flex-wrap gap-1">
+          {(supplier.specialties || []).map((specialty, index) => (
+            <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+              {specialty}
+            </span>
+          ))}
+        </div>
+      )
+    },
+    {
+      key: 'rating',
+      title: 'Rating',
+      dataIndex: 'rating',
+      sortable: true,
+      render: (value, supplier) => (
+        <div className="text-sm text-neutral-900">
+          {supplier.rating ? renderStars(supplier.rating) : 'No rating'}
+        </div>
+      )
+    }
+  ], [])
+
+  // Define row actions
+  const rowActions: TableAction<Supplier & { buildingId: string }>[] = useMemo(() => [
+    {
+      key: 'view',
+      label: 'View',
+      onClick: handleViewSupplier,
+      variant: 'outline'
+    },
+    {
+      key: 'edit',
+      label: 'Edit',
+      onClick: handleEditSupplier,
+      variant: 'outline'
+    },
+    {
+      key: 'delete',
+      label: 'Delete',
+      onClick: (supplier) => handleDeleteSupplier(supplier.id),
+      variant: 'outline'
+    }
+  ], [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-end">
+        {/* Top Right Controls */}
+        <div className="flex items-center gap-4">
+          {/* Add Supplier Button */}
+          <Button onClick={() => setShowCreateSupplier(true)}>Add Supplier</Button>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+          <input
+            type="text"
+            placeholder="Search suppliers..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+          />
+        </div>
+        <Dropdown
+          options={specialtyOptions}
+          value={selectedSpecialty}
+          onChange={(value) => setSelectedSpecialty(value)}
+          placeholder="Filter by specialty"
+          className="min-w-[200px]"
+        />
+      </div>
+
+      {/* Suppliers Table */}
+      <DataTable
+        data={filteredSuppliers}
+        columns={columns}
+        actions={rowActions}
+        searchable={false}
+        emptyMessage="No suppliers found. Get started by adding your first supplier."
+      />
+
+      {/* Create Supplier Modal */}
+{showCreateSupplier && (
+        <Modal
+          isOpen={showCreateSupplier}
+          onClose={() => setShowCreateSupplier(false)}
+          title="Add New Supplier"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+              <input
+                type="text"
+                value={supplierForm.name}
+                onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
+              <input
+                type="text"
+                value={supplierForm.companyName}
+                onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                <input
+                  type="email"
+                  value={supplierForm.email}
+                  onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <input
+                  type="tel"
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
+                <Dropdown
+                  options={specialtyOptions.filter(opt => opt.value !== 'all')}
+                  value={supplierForm.specialty}
+                  onChange={(value) => setSupplierForm({...supplierForm, specialty: value})}
+                  placeholder="Select Specialty"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <select
+                  value={supplierForm.rating}
+                  onChange={(e) => setSupplierForm({...supplierForm, rating: parseFloat(e.target.value)})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={5}>5 Stars</option>
+                  <option value={4.5}>4.5 Stars</option>
+                  <option value={4}>4 Stars</option>
+                  <option value={3.5}>3.5 Stars</option>
+                  <option value={3}>3 Stars</option>
+                  <option value={2.5}>2.5 Stars</option>
+                  <option value={2}>2 Stars</option>
+                  <option value={1.5}>1.5 Stars</option>
+                  <option value={1}>1 Star</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <textarea
+                value={supplierForm.notes}
+                onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowCreateSupplier(false)}>Cancel</Button>
+              <Button onClick={handleCreateSupplier}>Add Supplier</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
+
+      {/* View Supplier Modal */}
+{showViewSupplier && selectedSupplier && (
+        <Modal
+          isOpen={showViewSupplier}
+          onClose={() => setShowViewSupplier(false)}
+          title="Supplier Details"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.companyName}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.email}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <p className="text-sm text-neutral-900 font-inter">{selectedSupplier.phone || 'Not provided'}</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialties</label>
+                <div className="flex flex-wrap gap-1">
+                  {(selectedSupplier.specialties || []).map((specialty, index) => (
+                    <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+                      {specialty}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <div className="flex items-center gap-1">
+                  {selectedSupplier.rating ? renderStars(selectedSupplier.rating) : 'No rating'}
+                  {selectedSupplier.rating && <span className="text-sm text-gray-600 ml-1 font-inter">{selectedSupplier.rating}</span>}
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
+              <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                selectedSupplier.isActive ? 'text-success-600 bg-success-100' : 'text-red-600 bg-red-100'
+              }`}>
+                {selectedSupplier.isActive ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowViewSupplier(false)}>Close</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
+
+      {/* Edit Supplier Modal */}
+      {showEditSupplier && selectedSupplier && (
+        <Modal
+          isOpen={showEditSupplier}
+          onClose={() => setShowEditSupplier(false)}
+          title="Edit Supplier"
+          size="lg"
+        >
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
+              <input
+                type="text"
+                value={supplierForm.name}
+                onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
+              <input
+                type="text"
+                value={supplierForm.companyName}
+                onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
+                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                <input
+                  type="email"
+                  value={supplierForm.email}
+                  onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <input
+                  type="tel"
+                  value={supplierForm.phone}
+                  onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
+                <Dropdown
+                  options={specialtyOptions.filter(opt => opt.value !== 'all')}
+                  value={supplierForm.specialty}
+                  onChange={(value) => setSupplierForm({...supplierForm, specialty: value})}
+                  placeholder="Select Specialty"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <select
+                  value={supplierForm.rating}
+                  onChange={(e) => setSupplierForm({...supplierForm, rating: Number(e.target.value)})}
+                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                >
+                  <option value={0}>No rating</option>
+                  <option value={1}>1 Star</option>
+                  <option value={2}>2 Stars</option>
+                  <option value={3}>3 Stars</option>
+                  <option value={4}>4 Stars</option>
+                  <option value={5}>5 Stars</option>
+                </select>
+              </div>
+            </div>
+
+            <ModalFooter>
+              <Button variant="secondary" onClick={() => setShowEditSupplier(false)}>Cancel</Button>
+              <Button onClick={handleUpdateSupplier}>Update Supplier</Button>
+            </ModalFooter>
+          </div>
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+export default SuppliersDataTable

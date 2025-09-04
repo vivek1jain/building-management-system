@@ -1,0 +1,124 @@
+{
+  "timestamp": "2025-07-01T05:16:02.258Z",
+  "total": 23,
+  "passed": 23,
+  "failed": 0,
+  "skipped": 0,
+  "tests": [
+    {
+      "name": "Check if app is running on localhost:3003",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.565Z"
+    },
+    {
+      "name": "Check Firebase configuration exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.569Z"
+    },
+    {
+      "name": "Check package.json exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.570Z"
+    },
+    {
+      "name": "Check firestore.rules exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.579Z"
+    },
+    {
+      "name": "Check src/App.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.586Z"
+    },
+    {
+      "name": "Check src/main.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.621Z"
+    },
+    {
+      "name": "Check src/pages/Dashboard.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.630Z"
+    },
+    {
+      "name": "Check src/pages/Tickets.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.637Z"
+    },
+    {
+      "name": "Check src/pages/CreateTicket.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.653Z"
+    },
+    {
+      "name": "Check src/pages/Suppliers.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.661Z"
+    },
+    {
+      "name": "Check src/pages/Events.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.669Z"
+    },
+    {
+      "name": "Check src/pages/Login.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.670Z"
+    },
+    {
+      "name": "Check src/components/Layout/Header.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.672Z"
+    },
+    {
+      "name": "Check src/components/Layout/Sidebar.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.679Z"
+    },
+    {
+      "name": "Check src/services/ticketService.ts exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.684Z"
+    },
+    {
+      "name": "Check src/services/supplierService.ts exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.687Z"
+    },
+    {
+      "name": "Check src/contexts/AuthContext.tsx exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.696Z"
+    },
+    {
+      "name": "Check vite.config.ts exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.701Z"
+    },
+    {
+      "name": "Check tailwind.config.js exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.705Z"
+    },
+    {
+      "name": "Check tsconfig.json exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.716Z"
+    },
+    {
+      "name": "Check package.json has required dependencies",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.729Z"
+    },
+    {
+      "name": "Check node_modules exists",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:02.735Z"
+    },
+    {
+      "name": "Check TypeScript compilation",
+      "status": "PASSED",
+      "timestamp": "2025-07-01T05:16:44.918Z"
+    }
+  ]
+}

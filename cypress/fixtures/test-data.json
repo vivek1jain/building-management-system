@@ -1,0 +1,581 @@
+{
+  "users": {
+    "admin": {
+      "email": "admin@building.com",
+      "password": "admin123",
+      "role": "Admin",
+      "name": "Admin User",
+      "permissions": ["all"]
+    },
+    "manager": {
+      "email": "manager@building.com",
+      "password": "password123",
+      "role": "Manager",
+      "name": "Building Manager",
+      "permissions": ["buildings", "tickets", "budgets", "invoices", "people"]
+    },
+    "finance": {
+      "email": "finance@building.com",
+      "password": "finance123",
+      "role": "Finance",
+      "name": "Finance Manager",
+      "permissions": ["budgets", "invoices", "service_charges", "reports"]
+    },
+    "supplier": {
+      "email": "supplier@example.com",
+      "password": "supplier123",
+      "role": "Supplier",
+      "name": "Maintenance Supplier",
+      "permissions": ["work_orders", "quotes"]
+    },
+    "resident": {
+      "email": "resident@building.com",
+      "password": "resident123",
+      "role": "Resident",
+      "name": "John Doe",
+      "permissions": ["view_charges", "submit_tickets"]
+    }
+  },
+  "buildings": [
+    {
+      "id": "building-1",
+      "name": "Sunset Towers",
+      "address": "123 Sunset Boulevard",
+      "city": "Los Angeles",
+      "state": "CA",
+      "zipCode": "90210",
+      "floors": 15,
+      "units": 120,
+      "yearBuilt": 2010,
+      "financialYear": "2024",
+      "managerId": "manager-1",
+      "status": "Active"
+    },
+    {
+      "id": "building-2",
+      "name": "Ocean View Apartments",
+      "address": "456 Ocean Drive",
+      "city": "Miami",
+      "state": "FL",
+      "zipCode": "33139",
+      "floors": 8,
+      "units": 64,
+      "yearBuilt": 2015,
+      "financialYear": "2024",
+      "managerId": "manager-2",
+      "status": "Active"
+    }
+  ],
+  "flats": [
+    {
+      "id": "flat-1",
+      "buildingId": "building-1",
+      "number": "101",
+      "floor": 1,
+      "type": "1BR",
+      "area": 750,
+      "status": "Occupied",
+      "currentResidentId": "resident-1",
+      "monthlyRent": 2500
+    },
+    {
+      "id": "flat-2",
+      "buildingId": "building-1",
+      "number": "102",
+      "floor": 1,
+      "type": "2BR",
+      "area": 1000,
+      "status": "Available",
+      "currentResidentId": null,
+      "monthlyRent": 3500
+    },
+    {
+      "id": "flat-3",
+      "buildingId": "building-1",
+      "number": "201",
+      "floor": 2,
+      "type": "1BR",
+      "area": 750,
+      "status": "Occupied",
+      "currentResidentId": "resident-2",
+      "monthlyRent": 2500
+    }
+  ],
+  "people": [
+    {
+      "id": "resident-1",
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "phone": "555-0101",
+      "status": "Resident",
+      "flatId": "flat-1",
+      "moveInDate": "2023-01-01",
+      "moveOutDate": null,
+      "emergencyContact": {
+        "name": "Jane Doe",
+        "phone": "555-0102",
+        "relationship": "Spouse"
+      }
+    },
+    {
+      "id": "resident-2",
+      "name": "Jane Smith",
+      "email": "jane.smith@example.com",
+      "phone": "555-0201",
+      "status": "Resident",
+      "flatId": "flat-3",
+      "moveInDate": "2023-02-01",
+      "moveOutDate": null,
+      "emergencyContact": {
+        "name": "Bob Smith",
+        "phone": "555-0202",
+        "relationship": "Brother"
+      }
+    },
+    {
+      "id": "owner-1",
+      "name": "Mike Johnson",
+      "email": "mike.johnson@example.com",
+      "phone": "555-0301",
+      "status": "Owner",
+      "flatId": "flat-2",
+      "moveInDate": null,
+      "moveOutDate": null,
+      "emergencyContact": {
+        "name": "Sarah Johnson",
+        "phone": "555-0302",
+        "relationship": "Wife"
+      }
+    }
+  ],
+  "tickets": [
+    {
+      "id": "ticket-1",
+      "title": "Leaking Faucet in Kitchen",
+      "description": "The kitchen faucet is leaking and needs repair",
+      "location": "Apartment 101",
+      "urgency": "Medium",
+      "category": "Plumbing",
+      "status": "New",
+      "createdBy": "resident-1",
+      "assignedTo": null,
+      "createdAt": "2024-01-15T10:00:00Z",
+      "updatedAt": "2024-01-15T10:00:00Z",
+      "attachments": []
+    },
+    {
+      "id": "ticket-2",
+      "title": "HVAC Not Working",
+      "description": "Air conditioning is not cooling properly",
+      "location": "Apartment 201",
+      "urgency": "High",
+      "category": "HVAC",
+      "status": "In Progress",
+      "createdBy": "resident-2",
+      "assignedTo": "supplier-1",
+      "createdAt": "2024-01-14T14:30:00Z",
+      "updatedAt": "2024-01-15T09:00:00Z",
+      "attachments": []
+    },
+    {
+      "id": "ticket-3",
+      "title": "Broken Light Fixture",
+      "description": "Light fixture in living room is broken",
+      "location": "Apartment 102",
+      "urgency": "Low",
+      "category": "Electrical",
+      "status": "Scheduled",
+      "createdBy": "manager-1",
+      "assignedTo": "supplier-2",
+      "createdAt": "2024-01-13T16:00:00Z",
+      "updatedAt": "2024-01-14T11:00:00Z",
+      "attachments": []
+    }
+  ],
+  "budgets": [
+    {
+      "id": "budget-1",
+      "buildingId": "building-1",
+      "year": 2024,
+      "totalAmount": 100000,
+      "spentAmount": 45000,
+      "remainingAmount": 55000,
+      "status": "Active",
+      "categories": [
+        {
+          "name": "Maintenance",
+          "amount": 30000,
+          "spent": 15000
+        },
+        {
+          "name": "Utilities",
+          "amount": 25000,
+          "spent": 12000
+        },
+        {
+          "name": "Insurance",
+          "amount": 15000,
+          "spent": 8000
+        },
+        {
+          "name": "Emergency Fund",
+          "amount": 30000,
+          "spent": 10000
+        }
+      ]
+    }
+  ],
+  "invoices": [
+    {
+      "id": "invoice-1",
+      "number": "INV-2024-001",
+      "buildingId": "building-1",
+      "vendorId": "vendor-1",
+      "amount": 5000,
+      "description": "Plumbing repair services",
+      "status": "Pending",
+      "dueDate": "2024-02-15",
+      "createdAt": "2024-01-10T10:00:00Z",
+      "approvedAt": null,
+      "paidAt": null
+    },
+    {
+      "id": "invoice-2",
+      "number": "INV-2024-002",
+      "buildingId": "building-1",
+      "vendorId": "vendor-2",
+      "amount": 3500,
+      "description": "HVAC maintenance",
+      "status": "Approved",
+      "dueDate": "2024-02-20",
+      "createdAt": "2024-01-12T14:00:00Z",
+      "approvedAt": "2024-01-13T09:00:00Z",
+      "paidAt": null
+    },
+    {
+      "id": "invoice-3",
+      "number": "INV-2024-003",
+      "buildingId": "building-1",
+      "vendorId": "vendor-3",
+      "amount": 1200,
+      "description": "Electrical repairs",
+      "status": "Paid",
+      "dueDate": "2024-01-30",
+      "createdAt": "2024-01-05T11:00:00Z",
+      "approvedAt": "2024-01-06T10:00:00Z",
+      "paidAt": "2024-01-15T16:00:00Z"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "vendor-1",
+      "name": "ABC Plumbing Services",
+      "email": "contact@abcplumbing.com",
+      "phone": "555-1001",
+      "specialization": "Plumbing",
+      "rating": 4.5,
+      "status": "Active"
+    },
+    {
+      "id": "vendor-2",
+      "name": "Cool Air HVAC",
+      "email": "service@coolairhvac.com",
+      "phone": "555-1002",
+      "specialization": "HVAC",
+      "rating": 4.8,
+      "status": "Active"
+    },
+    {
+      "id": "vendor-3",
+      "name": "Bright Electric",
+      "email": "info@brightelectric.com",
+      "phone": "555-1003",
+      "specialization": "Electrical",
+      "rating": 4.2,
+      "status": "Active"
+    }
+  ],
+  "serviceCharges": [
+    {
+      "id": "charge-1",
+      "buildingId": "building-1",
+      "flatId": "flat-1",
+      "residentId": "resident-1",
+      "quarter": "Q1 2024",
+      "amount": 500,
+      "rate": 2.50,
+      "area": 750,
+      "status": "Pending",
+      "dueDate": "2024-03-31",
+      "paidAmount": 0,
+      "paidAt": null,
+      "penalties": []
+    },
+    {
+      "id": "charge-2",
+      "buildingId": "building-1",
+      "flatId": "flat-3",
+      "residentId": "resident-2",
+      "quarter": "Q1 2024",
+      "amount": 500,
+      "rate": 2.50,
+      "area": 750,
+      "status": "Paid",
+      "dueDate": "2024-03-31",
+      "paidAmount": 500,
+      "paidAt": "2024-01-15T10:00:00Z",
+      "penalties": []
+    }
+  ],
+  "assets": [
+    {
+      "id": "asset-1",
+      "buildingId": "building-1",
+      "name": "HVAC System - Floor 1",
+      "type": "HVAC",
+      "manufacturer": "Carrier",
+      "model": "48TC",
+      "serialNumber": "CAR-2023-001",
+      "location": "Building A - Floor 1",
+      "installationDate": "2023-01-15",
+      "warrantyExpiry": "2026-01-15",
+      "nextServiceDate": "2024-02-15",
+      "status": "Operational",
+      "value": 15000
+    },
+    {
+      "id": "asset-2",
+      "buildingId": "building-1",
+      "name": "Elevator - Main",
+      "type": "Elevator",
+      "manufacturer": "Otis",
+      "model": "Gen3",
+      "serialNumber": "OTI-2023-001",
+      "location": "Building A - Main Lobby",
+      "installationDate": "2023-01-15",
+      "warrantyExpiry": "2028-01-15",
+      "nextServiceDate": "2024-03-01",
+      "status": "Operational",
+      "value": 50000
+    },
+    {
+      "id": "asset-3",
+      "buildingId": "building-1",
+      "name": "Water Pump System",
+      "type": "Plumbing",
+      "manufacturer": "Grundfos",
+      "model": "CRN",
+      "serialNumber": "GRU-2023-001",
+      "location": "Building A - Basement",
+      "installationDate": "2023-01-15",
+      "warrantyExpiry": "2025-01-15",
+      "nextServiceDate": "2024-01-30",
+      "status": "Needs Repair",
+      "value": 8000
+    }
+  ],
+  "events": [
+    {
+      "id": "event-1",
+      "title": "Building Inspection",
+      "description": "Monthly building inspection by management",
+      "type": "Inspection",
+      "location": "Building A",
+      "startDate": "2024-01-20T10:00:00Z",
+      "endDate": "2024-01-20T12:00:00Z",
+      "organizer": "manager-1",
+      "participants": ["manager-1", "supplier-1"],
+      "status": "Scheduled"
+    },
+    {
+      "id": "event-2",
+      "title": "Resident Meeting",
+      "description": "Quarterly resident meeting to discuss building updates",
+      "type": "Meeting",
+      "location": "Building A - Community Room",
+      "startDate": "2024-01-25T18:00:00Z",
+      "endDate": "2024-01-25T19:30:00Z",
+      "organizer": "manager-1",
+      "participants": ["manager-1", "resident-1", "resident-2"],
+      "status": "Scheduled"
+    },
+    {
+      "id": "event-3",
+      "title": "HVAC Maintenance",
+      "description": "Scheduled HVAC system maintenance",
+      "type": "Maintenance",
+      "location": "Building A - Floor 1",
+      "startDate": "2024-01-22T09:00:00Z",
+      "endDate": "2024-01-22T11:00:00Z",
+      "organizer": "manager-1",
+      "participants": ["supplier-2"],
+      "status": "Scheduled"
+    }
+  ],
+  "income": [
+    {
+      "id": "income-1",
+      "buildingId": "building-1",
+      "type": "Service Charge",
+      "amount": 500,
+      "description": "Q1 2024 service charge payment",
+      "date": "2024-01-15",
+      "residentId": "resident-2",
+      "flatId": "flat-3"
+    },
+    {
+      "id": "income-2",
+      "buildingId": "building-1",
+      "type": "Rent",
+      "amount": 2500,
+      "description": "January 2024 rent payment",
+      "date": "2024-01-01",
+      "residentId": "resident-1",
+      "flatId": "flat-1"
+    }
+  ],
+  "expenditure": [
+    {
+      "id": "expense-1",
+      "buildingId": "building-1",
+      "type": "Maintenance",
+      "amount": 1500,
+      "description": "Plumbing repair - Apartment 101",
+      "date": "2024-01-10",
+      "vendorId": "vendor-1",
+      "budgetCategory": "Maintenance"
+    },
+    {
+      "id": "expense-2",
+      "buildingId": "building-1",
+      "type": "Utilities",
+      "amount": 3000,
+      "description": "Electricity bill - January 2024",
+      "date": "2024-01-05",
+      "vendorId": null,
+      "budgetCategory": "Utilities"
+    }
+  ],
+  "workOrders": [
+    {
+      "id": "work-order-1",
+      "title": "HVAC System Repair",
+      "description": "Repair HVAC system on floor 1",
+      "type": "Repair",
+      "priority": "High",
+      "status": "In Progress",
+      "assignedTo": "supplier-2",
+      "estimatedCost": 2500,
+      "actualCost": 0,
+      "startDate": "2024-01-16",
+      "completionDate": null,
+      "buildingId": "building-1",
+      "assetId": "asset-1"
+    },
+    {
+      "id": "work-order-2",
+      "title": "Water Pump Replacement",
+      "description": "Replace water pump system in basement",
+      "type": "Replacement",
+      "priority": "Medium",
+      "status": "Scheduled",
+      "assignedTo": "supplier-1",
+      "estimatedCost": 8000,
+      "actualCost": 0,
+      "startDate": "2024-01-25",
+      "completionDate": null,
+      "buildingId": "building-1",
+      "assetId": "asset-3"
+    }
+  ],
+  "quotes": [
+    {
+      "id": "quote-1",
+      "workOrderId": "work-order-1",
+      "vendorId": "vendor-2",
+      "amount": 2500,
+      "description": "HVAC system repair including parts and labor",
+      "status": "Submitted",
+      "submittedAt": "2024-01-15T10:00:00Z",
+      "validUntil": "2024-01-22T10:00:00Z"
+    },
+    {
+      "id": "quote-2",
+      "workOrderId": "work-order-1",
+      "vendorId": "vendor-3",
+      "amount": 2800,
+      "description": "Complete HVAC repair with extended warranty",
+      "status": "Submitted",
+      "submittedAt": "2024-01-15T14:00:00Z",
+      "validUntil": "2024-01-22T14:00:00Z"
+    }
+  ],
+  "reminders": [
+    {
+      "id": "reminder-1",
+      "type": "Service Charge",
+      "title": "Service Charge Due",
+      "message": "Your Q1 2024 service charge of $500 is due on March 31, 2024",
+      "recipientId": "resident-1",
+      "dueDate": "2024-03-31",
+      "status": "Pending",
+      "sentAt": null
+    },
+    {
+      "id": "reminder-2",
+      "type": "Maintenance",
+      "title": "Asset Maintenance Due",
+      "message": "HVAC system maintenance is scheduled for February 15, 2024",
+      "recipientId": "manager-1",
+      "dueDate": "2024-02-15",
+      "status": "Pending",
+      "sentAt": null
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notification-1",
+      "type": "Ticket Update",
+      "title": "Ticket Status Updated",
+      "message": "Your ticket 'Leaking Faucet in Kitchen' has been assigned to a technician",
+      "recipientId": "resident-1",
+      "read": false,
+      "createdAt": "2024-01-15T11:00:00Z"
+    },
+    {
+      "id": "notification-2",
+      "type": "Payment Received",
+      "title": "Payment Confirmation",
+      "message": "Your service charge payment of $500 has been received",
+      "recipientId": "resident-2",
+      "read": true,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "settings": {
+    "financial": {
+      "defaultServiceChargeRate": 2.50,
+      "latePaymentPenalty": 0.05,
+      "reminderDays": [7, 3, 1],
+      "autoGenerateDemands": true,
+      "quarterlyDemands": true
+    },
+    "notifications": {
+      "emailNotifications": true,
+      "smsNotifications": false,
+      "pushNotifications": true,
+      "reminderFrequency": "daily"
+    },
+    "security": {
+      "sessionTimeout": 3600,
+      "maxLoginAttempts": 5,
+      "passwordPolicy": {
+        "minLength": 8,
+        "requireUppercase": true,
+        "requireLowercase": true,
+        "requireNumbers": true,
+        "requireSpecialChars": true
+      }
+    }
+  }
+} 

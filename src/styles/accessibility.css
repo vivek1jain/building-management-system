@@ -1,0 +1,303 @@
+/**
+ * Accessibility Enhancement Styles
+ * 
+ * CSS classes and utilities for improved accessibility including:
+ * - High contrast mode
+ * - Reduced motion preferences  
+ * - Enhanced focus indicators
+ * - Screen reader utilities
+ */
+
+/* ==========================================================================
+   High Contrast Mode
+   ========================================================================== */
+
+.high-contrast {
+  /* Increase contrast for text */
+  --color-neutral-900: #000000;
+  --color-neutral-800: #1a1a1a;
+  --color-neutral-700: #2d2d2d;
+  --color-neutral-600: #404040;
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f5f5f5;
+  
+  /* High contrast borders */
+  --color-neutral-300: #808080;
+  --color-neutral-200: #a0a0a0;
+  
+  /* Enhanced focus colors */
+  --color-primary-500: #0066cc;
+  --color-primary-600: #004499;
+  --color-primary-700: #003377;
+  
+  /* Status colors with higher contrast */
+  --color-success-600: #006600;
+  --color-success-700: #004400;
+  --color-danger-600: #cc0000;
+  --color-danger-700: #990000;
+  --color-warning-600: #cc6600;
+  --color-warning-700: #994400;
+}
+
+.high-contrast button,
+.high-contrast .btn {
+  border: 2px solid currentColor !important;
+}
+
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  border: 2px solid #404040 !important;
+}
+
+.high-contrast input:focus,
+.high-contrast textarea:focus,
+.high-contrast select:focus {
+  border: 3px solid #0066cc !important;
+  outline: none;
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* Respect system preference for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   Enhanced Focus Indicators
+   ========================================================================== */
+
+.focus-visible button:focus-visible,
+.focus-visible input:focus-visible,
+.focus-visible textarea:focus-visible,
+.focus-visible select:focus-visible,
+.focus-visible a:focus-visible,
+.focus-visible [tabindex]:focus-visible {
+  outline: 3px solid #0066cc !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Skip to main content link */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: #000000;
+  color: #ffffff;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 4px;
+  z-index: 1000;
+  font-weight: 600;
+  border: 2px solid #ffffff;
+}
+
+.skip-link:focus {
+  top: 6px;
+  outline: 3px solid #0066cc;
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Screen Reader Utilities
+   ========================================================================== */
+
+/* Screen reader only text */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Screen reader only text that becomes visible on focus */
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+
+/* ==========================================================================
+   Keyboard Navigation
+   ========================================================================== */
+
+/* Better focus indicators for interactive elements */
+.keyboard-nav button,
+.keyboard-nav input,
+.keyboard-nav select,
+.keyboard-nav textarea,
+.keyboard-nav a,
+.keyboard-nav [tabindex] {
+  position: relative;
+}
+
+.keyboard-nav button:focus,
+.keyboard-nav input:focus,
+.keyboard-nav select:focus,
+.keyboard-nav textarea:focus,
+.keyboard-nav a:focus,
+.keyboard-nav [tabindex]:focus {
+  z-index: 1;
+}
+
+/* ==========================================================================
+   Color Blind Friendly
+   ========================================================================== */
+
+/* Ensure status indicators use more than just color */
+.status-indicator {
+  position: relative;
+  padding-left: 20px;
+}
+
+.status-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: currentColor;
+}
+
+.status-indicator.status-success::before {
+  content: '✓';
+  background: none;
+  color: #006600;
+  font-weight: bold;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+
+.status-indicator.status-error::before {
+  content: '✗';
+  background: none;
+  color: #cc0000;
+  font-weight: bold;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+
+.status-indicator.status-warning::before {
+  content: '!';
+  background: none;
+  color: #cc6600;
+  font-weight: bold;
+  width: auto;
+  height: auto;
+  border-radius: 0;
+}
+
+/* ==========================================================================
+   Text Scaling Support
+   ========================================================================== */
+
+/* Ensure components work well with text scaling up to 200% */
+@media (min-width: 1px) {
+  .responsive-text {
+    font-size: clamp(0.875rem, calc(0.875rem * var(--app-font-scale, 1)), 2rem);
+  }
+  
+  .responsive-padding {
+    padding: clamp(0.5rem, calc(1rem * var(--app-density, 1)), 2rem);
+  }
+  
+  .responsive-margin {
+    margin: clamp(0.25rem, calc(0.5rem * var(--app-density, 1)), 1rem);
+  }
+}
+
+/* ==========================================================================
+   Print Styles
+   ========================================================================== */
+
+@media print {
+  /* Hide interactive elements that don't make sense in print */
+  button,
+  .btn,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Ensure good contrast in print */
+  * {
+    color: #000000 !important;
+    background: #ffffff !important;
+  }
+  
+  /* Show link URLs */
+  a[href]:after {
+    content: " (" attr(href) ")";
+    font-size: smaller;
+  }
+  
+  /* Better table printing */
+  table {
+    border-collapse: collapse !important;
+  }
+  
+  table, th, td {
+    border: 1px solid #000000 !important;
+  }
+}
+
+/* ==========================================================================
+   Touch and Mobile Accessibility
+   ========================================================================== */
+
+/* Minimum touch target size */
+@media (hover: none) and (pointer: coarse) {
+  button,
+  .btn,
+  input,
+  select,
+  textarea,
+  a,
+  [tabindex],
+  [role="button"],
+  [role="link"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Increase tap target spacing */
+  .touch-friendly > * {
+    margin: 4px;
+  }
+}
