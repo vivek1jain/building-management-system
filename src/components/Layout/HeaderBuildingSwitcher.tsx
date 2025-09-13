@@ -2,6 +2,7 @@ import React from 'react'
 import { Building } from 'lucide-react'
 import { useBuilding } from '../../contexts/BuildingContext'
 import { Dropdown, DropdownOption } from '../UI'
+import { useIsMobile } from '../../hooks/useMediaQuery'
 
 const HeaderBuildingSwitcher: React.FC = () => {
   const { 
@@ -12,6 +13,7 @@ const HeaderBuildingSwitcher: React.FC = () => {
     loading, 
     error 
   } = useBuilding()
+  const isMobile = useIsMobile()
 
   if (loading) {
     return (
@@ -31,11 +33,13 @@ const HeaderBuildingSwitcher: React.FC = () => {
     )
   }
 
-  // Convert buildings to dropdown options (no icons since main dropdown has one)
+  // Convert buildings to dropdown options (simplified for mobile)
   const buildingOptions: DropdownOption[] = buildings.map((building) => ({
     value: building.id,
     label: building.name,
-    description: building.address ? `${building.units} units • ${building.address}` : `${building.units} units`
+    description: isMobile 
+      ? `${building.units} units` // Simplified for mobile
+      : building.address ? `${building.units} units • ${building.address}` : `${building.units} units`
   }))
 
   return (
@@ -43,14 +47,14 @@ const HeaderBuildingSwitcher: React.FC = () => {
       options={buildingOptions}
       value={selectedBuildingId}
       onChange={setSelectedBuildingId}
-      placeholder="Select Building"
+      placeholder={isMobile ? "Building" : "Select Building"}
       icon={<Building className="h-4 w-4" />}
       size="sm"
       variant="default"
       showSearch={buildingOptions.length > 5}
-      className="min-w-[200px]"
-      buttonClassName="text-sm font-medium"
-      dropdownClassName="w-full"
+      className={isMobile ? "min-w-[120px] max-w-[140px]" : "min-w-[200px]"}
+      buttonClassName={`text-sm font-medium ${isMobile ? 'truncate' : ''}`}
+      dropdownClassName={isMobile ? "w-64 right-0" : "w-full"}
     />
   )
 }

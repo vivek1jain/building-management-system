@@ -412,42 +412,34 @@ const FlatsDataTableFixed: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-end">
-        {/* Top Right Controls */}
-        <div className="flex items-center gap-4">
-          {/* Add Flat Button */}
-          <Button onClick={() => setShowCreateFlat(true)}>Add Flat</Button>
+      {/* Desktop Controls - Search/Filter/Add aligned horizontally under tabs */}
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4 flex-1">
+          <input
+            type="text"
+            placeholder="Search flats..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-96 px-3 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter text-sm"
+          />
+          <Dropdown
+            options={statusOptions}
+            value={filterStatus}
+            onChange={(value) => setFilterStatus(value)}
+            placeholder="Filter by status"
+            size="sm"
+            className="min-w-[200px]"
+          />
         </div>
-      </div>
-
-      {/* Filters - NO ICONS */}
-      <div className="flex items-center gap-4">
-        <input
-          type="text"
-          placeholder="Search flats..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 max-w-md px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter"
-        />
-        <Dropdown
-          options={statusOptions}
-          value={filterStatus}
-          onChange={(value) => setFilterStatus(value)}
-          placeholder="Filter by status"
-          className="min-w-[200px]"
-        />
         
-        {/* Bulk Import/Export */}
-        <BulkImportExport
-          dataType="flats"
-          buildings={[]}
-          selectedBuildingId={selectedBuildingId}
-          onExport={handleExportFlats}
-          onImport={handleImportFlats}
-          onImportConfirm={handleImportConfirm}
-          className="ml-auto"
-        />
+        {/* Hidden Add Button for parent component to trigger */}
+        <button
+          data-add-button
+          onClick={() => setShowCreateFlat(true)}
+          className="hidden"
+        >
+          Add Flat
+        </button>
       </div>
 
       {/* Flats Table */}
@@ -458,6 +450,18 @@ const FlatsDataTableFixed: React.FC = () => {
         searchable={false}
         emptyMessage="No flats found. Get started by adding your first flat."
       />
+
+      {/* Import/Export buttons under table */}
+      <div className="flex justify-end mt-4">
+        <BulkImportExport
+          dataType="flats"
+          buildings={[]}
+          selectedBuildingId={selectedBuildingId}
+          onExport={handleExportFlats}
+          onImport={handleImportFlats}
+          onImportConfirm={handleImportConfirm}
+        />
+      </div>
 
       {/* Create Flat Modal */}
 {showCreateFlat && (

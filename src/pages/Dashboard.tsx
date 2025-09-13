@@ -337,74 +337,98 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Financial Health Overview */}
+        {/* Financial Overview */}
         {financialOverview && (
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Health Overview</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Overview</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Service Charge Collections</CardTitle>
-                  <DollarSign className="h-4 w-4 text-green-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    £{financialOverview.serviceCharges.collected.toLocaleString()}
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <DollarSign className="h-8 w-8 text-green-600" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Service Charges</dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          £{financialOverview.serviceCharges.collected.toLocaleString()}
+                        </dd>
+                        <dd className="text-sm text-gray-500">
+                          {financialOverview.serviceCharges.collectionRate.toFixed(1)}% collected
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {financialOverview.serviceCharges.collectionRate.toFixed(1)}% collection rate
-                  </p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Outstanding Amount</CardTitle>
-                  <AlertTriangle className="h-4 w-4 text-orange-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
-                    £{financialOverview.serviceCharges.outstanding.toLocaleString()}
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <Receipt className="h-8 w-8 text-blue-600" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Expenses</dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          £{financialOverview.expenses.amount.toLocaleString()}
+                        </dd>
+                        <dd className="text-sm text-gray-500">
+                          {financialOverview.expenses.total} items
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {financialOverview.serviceCharges.total} demands issued
-                  </p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Monthly Expenses</CardTitle>
-                  <Receipt className="h-4 w-4 text-blue-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
-                    £{financialOverview.expenses.amount.toLocaleString()}
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <FileText className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Invoices</dt>
+                        <dd className="text-lg font-medium text-gray-900">
+                          £{financialOverview.invoices.amount.toLocaleString()}
+                        </dd>
+                        <dd className="text-sm text-gray-500">
+                          {financialOverview.invoices.total} invoices
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {financialOverview.expenses.total} expense items
-                  </p>
                 </CardContent>
               </Card>
 
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Net Position</CardTitle>
-                  {financialOverview.netPosition >= 0 ? (
-                    <TrendingUp className="h-4 w-4 text-green-600" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4 text-red-600" />
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className={`text-2xl font-bold ${
-                    financialOverview.netPosition >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                    £{financialOverview.netPosition.toLocaleString()}
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      {financialOverview.netPosition >= 0 ? (
+                        <TrendingUp className="h-8 w-8 text-green-600" />
+                      ) : (
+                        <TrendingDown className="h-8 w-8 text-red-600" />
+                      )}
+                    </div>
+                    <div className="ml-5 w-0 flex-1">
+                      <dl>
+                        <dt className="text-sm font-medium text-gray-500 truncate">Net Position</dt>
+                        <dd className={`text-lg font-medium ${
+                          financialOverview.netPosition >= 0 ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          £{financialOverview.netPosition.toLocaleString()}
+                        </dd>
+                        <dd className="text-sm text-gray-500">
+                          {financialOverview.netPosition >= 0 ? 'Surplus' : 'Deficit'}
+                        </dd>
+                      </dl>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {financialOverview.netPosition >= 0 ? 'Surplus' : 'Deficit'}
-                  </p>
                 </CardContent>
               </Card>
             </div>

@@ -11,6 +11,7 @@ import { importPeopleFromCSV, ImportValidationResult } from '../../utils/csvImpo
 import { getAllBuildings } from '../../services/buildingService'
 import { getPeopleByBuilding, createPerson, updatePerson } from '../../services/peopleService'
 import DataTable, { Column, TableAction } from '../UI/DataTable'
+import { MobileDataTable, MobileCardConfig, FilterConfig, Badge } from '../UI'
 import Button from '../UI/Button'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 import { tokens } from '../../styles/tokens'
@@ -429,6 +430,82 @@ const PeopleDataTable: React.FC = () => {
     },
   ], [handleViewPerson, handleEditPerson, handleDeletePerson])
 
+  // Mobile card configuration
+  const mobileConfig: MobileCardConfig<Person & { isActive: boolean }> = {
+    getTitle: (person) => person.name,
+    getSubtitle: (person) => person.isPrimaryContact ? 'Primary Contact' : undefined,
+    getPrimaryFields: (person) => [
+      {
+        key: 'status',
+        label: 'Role',
+        value: <Badge variant={getStatusColors(person.status) as any}>{person.status}</Badge>
+      },
+      {
+        key: 'flat',
+        label: 'Flat/Unit',
+        value: person.flatNumber || 'N/A'
+      },
+      {
+        key: 'phone',
+        label: 'Phone',
+        value: person.phone || 'N/A'
+      },
+      {
+        key: 'email',
+        label: 'Email', 
+        value: person.email || 'N/A'
+      }
+    ],
+    getSecondaryFields: (person) => [
+      {
+        key: 'moveInDate',
+        label: 'Move In Date',
+        value: formatDate(person.moveInDate)
+      },
+      {
+        key: 'moveOutDate',
+        label: 'Move Out Date', 
+        value: formatDate(person.moveOutDate)
+      },
+      {
+        key: 'notes',
+        label: 'Notes',
+        value: person.notes || 'No notes'
+      }
+    ],
+    getActions: (person) => [
+      {
+        key: 'view',
+        label: 'View',
+        onClick: () => handleViewPerson(person),
+        variant: 'outline'
+      },
+      {
+        key: 'edit',
+        label: 'Edit',
+        onClick: () => handleEditPerson(person),
+        variant: 'outline'
+      },
+      {
+        key: 'delete',
+        label: 'Delete',
+        onClick: () => handleDeletePerson(person.id),
+        variant: 'outline'
+      }
+    ]
+  }
+
+  // Filter configuration for mobile
+  const filterConfig: FilterConfig[] = [
+    {
+      label: 'Status',
+      placeholder: 'Filter by status',
+      value: filterStatus,
+      onChange: setFilterStatus,
+      options: statusOptions
+    }
+  ]
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -439,36 +516,79 @@ const PeopleDataTable: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-end">
-        {/* Top Right Controls */}
+      {/* Mobile header - only visible on mobile */}
+      <div className="md:hidden flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-900">People</h2>
+          <p className="text-sm text-neutral-600">
+            {selectedBuilding?.name || 'No building selected'}
+          </p>
+        </div>
+        
+        {/* Mobile controls */}
         <div className="flex items-center gap-4">
-          {/* Add Person Button */}
+          <BulkImportExport
+            dataType="people"
+            buildings={[]}
+            selectedBuildingId={selectedBuildingId}
+            onExport={handleExportPeople}
+            onImport={handleImportPeople}
+            onImportConfirm={handleImportConfirm}
+          />
           <Button onClick={() => setShowCreatePerson(true)}>Add Person</Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Search people by name, email, or flat..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+      {/* Desktop Controls - Search/Filter/Add aligned horizontally under tabs */}
+      <div className="hidden md:flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search people by name, email, or flat..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+            />
+          </div>
+          <Dropdown
+            options={statusOptions}
+            value={filterStatus}
+            onChange={(value) => setFilterStatus(value)}
+            placeholder="Filter by status"
+            size="sm"
+            className="min-w-[200px]"
           />
         </div>
-        <Dropdown
-          options={statusOptions}
-          value={filterStatus}
-          onChange={(value) => setFilterStatus(value)}
-          placeholder="Filter by status"
-          className="min-w-[200px]"
-        />
         
-        {/* Bulk Import/Export */}
+        {/* Hidden Add Button for parent component to trigger */}
+        <button
+          data-add-button
+          onClick={() => setShowCreatePerson(true)}
+          className="hidden"
+        >
+          Add Person
+        </button>
+      </div>
+
+      {/* Responsive Data Table - Desktop table + Mobile cards */}
+      <MobileDataTable
+        data={filteredPeople}
+        columns={columns}
+        actions={actions}
+        mobileConfig={mobileConfig}
+        search={{
+          value: searchTerm,
+          onChange: setSearchTerm,
+          placeholder: 'Search people by name, email, phone, or flat...'
+        }}
+        filters={filterConfig}
+        emptyMessage="No people found. Get started by adding your first person."
+      />
+
+      {/* Desktop Import/Export buttons under table */}
+      <div className="hidden md:flex justify-end mt-4">
         <BulkImportExport
           dataType="people"
           buildings={[]}
@@ -476,18 +596,8 @@ const PeopleDataTable: React.FC = () => {
           onExport={handleExportPeople}
           onImport={handleImportPeople}
           onImportConfirm={handleImportConfirm}
-          className="ml-auto"
         />
       </div>
-
-      {/* People DataTable */}
-      <DataTable
-        data={filteredPeople}
-        columns={columns}
-        actions={actions}
-        searchable={false}
-        emptyMessage="No people found. Get started by adding your first person."
-      />
 
       {/* Create Person Modal */}
 {showCreatePerson && (
@@ -505,7 +615,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
                 <input
@@ -526,7 +636,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                 <input
@@ -561,7 +671,7 @@ const PeopleDataTable: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
                 <input
@@ -609,7 +719,7 @@ const PeopleDataTable: React.FC = () => {
           size="lg"
         >
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
                 <p className="text-sm text-neutral-900 font-inter">
@@ -624,7 +734,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
                 <p className="text-sm text-neutral-900 font-inter">{selectedPerson.name}</p>
@@ -635,7 +745,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
                 <p className="text-sm text-neutral-900 font-inter">{selectedPerson.email || 'N/A'}</p>
@@ -646,7 +756,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number</label>
                 <p className="text-sm text-neutral-900 font-inter">{selectedPerson.flatNumber || 'N/A'}</p>
@@ -698,7 +808,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
                 <input
@@ -719,7 +829,7 @@ const PeopleDataTable: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone *</label>
                 <input
@@ -754,7 +864,7 @@ const PeopleDataTable: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
                 <input

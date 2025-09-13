@@ -22,6 +22,15 @@ interface TabConfig {
 const BuildingDataManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('people')
   const [loading, setLoading] = useState<boolean>(false)
+  
+  // Handle add button click for active tab
+  const handleAddClick = () => {
+    // Find and click the add button in the currently active tab
+    const addButton = document.querySelector('[data-add-button]') as HTMLButtonElement;
+    if (addButton) {
+      addButton.click();
+    }
+  }
 
   const tabs: TabConfig[] = [
     {
@@ -66,27 +75,40 @@ const BuildingDataManagement: React.FC = () => {
 
         {/* Tab Navigation */}
         <div className="border-b border-neutral-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`${
-                    isActive
-                      ? 'border-blue-500 text-primary-600'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </nav>
+          <div className="flex items-center justify-between">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                const isActive = activeTab === tab.id
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`${
+                      isActive
+                        ? 'border-blue-500 text-primary-600'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.label}
+                  </button>
+                )
+              })}
+            </nav>
+            
+            {/* Add Button - Aligned with tab headers */}
+            <button
+              onClick={handleAddClick}
+              className="btn-primary flex items-center font-inter"
+            >
+              Add {activeTab === 'people' ? 'Person' : 
+                   activeTab === 'assets' ? 'Asset' : 
+                   activeTab === 'suppliers' ? 'Supplier' : 
+                   activeTab === 'flats' ? 'Flat' : 'Item'}
+            </button>
+          </div>
         </div>
 
         {/* Tab Content */}

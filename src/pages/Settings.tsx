@@ -4,18 +4,14 @@ import {
   Building as BuildingIcon, 
   Users, 
   Calendar, 
-  Shield,
-  Palette,
-  TestTube
+  Palette
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { BuildingManagement } from '../components/Settings/BuildingManagement';
 import { UserManagement } from '../components/Settings/UserManagement';
 import { FinancialSetup } from '../components/Settings/FinancialSetup';
-import { SecuritySettings } from '../components/Settings/SecuritySettings';
 import { AppearanceSettings } from '../components/Settings/AppearanceSettings';
-import { TestingSettings } from '../components/Settings/TestingSettings';
 import { Button, Card, CardContent, TabLoadingSkeleton } from '../components/UI';
 
 // Settings-specific interfaces
@@ -52,7 +48,7 @@ const Settings: React.FC = () => {
   const { addNotification } = useNotifications();
   
   // State for active tab and loading
-  const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial' | 'security' | 'appearance' | 'testing'>('buildings');
+  const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial' | 'appearance'>('buildings');
   const [loading, setLoading] = useState(false);
   
   const handleTabChange = async (tab: typeof activeTab) => {
@@ -87,13 +83,6 @@ const Settings: React.FC = () => {
     groundRentFrequency: 'annually'
   });
   
-  // Security/Whitelist State
-  const [securitySettings, setSecuritySettings] = useState({
-    allowedDomains: ['riverside.com', 'victoria.com', 'canary.com'],
-    requireEmailVerification: true,
-    sessionTimeout: 60, // minutes
-    maxLoginAttempts: 5
-  });
 
   return (
     <div className="min-h-screen bg-neutral-50">
@@ -110,74 +99,70 @@ const Settings: React.FC = () => {
 
         {/* Tab Navigation */}
         <div className="border-b border-neutral-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => handleTabChange('buildings')}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'buildings'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              <BuildingIcon className="w-4 h-4" />
-              Building Management
-            </button>
-            <button
-              onClick={() => handleTabChange('users')}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'users'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              <Users className="w-4 h-4" />
-              User Management
-            </button>
-            <button
-              onClick={() => handleTabChange('financial')}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'financial'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              <Calendar className="w-4 h-4" />
-              Financial Setup
-            </button>
-            <button
-              onClick={() => handleTabChange('security')}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'security'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              Security & Access
-            </button>
-            <button
-              onClick={() => handleTabChange('appearance')}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'appearance'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              <Palette className="w-4 h-4" />
-              Appearance
-            </button>
-            <button
-              onClick={() => handleTabChange('testing')}
-              className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                activeTab === 'testing'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              <TestTube className="w-4 h-4" />
-              Testing
-            </button>
-          </nav>
+          <div className="flex items-center justify-between">
+            <nav className="-mb-px flex space-x-8">
+              <button
+                onClick={() => handleTabChange('buildings')}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'buildings'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <BuildingIcon className="w-4 h-4" />
+                Building Management
+              </button>
+              <button
+                onClick={() => handleTabChange('users')}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'users'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                User Management
+              </button>
+              <button
+                onClick={() => handleTabChange('financial')}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'financial'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                Financial Setup
+              </button>
+              <button
+                onClick={() => handleTabChange('appearance')}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'appearance'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <Palette className="w-4 h-4" />
+                Appearance
+              </button>
+            </nav>
+            
+            {/* Add Building Button - Aligned with tab headers */}
+            {activeTab === 'buildings' && (
+              <button
+                onClick={() => {
+                  // Trigger the add building action
+                  const addButton = document.querySelector('[data-add-building-button]') as HTMLButtonElement;
+                  if (addButton) {
+                    addButton.click();
+                  }
+                }}
+                className="btn-primary flex items-center font-inter"
+              >
+                Add Building
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tab Content */}
@@ -217,27 +202,9 @@ const Settings: React.FC = () => {
                 />
               )}
 
-              {/* Security & Access Tab */}
-              {activeTab === 'security' && (
-                <SecuritySettings 
-                  securitySettings={securitySettings}
-                  setSecuritySettings={setSecuritySettings}
-                  addNotification={addNotification}
-                  currentUser={currentUser}
-                />
-              )}
-
               {/* Appearance Tab */}
               {activeTab === 'appearance' && (
                 <AppearanceSettings 
-                  addNotification={addNotification}
-                  currentUser={currentUser}
-                />
-              )}
-
-              {/* Testing Tab */}
-              {activeTab === 'testing' && (
-                <TestingSettings 
                   addNotification={addNotification}
                   currentUser={currentUser}
                 />

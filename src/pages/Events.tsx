@@ -750,35 +750,42 @@ const Events = () => {
           </div>
         </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Search events..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+        {/* New Event Button Area - Aligned with tab header positioning */}
+        <div className="border-b border-neutral-200">
+          <div className="flex items-center justify-end py-2">
+            <button
+              onClick={() => {
+                resetForm()
+                setShowCreateForm(true)
+              }}
+              className="btn-primary flex items-center font-inter"
+            >
+              New Event
+            </button>
+          </div>
+        </div>
+      
+        {/* Search and Filter */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search events..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+            />
+          </div>
+          <Dropdown
+            options={statusOptions}
+            value={filterStatus}
+            onChange={(value) => setFilterStatus(value as any)}
+            placeholder="Filter by status"
+            size="sm"
+            className="min-w-[200px]"
           />
         </div>
-        <Dropdown
-          options={statusOptions}
-          value={filterStatus}
-          onChange={(value) => setFilterStatus(value as any)}
-          placeholder="Filter by status"
-          className="min-w-[200px]"
-        />
-        
-        <Button
-          onClick={() => {
-            resetForm()
-            setShowCreateForm(true)
-          }}
-        >
-          New Event
-        </Button>
-      </div>
 
       {/* Create Event Modal */}
       <Modal

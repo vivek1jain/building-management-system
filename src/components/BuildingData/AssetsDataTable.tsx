@@ -483,45 +483,37 @@ const AssetsDataTable: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-end">
-        {/* Top Right Controls */}
-        <div className="flex items-center gap-4">
-          {/* Add Asset Button */}
-          <Button onClick={() => setShowCreateAsset(true)}>Add Asset</Button>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-          <input
-            type="text"
-            placeholder="Search assets by name, manufacturer, model, or serial number..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+      {/* Desktop Controls - Search/Filter/Add aligned horizontally under tabs */}
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <div className="flex items-center gap-4 flex-1">
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search assets by name, manufacturer, model, or serial number..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+            />
+          </div>
+          <Dropdown
+            options={statusOptions}
+            value={filterStatus}
+            onChange={(value) => setFilterStatus(value)}
+            placeholder="Filter by status"
+            size="sm"
+            className="min-w-[200px]"
           />
         </div>
-        <Dropdown
-          options={statusOptions}
-          value={filterStatus}
-          onChange={(value) => setFilterStatus(value)}
-          placeholder="Filter by status"
-          className="min-w-[200px]"
-        />
         
-        {/* Bulk Import/Export */}
-        <BulkImportExport
-          dataType="assets"
-          buildings={buildings}
-          selectedBuildingId={selectedBuildingId || ''}
-          onExport={() => exportAssetsToCSV(filteredAssets, selectedBuilding?.name || 'Unknown')}
-          onImport={handleAssetImport}
-          onImportConfirm={handleBulkImportConfirm}
-          className="ml-auto"
-        />
+        {/* Hidden Add Button for parent component to trigger */}
+        <button
+          data-add-button
+          onClick={() => setShowCreateAsset(true)}
+          className="hidden"
+        >
+          Add Asset
+        </button>
       </div>
 
       {/* Assets Table */}
@@ -532,6 +524,18 @@ const AssetsDataTable: React.FC = () => {
         searchable={false}
         emptyMessage="No assets found. Get started by adding your first asset."
       />
+
+      {/* Import/Export buttons under table */}
+      <div className="flex justify-end mt-4">
+        <BulkImportExport
+          dataType="assets"
+          buildings={buildings}
+          selectedBuildingId={selectedBuildingId || ''}
+          onExport={() => exportAssetsToCSV(filteredAssets, selectedBuilding?.name || 'Unknown')}
+          onImport={handleAssetImport}
+          onImportConfirm={handleBulkImportConfirm}
+        />
+      </div>
 
       {/* Create Asset Modal */}
       {showCreateAsset && (

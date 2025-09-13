@@ -27,7 +27,7 @@ import {
   Clock,
   DollarSign
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Modal, ModalHeader, ModalFooter, PageLoading } from '../components/UI';
+import { Card, CardHeader, CardTitle, CardContent, Button, Input, Modal, ModalHeader, ModalFooter, PageLoading, Dropdown, DropdownOption } from '../components/UI';
 
 type ReportType = 'account_statements' | 'financial_summary' | 'payment_history' | 'credit_analysis';
 type BalanceFilter = 'all' | 'positive' | 'negative' | 'zero';
@@ -73,6 +73,23 @@ const Reports: React.FC = () => {
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [selectedLedger, setSelectedLedger] = useState<ResidentAccountLedger | null>(null);
   const [expandedLedgers, setExpandedLedgers] = useState<Set<string>>(new Set());
+
+  // Dropdown options for balance filter
+  const balanceFilterOptions: DropdownOption[] = [
+    { value: 'all', label: 'All Balances', description: 'Show all balance types' },
+    { value: 'positive', label: 'Credit Balance (Positive)', description: 'Show positive balances only' },
+    { value: 'negative', label: 'Debit Balance (Negative)', description: 'Show negative balances only' },
+    { value: 'zero', label: 'Zero Balance', description: 'Show zero balances only' }
+  ];
+
+  // Dropdown options for date range
+  const dateRangeOptions: DropdownOption[] = [
+    { value: '30d', label: 'Last 30 Days', description: 'Past month' },
+    { value: '90d', label: 'Last 90 Days', description: 'Past 3 months' },
+    { value: '6m', label: 'Last 6 Months', description: 'Past 6 months' },
+    { value: '1y', label: 'Last 12 Months', description: 'Past year' },
+    { value: 'custom', label: 'Custom Range', description: 'Select custom date range' }
+  ];
 
   // Load data when building changes
   useEffect(() => {
@@ -404,135 +421,126 @@ End of Statement
 
         {/* Report Type Tabs */}
         <div className="border-b border-neutral-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {[
-              { id: 'account_statements', name: 'Account Statements', icon: FileText },
-              { id: 'financial_summary', name: 'Financial Summary', icon: DollarSign },
-              { id: 'payment_history', name: 'Payment History', icon: Clock },
-              { id: 'credit_analysis', name: 'Credit Analysis', icon: TrendingUp }
-            ].map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeReportType === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveReportType(tab.id as ReportType)}
-                  className={`${
-                    isActive
-                      ? 'border-blue-500 text-primary-600'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors font-inter`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <Icon className="h-4 w-4" />
-                  {tab.name}
-                </button>
-              );
-            })}
-          </nav>
+          <div className="flex items-center justify-between">
+            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+              {[
+                { id: 'account_statements', name: 'Account Statements', icon: FileText }
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeReportType === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveReportType(tab.id as ReportType)}
+                    className={`${
+                      isActive
+                        ? 'border-blue-500 text-primary-600'
+                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors font-inter`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {tab.name}
+                  </button>
+                );
+              })}
+            </nav>
+            
+            {/* Generate Selected Statements Button - Aligned with tab headers */}
+            <Button
+              onClick={handleBulkStatementGeneration}
+              disabled={loading}
+              leftIcon={<Download className="h-4 w-4" />}
+            >
+              Generate Selected Statements
+            </Button>
+          </div>
         </div>
+
+        {/* Search and Filters */}
+        <div className="flex items-center gap-4 mb-6">
+          {/* Search */}
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search by flat or resident..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+            />
+          </div>
+          
+          {/* Balance Filter */}
+          <Dropdown
+            options={balanceFilterOptions}
+            value={filters.balanceType}
+            onChange={(value) => setFilters({ ...filters, balanceType: value as BalanceFilter })}
+            placeholder="Filter by balance..."
+            size="sm"
+            className="min-w-[200px]"
+          />
+          
+          {/* Date Range */}
+          <Dropdown
+            options={dateRangeOptions}
+            value={filters.dateRange}
+            onChange={(value) => setFilters({ ...filters, dateRange: value as DateRange })}
+            placeholder="Select date range..."
+            size="sm"
+            className="min-w-[200px]"
+          />
+          
+          {/* Statement Options */}
+          <div className="flex items-center space-x-4">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={filters.includeTransactions}
+                onChange={(e) => setFilters({ ...filters, includeTransactions: e.target.checked })}
+                className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm font-inter">Include Transactions</span>
+            </label>
+          </div>
+        </div>
+        
+        {/* Custom Date Range */}
+        {filters.dateRange === 'custom' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
+                Start Date
+              </label>
+              <Input
+                type="date"
+                value={filters.customStartDate?.toISOString().split('T')[0] || ''}
+                onChange={(e) => setFilters({ 
+                  ...filters, 
+                  customStartDate: e.target.value ? new Date(e.target.value) : undefined 
+                })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
+                End Date
+              </label>
+              <Input
+                type="date"
+                value={filters.customEndDate?.toISOString().split('T')[0] || ''}
+                onChange={(e) => setFilters({ 
+                  ...filters, 
+                  customEndDate: e.target.value ? new Date(e.target.value) : undefined 
+                })}
+              />
+            </div>
+          </div>
+        )}
 
         {/* Tab Content */}
         <div className="space-y-6">
           {activeReportType === 'account_statements' && (
             <div className="space-y-6">
-              {/* Filters and Controls */}
-              <div className="bg-white border border-neutral-200 rounded-lg p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Statement Generation Controls</h3>
-                  <Button
-                    onClick={handleBulkStatementGeneration}
-                    disabled={loading}
-                    leftIcon={<Download className="h-4 w-4" />}
-                  >
-                    Generate Selected Statements
-                  </Button>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {/* Search */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
-                    <Input
-                      type="text"
-                      placeholder="Search by flat or resident..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                  
-                  {/* Balance Filter */}
-                  <select
-                    value={filters.balanceType}
-                    onChange={(e) => setFilters({ ...filters, balanceType: e.target.value as BalanceFilter })}
-                    className="px-3 py-2 border border-neutral-300 rounded-md text-sm font-inter focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="all">All Balances</option>
-                    <option value="positive">Credit Balance (Positive)</option>
-                    <option value="negative">Debit Balance (Negative)</option>
-                    <option value="zero">Zero Balance</option>
-                  </select>
-                  
-                  {/* Date Range */}
-                  <select
-                    value={filters.dateRange}
-                    onChange={(e) => setFilters({ ...filters, dateRange: e.target.value as DateRange })}
-                    className="px-3 py-2 border border-neutral-300 rounded-md text-sm font-inter focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="30d">Last 30 Days</option>
-                    <option value="90d">Last 90 Days</option>
-                    <option value="6m">Last 6 Months</option>
-                    <option value="1y">Last 12 Months</option>
-                    <option value="custom">Custom Range</option>
-                  </select>
-                  
-                  {/* Statement Options */}
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        checked={filters.includeTransactions}
-                        onChange={(e) => setFilters({ ...filters, includeTransactions: e.target.checked })}
-                        className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                      />
-                      <span className="text-sm font-inter">Include Transactions</span>
-                    </label>
-                  </div>
-                </div>
-                
-                {/* Custom Date Range */}
-                {filters.dateRange === 'custom' && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                        Start Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={filters.customStartDate?.toISOString().split('T')[0] || ''}
-                        onChange={(e) => setFilters({ 
-                          ...filters, 
-                          customStartDate: e.target.value ? new Date(e.target.value) : undefined 
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                        End Date
-                      </label>
-                      <Input
-                        type="date"
-                        value={filters.customEndDate?.toISOString().split('T')[0] || ''}
-                        onChange={(e) => setFilters({ 
-                          ...filters, 
-                          customEndDate: e.target.value ? new Date(e.target.value) : undefined 
-                        })}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Summary Statistics */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -755,21 +763,6 @@ End of Statement
                   </div>
                 )}
               </div>
-            </div>
-          )}
-
-          {/* Placeholder for other report types */}
-          {activeReportType !== 'account_statements' && (
-            <div className="text-center py-12">
-              <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-neutral-900 font-inter">
-                {activeReportType === 'financial_summary' && 'Financial Summary Reports'}
-                {activeReportType === 'payment_history' && 'Payment History Reports'}
-                {activeReportType === 'credit_analysis' && 'Credit Analysis Reports'}
-              </h3>
-              <p className="text-gray-600 font-inter">
-                This report type will be available in a future update
-              </p>
             </div>
           )}
         </div>

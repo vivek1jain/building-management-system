@@ -334,63 +334,73 @@ const Tickets: React.FC = () => {
 
       {/* Tab Navigation */}
       <div className="border-b border-neutral-200">
-        <nav className="-mb-px flex space-x-8">
+        <div className="flex items-center justify-between">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('workflow')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+                activeTab === 'workflow'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+              }`}
+            >
+              Workflow ({tickets.length + workOrders.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('work-orders')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+                activeTab === 'work-orders'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+              }`}
+            >
+              Work Orders ({tickets.filter(ticket => ticket.status === 'Scheduled').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('my-tickets')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+                activeTab === 'my-tickets'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+              }`}
+            >
+              My Tickets ({getMyTickets().length})
+            </button>
+            <button
+              onClick={() => setActiveTab('tickets')}
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+                activeTab === 'tickets'
+                  ? 'border-blue-500 text-primary-600'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+              }`}
+            >
+              All Tickets ({tickets.length})
+            </button>
+          </nav>
+          
+          {/* New Ticket Button - Aligned with tab headers */}
           <button
-            onClick={() => setActiveTab('workflow')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
-              activeTab === 'workflow'
-                ? 'border-blue-500 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-            }`}
+            onClick={openCreateTicketModal}
+            className="btn-primary flex items-center font-inter"
           >
-            Workflow ({tickets.length + workOrders.length})
+            New Ticket
           </button>
-          <button
-            onClick={() => setActiveTab('work-orders')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
-              activeTab === 'work-orders'
-                ? 'border-blue-500 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-            }`}
-          >
-            Work Orders ({tickets.filter(ticket => ticket.status === 'Scheduled').length})
-          </button>
-          <button
-            onClick={() => setActiveTab('my-tickets')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
-              activeTab === 'my-tickets'
-                ? 'border-blue-500 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-            }`}
-          >
-            My Tickets ({getMyTickets().length})
-          </button>
-          <button
-            onClick={() => setActiveTab('tickets')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
-              activeTab === 'tickets'
-                ? 'border-blue-500 text-primary-600'
-                : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-            }`}
-          >
-            All Tickets ({tickets.length})
-          </button>
-        </nav>
+        </div>
       </div>
 
       {/* Workflow View */}
       {activeTab === 'workflow' && (
         <div className="space-y-6">
           {/* Search and Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative w-96">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search workflow items..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
               />
             </div>
             <Dropdown
@@ -398,16 +408,9 @@ const Tickets: React.FC = () => {
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
               placeholder="Filter by status..."
-              size="md"
+              size="sm"
               className="min-w-[200px]"
             />
-            <button
-              onClick={openCreateTicketModal}
-              className="btn-primary flex items-center font-inter"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Ticket
-            </button>
           </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4">
@@ -537,15 +540,15 @@ const Tickets: React.FC = () => {
       {activeTab === 'my-tickets' && (
         <div className="space-y-4">
           {/* Search and Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative w-96">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search my tickets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
               />
             </div>
             <Dropdown
@@ -553,16 +556,9 @@ const Tickets: React.FC = () => {
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
               placeholder="Filter by status..."
-              size="md"
+              size="sm"
               className="min-w-[200px]"
             />
-            <button
-              onClick={openCreateTicketModal}
-              className="btn-primary flex items-center font-inter"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Ticket
-            </button>
           </div>
           
           {/* Info Banner for Managers */}
@@ -600,15 +596,15 @@ const Tickets: React.FC = () => {
       {activeTab === 'tickets' && (
         <div className="space-y-4">
           {/* Search and Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative w-96">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search active tickets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
               />
             </div>
             <Dropdown
@@ -616,16 +612,9 @@ const Tickets: React.FC = () => {
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
               placeholder="Filter by status..."
-              size="md"
+              size="sm"
               className="min-w-[200px]"
             />
-            <button
-              onClick={openCreateTicketModal}
-              className="btn-primary flex items-center font-inter"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Ticket
-            </button>
           </div>
           
           {/* Info Banner */}
@@ -658,24 +647,17 @@ const Tickets: React.FC = () => {
       {activeTab === 'work-orders' && (
         <div className="space-y-4">
           {/* Search and Filters */}
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="relative w-96">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
                 placeholder="Search scheduled tickets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
               />
             </div>
-            <button
-              onClick={openCreateTicketModal}
-              className="btn-primary flex items-center font-inter"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Ticket
-            </button>
           </div>
           
           {/* Info Banner */}
