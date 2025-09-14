@@ -32,7 +32,9 @@ import { getServiceChargeDemands } from '../services/serviceChargeService'
 import { getInvoicesByBuilding } from '../services/invoiceService'
 import { expenseService } from '../services/expenseService'
 import { financialIntegrationService } from '../services/financialIntegrationService'
-import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel, Budget, ServiceChargeDemand, Invoice, InvoiceStatus } from '../types'
+import { eventService } from '../services/eventService'
+import { getWorkOrdersByBuilding } from '../services/workOrderService'
+import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel, Budget, ServiceChargeDemand, Invoice, InvoiceStatus, BuildingEvent, WorkOrder } from '../types'
 import { Button, Card, CardHeader, CardTitle, CardContent, PageLoading, WidgetSkeleton, SectionLoading, ListItemSkeleton } from '../components/UI'
 
 const Dashboard: React.FC = () => {
@@ -50,12 +52,22 @@ const Dashboard: React.FC = () => {
   const [expenses, setExpenses] = useState<any[]>([])
   const [financialDataLoading, setFinancialDataLoading] = useState(false)
   const [financialOverview, setFinancialOverview] = useState<any>(null)
+  
+  // Events data state
+  const [events, setEvents] = useState<BuildingEvent[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  
+  // Work Orders data state
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [workOrdersLoading, setWorkOrdersLoading] = useState(false)
 
-  // Load tickets and financial data when selected building changes
+  // Load tickets, financial data, events, and work orders when selected building changes
   useEffect(() => {
     if (selectedBuildingId) {
       loadTickets()
       loadFinancialData()
+      loadEvents()
+      loadWorkOrders()
     }
   }, [selectedBuildingId])
 
@@ -118,6 +130,44 @@ const Dashboard: React.FC = () => {
       // Don't show notification as this is less critical for dashboard
     } finally {
       setFinancialDataLoading(false)
+    }
+  }
+  
+  const loadEvents = async () => {
+    if (!selectedBuildingId) return
+    
+    try {
+      setEventsLoading(true)
+      console.log('🗓️ Loading events from Firebase...')
+      const allEvents = await eventService.getEvents()
+      console.log('🗓️ All events loaded:', allEvents.length)
+      
+      // Filter events for the selected building
+      const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuildingId)
+      console.log('🗓️ Building events filtered:', buildingEvents.length)
+      setEvents(buildingEvents)
+    } catch (error) {
+      console.error('❌ Error loading events:', error)
+      // Don't show notification for events loading errors as this is less critical
+    } finally {
+      setEventsLoading(false)
+    }
+  }
+  
+  const loadWorkOrders = async () => {
+    if (!selectedBuildingId) return
+    
+    try {
+      setWorkOrdersLoading(true)
+      console.log('🔧 Loading work orders from Firebase...')
+      const buildingWorkOrders = await getWorkOrdersByBuilding(selectedBuildingId)
+      console.log('🔧 Building work orders loaded:', buildingWorkOrders.length)
+      setWorkOrders(buildingWorkOrders)
+    } catch (error) {
+      console.error('❌ Error loading work orders:', error)
+      // Don't show notification for work orders loading errors as this is less critical
+    } finally {
+      setWorkOrdersLoading(false)
     }
   }
   
@@ -185,14 +235,21 @@ const Dashboard: React.FC = () => {
 
   // Calculate metrics from real Firebase data
   const calculateMetrics = () => {
-    // Calculate ticket metrics
+    // Calculate ticket metrics from real Firebase data
     const urgentTickets = tickets.filter(t => 
       (t.status === 'New' || t.status === 'Quote Requested') && (t.urgency === 'Critical' || t.urgency === 'High')
     ).length
     
     const openTickets = tickets.filter(t => t.status === 'New').length
+    const newTickets = tickets.filter(t => t.status === 'New').length // Same as openTickets but clearer naming
     const inProgressTickets = tickets.filter(t => t.status === 'In Progress').length
     const resolvedTickets = tickets.filter(t => t.status === 'Complete').length
+    
+    // Calculate work order metrics from real Firebase data
+    const totalWorkOrders = workOrders.length
+    const pendingWorkOrders = workOrders.filter(wo => 
+      wo.status === 'Triage' || wo.status === 'Quoting' || wo.status === 'Scheduled'
+    ).length
 
     // Mock data for metrics we don't have services for yet
     const totalFlats = 24
@@ -200,8 +257,22 @@ const Dashboard: React.FC = () => {
     const occupancyRate = 87
     const monthlyRevenue = 45000
     const monthlyExpenses = 32000
-    const pendingWorkOrders = 3
-    const upcomingEvents = 2
+    
+    // Calculate events metrics from real Firebase data
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000)
+    
+    // Count upcoming events (from today onwards)
+    const upcomingEvents = events.filter(event => 
+      new Date(event.startDate) >= today
+    ).length
+    
+    // Count today's events (events starting today)
+    const todaysEvents = events.filter(event => {
+      const eventDate = new Date(event.startDate)
+      return eventDate >= today && eventDate < tomorrow
+    }).length
 
     return {
       totalBuildings: buildings.length,
@@ -210,12 +281,15 @@ const Dashboard: React.FC = () => {
       occupancyRate,
       urgentTickets,
       openTickets,
+      newTickets,
       inProgressTickets,
       resolvedTickets,
+      totalWorkOrders,
       pendingWorkOrders,
       upcomingEvents,
       monthlyRevenue,
       monthlyExpenses,
+      todaysEvents,
       selectedBuildingName: selectedBuildingData?.name || 'Select Building'
     }
   }
@@ -329,384 +403,336 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-<h1 className="text-3xl font-bold text-neutral-900 mb-2">Building Manager Dashboard</h1>
-            <p className="text-gray-600">Welcome back, {currentUser.name}</p>
-            {selectedBuildingData && (
-              <p className="text-sm text-neutral-500 mt-1">Current building: {selectedBuildingData.name}</p>
-            )}
+            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Welcome back, {currentUser.name}</h1>
           </div>
         </div>
 
-        {/* Financial Overview */}
-        {financialOverview && (
-          <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Financial Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <DollarSign className="h-8 w-8 text-green-600" />
+        {/* Dashboard Layout: 2/3 width panels + 1/3 width recent activity */}
+        <div className="flex gap-6">
+          {/* Main Dashboard Panels - 2/3 width */}
+          <div className="flex-1 w-2/3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Tickets Panel */}
+              <Card className="flex flex-col h-80">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                    <AlertTriangle className="h-5 w-5 mr-2 text-red-600" />
+                    Tickets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  <div className="grid grid-cols-2 gap-3 flex-1">
+                    <Link to="/tickets-work-orders" className="bg-red-50 p-3 rounded-lg hover:bg-red-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Critical Tickets</p>
+                          <p className="text-lg font-bold text-black">{metrics.urgentTickets}</p>
+                        </div>
+                        <AlertTriangle className="h-4 w-4 text-red-600 ml-2" />
+                      </div>
+                    </Link>
+                    <Link to="/tickets-work-orders" className="bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Open Tickets</p>
+                          <p className="text-lg font-bold text-black">{metrics.openTickets}</p>
+                        </div>
+                        <Clock className="h-4 w-4 text-blue-600 ml-2" />
+                      </div>
+                    </Link>
+                    <Link to="/work-orders" className="bg-purple-50 p-3 rounded-lg hover:bg-purple-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Work Orders</p>
+                          <p className="text-lg font-bold text-black">{metrics.totalWorkOrders}</p>
+                        </div>
+                        <Wrench className="h-4 w-4 text-purple-600 ml-2" />
+                      </div>
+                    </Link>
+                    <Link to="/tickets-work-orders" className="bg-green-50 p-3 rounded-lg hover:bg-green-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">New Tickets</p>
+                          <p className="text-lg font-bold text-black">{metrics.newTickets}</p>
+                        </div>
+                        <Bell className="h-4 w-4 text-green-600 ml-2" />
+                      </div>
+                    </Link>
+                  </div>
+                  {urgentItems.length > 0 && (
+                    <div className="bg-gray-50 p-3 rounded-lg mt-3">
+                      <p className="text-sm font-medium text-gray-900 mb-2">Urgent Items ({urgentItems.length})</p>
+                      <div className="space-y-1">
+                        {urgentItems.slice(0, 2).map((item) => (
+                          <div key={`${item.type}-${item.id}`} className="text-xs text-gray-600 truncate">
+                            • {item.title}
+                          </div>
+                        ))}
+                        {urgentItems.length > 2 && (
+                          <p className="text-xs text-gray-500">+{urgentItems.length - 2} more</p>
+                        )}
+                      </div>
                     </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Service Charges</dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          £{financialOverview.serviceCharges.collected.toLocaleString()}
-                        </dd>
-                        <dd className="text-sm text-gray-500">
-                          {financialOverview.serviceCharges.collectionRate.toFixed(1)}% collected
-                        </dd>
-                      </dl>
-                    </div>
+                  )}
+                  <div className="mt-auto pt-3 border-t border-gray-100">
+                    <Link to="/tickets-work-orders" className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center">
+                      Manage Tickets <ArrowRight className="h-3 w-3 ml-1" />
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <Receipt className="h-8 w-8 text-blue-600" />
+              {/* Finances Panel */}
+              <Card className="flex flex-col h-80">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                    <DollarSign className="h-5 w-5 mr-2 text-green-600" />
+                    Finances
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  {financialOverview ? (
+                    <div className="grid grid-cols-2 gap-3 flex-1">
+                      <Link to="/finances" className="bg-green-50 p-3 rounded-lg hover:bg-green-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Service Charges</p>
+                            <p className="text-lg font-bold text-black">
+                              £{financialOverview.serviceCharges.collected.toLocaleString()}
+                            </p>
+                          </div>
+                          <DollarSign className="h-4 w-4 text-green-600 ml-2" />
+                        </div>
+                      </Link>
+                      <Link to="/finances" className="bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Expenses</p>
+                            <p className="text-lg font-bold text-black">
+                              £{financialOverview.expenses.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          <Receipt className="h-4 w-4 text-blue-600 ml-2" />
+                        </div>
+                      </Link>
+                      <Link to="/finances" className="bg-purple-50 p-3 rounded-lg hover:bg-purple-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Invoices</p>
+                            <p className="text-lg font-bold text-black">
+                              £{financialOverview.invoices.amount.toLocaleString()}
+                            </p>
+                          </div>
+                          <FileText className="h-4 w-4 text-purple-600 ml-2" />
+                        </div>
+                      </Link>
+                      <Link to="/finances" className="bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Net Position</p>
+                            <p className="text-lg font-bold text-black">
+                              £{financialOverview.netPosition.toLocaleString()}
+                            </p>
+                          </div>
+                          {financialOverview.netPosition >= 0 ? (
+                            <TrendingUp className="h-4 w-4 text-green-600 ml-2" />
+                          ) : (
+                            <TrendingDown className="h-4 w-4 text-red-600 ml-2" />
+                          )}
+                        </div>
+                      </Link>
                     </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Expenses</dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          £{financialOverview.expenses.amount.toLocaleString()}
-                        </dd>
-                        <dd className="text-sm text-gray-500">
-                          {financialOverview.expenses.total} items
-                        </dd>
-                      </dl>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="text-gray-500 text-sm">No financial data available</p>
                     </div>
+                  )}
+                  <div className="mt-4 pt-3 border-t border-gray-100">
+                    <Link to="/finances" className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center">
+                      View Full Finances <ArrowRight className="h-3 w-3 ml-1" />
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <FileText className="h-8 w-8 text-purple-600" />
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Invoices</dt>
-                        <dd className="text-lg font-medium text-gray-900">
-                          £{financialOverview.invoices.amount.toLocaleString()}
-                        </dd>
-                        <dd className="text-sm text-gray-500">
-                          {financialOverview.invoices.total} invoices
-                        </dd>
-                      </dl>
-                    </div>
+              {/* Reports Panel */}
+              <Card className="flex flex-col h-80">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                    <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+                    Reports
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  <div className="grid grid-cols-2 gap-3 flex-1">
+                    <Link to="/reports" className="bg-green-50 p-3 rounded-lg hover:bg-green-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Occupancy Rate</p>
+                          <p className="text-lg font-bold text-black">{metrics.occupancyRate}%</p>
+                        </div>
+                        <Users className="h-4 w-4 text-green-600 ml-2" />
+                      </div>
+                    </Link>
+                    <Link to="/reports" className="bg-purple-50 p-3 rounded-lg hover:bg-purple-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Total Properties</p>
+                          <p className="text-lg font-bold text-black">{metrics.totalFlats}</p>
+                        </div>
+                        <Building className="h-4 w-4 text-purple-600 ml-2" />
+                      </div>
+                    </Link>
+                  </div>
+                  <div className="mt-auto pt-3 border-t border-gray-100">
+                    <Link to="/reports" className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center">
+                      View Reports <ArrowRight className="h-3 w-3 ml-1" />
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      {financialOverview.netPosition >= 0 ? (
-                        <TrendingUp className="h-8 w-8 text-green-600" />
-                      ) : (
-                        <TrendingDown className="h-8 w-8 text-red-600" />
-                      )}
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">Net Position</dt>
-                        <dd className={`text-lg font-medium ${
-                          financialOverview.netPosition >= 0 ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          £{financialOverview.netPosition.toLocaleString()}
-                        </dd>
-                        <dd className="text-sm text-gray-500">
-                          {financialOverview.netPosition >= 0 ? 'Surplus' : 'Deficit'}
-                        </dd>
-                      </dl>
-                    </div>
+              {/* Events Panel */}
+              <Card className="flex flex-col h-80">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                    <Calendar className="h-5 w-5 mr-2 text-indigo-600" />
+                    Events
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  <div className="grid grid-cols-2 gap-3 flex-1">
+                    <Link to="/events" className="bg-indigo-50 p-3 rounded-lg hover:bg-indigo-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Upcoming Events</p>
+                          <p className="text-lg font-bold text-black">{metrics.upcomingEvents}</p>
+                        </div>
+                        <Calendar className="h-4 w-4 text-indigo-600 ml-2" />
+                      </div>
+                    </Link>
+                    <Link to="/events" className="bg-orange-50 p-3 rounded-lg hover:bg-orange-100 transition-colors h-16">
+                      <div className="flex items-center justify-between h-full">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500">Today's Events</p>
+                          <p className="text-lg font-bold text-black">{metrics.todaysEvents}</p>
+                        </div>
+                        <Calendar className="h-4 w-4 text-orange-600 ml-2" />
+                      </div>
+                    </Link>
+                  </div>
+                  <div className="mt-auto pt-3 border-t border-gray-100">
+                    <Link to="/events" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center">
+                      Manage Events <ArrowRight className="h-3 w-3 ml-1" />
+                    </Link>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </div>
-        )}
 
-        {/* Operational Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Critical Tickets</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{metrics.urgentTickets}</div>
-              <p className="text-xs text-muted-foreground">
-                Require immediate attention
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Open Tickets</CardTitle>
-              <Clock className="h-4 w-4 text-blue-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{metrics.openTickets}</div>
-              <p className="text-xs text-muted-foreground">
-                {metrics.inProgressTickets} in progress
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
-              <Users className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{metrics.occupancyRate}%</div>
-              <p className="text-xs text-muted-foreground">
-                {metrics.totalResidents} residents
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Properties</CardTitle>
-              <Building className="h-4 w-4 text-purple-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{metrics.totalFlats}</div>
-              <p className="text-xs text-muted-foreground">
-                {metrics.totalBuildings} buildings
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Urgent Items Triage */}
-          <div className="lg:col-span-2">
-<Card padding="none" shadow="sm" className="bg-white">
-              <CardHeader className="px-6 py-4 border-b border-neutral-200">
+          {/* Recent Activity Panel - 1/3 width, full height */}
+          <div className="w-1/3">
+            <Card className="h-full">
+              <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle as="h2" className="text-lg font-medium text-neutral-900">Urgent Items Triage</CardTitle>
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-danger-100 text-danger-800">
-                    {urgentItems.length} items
-                  </span>
+                  <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                    <Activity className="h-5 w-5 mr-2 text-gray-600" />
+                    Recent Activity
+                  </CardTitle>
+                  {refreshing && (
+                    <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
+                  )}
                 </div>
               </CardHeader>
-              <div className="divide-y divide-gray-200">
-                {ticketsLoading ? (
-                  <div className="py-4">
-                    {Array.from({ length: 3 }).map((_, index) => (
-                      <ListItemSkeleton key={index} className="px-6" />
-                    ))}
-                  </div>
-                ) : urgentItems.length === 0 ? (
-                  <div className="text-center py-8">
-                    <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-                    <h3 className="mt-2 text-sm font-medium">No urgent items</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">All caught up! Great work.</p>
-                  </div>
-                ) : (
-<div className="divide-y divide-gray-200">
-                    {urgentItems.slice(0, 5).map((item) => (
-                      <div key={`${item.type}-${item.id}`} className="py-4 flex items-center justify-between px-6">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 mr-3">
-                            {getTypeIcon(item.type)}
+              <CardContent className="pt-0 h-full overflow-y-auto">
+                <div className="space-y-4">
+                  {ticketsLoading ? (
+                    Array.from({ length: 8 }).map((_, index) => (
+                      <div key={index} className="animate-pulse">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                          <div className="flex-1 space-y-2">
+                            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                            <div className="h-2 bg-gray-200 rounded w-1/2"></div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium">{item.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              Assigned to: {item.assignedTo || 'Unassigned'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(item.priority)}`}>
-                            {item.priority}
-                          </span>
-                          <span className="text-xs text-neutral-500 capitalize">{item.type.replace('_', ' ')}</span>
+                          <div className="w-16 h-4 bg-gray-200 rounded"></div>
                         </div>
                       </div>
-))}
-              </div>
-                )}
-              </div>
-              {urgentItems.length > 5 && (
-                <div className="px-6 py-3 bg-neutral-50 text-center">
-                  <Link to="/tickets-work-orders" className="text-sm text-primary-600 hover:text-blue-500">
-                    View all {urgentItems.length} urgent items →
-                  </Link>
-                </div>
-              )}
-            </Card>
-          </div>
-
-          {/* Quick Actions & Stats */}
-          <div className="space-y-6">
-<Card padding="md" shadow="sm" className="bg-white">
-              <CardTitle as="h3" className="text-lg font-medium text-neutral-900 mb-4">Quick Stats</CardTitle>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-5 w-5 text-destructive mr-2" />
-                    <span className="text-sm text-muted-foreground">Urgent Tickets</span>
-                  </div>
-                  <span className="text-sm font-semibold">{metrics.urgentTickets}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Wrench className="h-5 w-5 text-primary mr-2" />
-                    <span className="text-sm text-muted-foreground">Pending Work Orders</span>
-                  </div>
-                  <span className="text-sm font-semibold">{metrics.pendingWorkOrders}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-green-500 mr-2" />
-                    <span className="text-sm text-muted-foreground">Upcoming Events</span>
-                  </div>
-                  <span className="text-sm font-semibold">{metrics.upcomingEvents}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <TrendingDown className="h-5 w-5 text-purple-500 mr-2" />
-                    <span className="text-sm text-muted-foreground">Monthly Expenses</span>
-                  </div>
-                  <span className="text-sm font-semibold">£{metrics.monthlyExpenses.toLocaleString()}</span>
-                </div>
-</div>
-            </Card>
-
-            <Card padding="md" shadow="sm" className="bg-white">
-              <CardTitle as="h3" className="text-lg font-medium text-neutral-900 mb-4">Quick Actions</CardTitle>
-              <div className="space-y-3">
-                <Link to="/tickets-work-orders" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-center">
-                    <AlertTriangle className="h-5 w-5 text-destructive mr-3" />
-                    <span className="text-sm font-medium">Manage Tickets</span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
-                <Link to="/finances" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-center">
-                    <CreditCard className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-sm font-medium">View Finances</span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
-                <Link to="/events" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-center">
-                    <Calendar className="h-5 w-5 text-primary mr-3" />
-                    <span className="text-sm font-medium">Manage Events</span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                </Link>
-                <Link to="/building-data" className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted transition-colors">
-                  <div className="flex items-center">
-                    <Building className="h-5 w-5 text-purple-500 mr-3" />
-                    <span className="text-sm font-medium">Building Data</span>
-                  </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
-</Link>
-              </div>
-            </Card>
-            
-            {/* Cash Flow Analysis Widget */}
-            {selectedBuildingId && financialSummary && financialSummary.forecastExpenses > 0 && (
-              <Card padding="none" shadow="sm" className="bg-blue-50 border border-blue-200">
-                <div className="p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-sm font-medium text-primary-900 font-inter">Cash Flow Analysis</h3>
-                      <div className="mt-2 text-sm text-primary-700 font-inter">
-                        <p className="mb-2">
-                          Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
-                          but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
-                          committed expenses from completed tickets awaiting invoices.
-                        </p>
-                        <p className={`font-medium ${
-                          financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
-                        }`}>
-                          {financialSummary.adjustedCashPosition >= 0 
-                            ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
-                            : `⚠️ You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
-                          }
-                        </p>
-                      </div>
-                      <div className="mt-3">
-                        <Link to="/finances" className="text-sm text-primary-600 hover:text-primary-800 font-medium">
-                          View Full Financial Details →
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
-
-        {/* Recent Activity Section */}
-        <div className="mt-8">
-<div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-neutral-200">
-              <h3 className="text-lg font-medium text-neutral-900">Recent Activity</h3>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {ticketsLoading ? (
-                  Array.from({ length: 5 }).map((_, index) => (
-                    <ListItemSkeleton key={index} />
-                  ))
-                ) : (
-                  <>
-                    {tickets
+                    ))
+                  ) : tickets.length > 0 ? (
+                    tickets
                       .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                      .slice(0, 5)
+                      .slice(0, 15)
                       .map((item) => (
-                        <div key={item.id} className="flex items-start space-x-3">
-                          <div className="flex-shrink-0">
-                            <FileText className="h-5 w-5 text-blue-500" />
+                        <div key={item.id} className="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-b-0">
+                          <div className="flex-shrink-0 mt-0.5">
+                            <FileText className="h-4 w-4 text-blue-500" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-neutral-900">
+                            <p className="text-sm font-medium text-gray-900 truncate">
                               {item.title}
                             </p>
-                            <p className="text-sm text-neutral-500">
+                            <p className="text-xs text-gray-500 mt-1">
                               Ticket • {formatTimeAgo(item.updatedAt)}
                             </p>
                           </div>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(item.status)}`}>
+                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(item.status)} flex-shrink-0`}>
                             {item.status}
                           </span>
                         </div>
-                      ))}
-                    {tickets.length === 0 && !ticketsLoading && (
-                      <div className="text-center py-8">
-                        <p className="text-neutral-500">
-                          No recent activity to show
-                        </p>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+                      ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Activity className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+                      <p className="text-gray-500 text-sm">
+                        No recent activity to show
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
+
+        {/* Cash Flow Analysis Widget - Moved to bottom */}
+        {selectedBuildingId && financialSummary && financialSummary.forecastExpenses > 0 && (
+          <div className="mt-6">
+            <Card className="bg-blue-50 border border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-primary-900">Cash Flow Analysis</h3>
+                    <div className="mt-2 text-sm text-primary-700">
+                      <p className="mb-2">
+                        Your current net position is <strong>{formatCurrency(financialSummary.netPosition)}</strong>, 
+                        but you have <strong>{formatCurrency(financialSummary.forecastExpenses)}</strong> in 
+                        committed expenses from completed tickets awaiting invoices.
+                      </p>
+                      <p className={`font-medium ${
+                        financialSummary.adjustedCashPosition >= 0 ? 'text-success-700' : 'text-red-700'
+                      }`}>
+                        {financialSummary.adjustedCashPosition >= 0 
+                          ? `✅ You have ${formatCurrency(financialSummary.adjustedCashPosition)} available after committed expenses.`
+                          : `⚠️ You may have a cash shortfall of ${formatCurrency(Math.abs(financialSummary.adjustedCashPosition))} once all invoices arrive.`
+                        }
+                      </p>
+                    </div>
+                    <div className="mt-3">
+                      <Link to="/finances" className="text-sm text-primary-600 hover:text-primary-800 font-medium">
+                        View Full Financial Details →
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )
