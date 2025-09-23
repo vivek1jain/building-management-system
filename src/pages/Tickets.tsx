@@ -9,8 +9,10 @@ import * as workOrderService from '../services/workOrderService'
 import { TicketDetailModal } from '../components/TicketDetailModal'
 import { useCreateTicket } from '../contexts/CreateTicketContext'
 import TicketTable from '../components/TicketTable'
+import TicketCards from '../components/Tickets/TicketCards'
 import WorkOrderTable from '../components/WorkOrderTable'
 import { Dropdown, DropdownOption, PageLoading, SectionLoading, ListItemSkeleton } from '../components/UI'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import { 
   Building as BuildingType, 
   Ticket, 
@@ -32,7 +34,11 @@ import {
   X,
   MapPin,
   DollarSign,
-  ChevronDown
+  ChevronDown,
+  Filter,
+  GitMerge,
+  ClipboardList,
+  UserCheck
 } from 'lucide-react'
 
 const Tickets: React.FC = () => {
@@ -40,6 +46,7 @@ const Tickets: React.FC = () => {
   const { addNotification } = useNotifications()
   const { selectedBuildingId } = useBuilding()
   const { openCreateTicketModal } = useCreateTicket()
+  const isMobile = useIsMobile()
   
   // State management
   const [activeTab, setActiveTab] = useState<'my-tickets' | 'tickets' | 'work-orders' | 'workflow'>('workflow')
@@ -52,7 +59,12 @@ const Tickets: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   // const [priorityFilter, setPriorityFilter] = useState<string>('all') // Removed as unused
-  const [selectedWorkflowStage, setSelectedWorkflowStage] = useState<string | null>('new')
+  const [selectedWorkflowStage, setSelectedWorkflowStage] = useState<string | null>(null)
+  
+  // Filter dropdown states
+  const [isWorkflowFilterOpen, setIsWorkflowFilterOpen] = useState(false)
+  const [isMyTicketsFilterOpen, setIsMyTicketsFilterOpen] = useState(false)
+  const [isAllTicketsFilterOpen, setIsAllTicketsFilterOpen] = useState(false)
   
   // Modal states
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
@@ -112,7 +124,7 @@ const Tickets: React.FC = () => {
           return ticket.buildingId === selectedBuildingId
         })
         console.log('Filtered tickets for building', selectedBuildingId, ':', buildingTickets.length, 'tickets')
-        console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id: t.id, buildingId: t.buildingId })))
+console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id: t.id, buildingId: t.buildingId })))
         setTickets(buildingTickets)
         setTicketsLoading(false) // Set loading to false when data arrives
       })
@@ -263,6 +275,16 @@ const Tickets: React.FC = () => {
     { value: 'Cancelled', label: 'Cancelled', description: 'Cancelled tickets' }
   ];
 
+  // Helper function to get filtered count for a stage
+  const getFilteredStageCount = (stageId: string) => {
+    return getTicketsForStage(stageId).filter(ticket => {
+      const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+      return matchesSearch && matchesStatus
+    }).length
+  }
+
   // Clean workflow stages with one-to-one status mapping (6-stage workflow)
   const workflowStages = [
     {
@@ -270,7 +292,7 @@ const Tickets: React.FC = () => {
       title: 'New',
       description: 'New tickets awaiting manager review',
       status: 'New',
-      count: getTicketsForStage('new').length,
+      count: isMobile ? getFilteredStageCount('new') : getTicketsForStage('new').length,
       color: 'bg-blue-50 border-blue-200'
     },
     {
@@ -278,7 +300,7 @@ const Tickets: React.FC = () => {
       title: 'Quoting',
       description: 'Getting quotes from suppliers',
       status: 'Quoting',
-      count: getTicketsForStage('quoting').length,
+      count: isMobile ? getFilteredStageCount('quoting') : getTicketsForStage('quoting').length,
       color: 'bg-yellow-50 border-yellow-200'
     },
     {
@@ -286,7 +308,7 @@ const Tickets: React.FC = () => {
       title: 'Scheduled',
       description: 'Work has been scheduled',
       status: 'Scheduled',
-      count: getTicketsForStage('scheduled').length,
+      count: isMobile ? getFilteredStageCount('scheduled') : getTicketsForStage('scheduled').length,
       color: 'bg-cyan-50 border-cyan-200'
     },
     {
@@ -294,7 +316,7 @@ const Tickets: React.FC = () => {
       title: 'Complete',
       description: 'Work completed, awaiting feedback',
       status: 'Complete',
-      count: getTicketsForStage('complete').length,
+      count: isMobile ? getFilteredStageCount('complete') : getTicketsForStage('complete').length,
       color: 'bg-green-50 border-green-200'
     },
     {
@@ -302,7 +324,7 @@ const Tickets: React.FC = () => {
       title: 'Closed',
       description: 'Completed with resident feedback',
       status: 'Closed',
-      count: getTicketsForStage('closed').length,
+      count: isMobile ? getFilteredStageCount('closed') : getTicketsForStage('closed').length,
       color: 'bg-gray-50 border-gray-200'
     },
     {
@@ -310,7 +332,7 @@ const Tickets: React.FC = () => {
       title: 'Cancelled',
       description: 'Cancelled tickets',
       status: 'Cancelled',
-      count: getTicketsForStage('cancelled').length,
+      count: isMobile ? getFilteredStageCount('cancelled') : getTicketsForStage('cancelled').length,
       color: 'bg-red-50 border-red-200'
     }
   ]
@@ -321,127 +343,341 @@ const Tickets: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
+        isMobile ? 'py-2 space-y-3' : 'py-8 space-y-6'
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900 font-inter">Ticketing</h1>
-            <p className="text-gray-600 mt-1 font-inter">
-              Manage tickets and work orders following the complete workflow
-            </p>
+            {!isMobile && (
+              <p className="text-gray-600 mt-1 font-inter">
+                Manage tickets and work orders following the complete workflow
+              </p>
+            )}
           </div>
+          {/* New Ticket Button - Mobile only in header */}
+          {isMobile && (
+            <button
+              onClick={openCreateTicketModal}
+              className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
       {/* Tab Navigation */}
-      <div className="border-b border-neutral-200">
+      <div className={`border-b border-neutral-200 ${
+        isMobile ? 'sticky top-0 bg-neutral-50 z-10' : ''
+      }`}>
         <div className="flex items-center justify-between">
-          <nav className="-mb-px flex space-x-8">
+          <nav className={`-mb-px flex ${isMobile ? 'flex-1 justify-between px-4' : 'space-x-8'}`}>
             <button
               onClick={() => setActiveTab('workflow')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
                 activeTab === 'workflow'
                   ? 'border-blue-500 text-primary-600'
                   : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              Workflow ({tickets.length + workOrders.length})
+              {isMobile ? (
+                <div className="relative">
+                  <GitMerge className="h-5 w-5" />
+                  {(tickets.length + workOrders.length) > 0 && (
+                    <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                      {tickets.length + workOrders.length > 99 ? '99+' : tickets.length + workOrders.length}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                `Workflow (${tickets.length + workOrders.length})`
+              )}
             </button>
             <button
               onClick={() => setActiveTab('work-orders')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
                 activeTab === 'work-orders'
                   ? 'border-blue-500 text-primary-600'
                   : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              Work Orders ({tickets.filter(ticket => ticket.status === 'Scheduled').length})
+              {isMobile ? (
+                <div className="relative">
+                  <Wrench className="h-5 w-5" />
+                  {tickets.filter(ticket => ticket.status === 'Scheduled').length > 0 && (
+                    <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                      {tickets.filter(ticket => ticket.status === 'Scheduled').length > 99 ? '99+' : tickets.filter(ticket => ticket.status === 'Scheduled').length}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                `Work Orders (${tickets.filter(ticket => ticket.status === 'Scheduled').length})`
+              )}
             </button>
             <button
               onClick={() => setActiveTab('my-tickets')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
                 activeTab === 'my-tickets'
                   ? 'border-blue-500 text-primary-600'
                   : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              My Tickets ({getMyTickets().length})
+              {isMobile ? (
+                <div className="relative">
+                  <UserCheck className="h-5 w-5" />
+                  {getMyTickets().length > 0 && (
+                    <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                      {getMyTickets().length > 99 ? '99+' : getMyTickets().length}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                `My Tickets (${getMyTickets().length})`
+              )}
             </button>
             <button
               onClick={() => setActiveTab('tickets')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter ${
+              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
                 activeTab === 'tickets'
                   ? 'border-blue-500 text-primary-600'
                   : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
               }`}
             >
-              All Tickets ({tickets.length})
+              {isMobile ? (
+                <div className="relative">
+                  <ClipboardList className="h-5 w-5" />
+                  {tickets.length > 0 && (
+                    <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                      {tickets.length > 99 ? '99+' : tickets.length}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                `All Tickets (${tickets.length})`
+              )}
             </button>
           </nav>
           
-          {/* New Ticket Button - Aligned with tab headers */}
-          <button
-            onClick={openCreateTicketModal}
-            className="btn-primary flex items-center font-inter"
-          >
-            New Ticket
-          </button>
+          {/* New Ticket Button - Desktop only */}
+          {!isMobile && (
+            <button
+              onClick={openCreateTicketModal}
+              className="btn-primary flex items-center font-inter"
+            >
+              New Ticket
+            </button>
+          )}
         </div>
       </div>
 
       {/* Workflow View */}
       {activeTab === 'workflow' && (
-        <div className="space-y-6">
-          {/* Search and Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative w-96">
+        <div className={isMobile ? 'space-y-3' : 'space-y-6'}>
+          {/* Search and Filters - Responsive */}
+          <div className={`flex items-center gap-2 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+            <div className={`relative ${isMobile ? 'flex-1' : 'w-96'}`}>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Search workflow items..."
+                placeholder={isMobile ? "Search..." : "Search workflow items..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+                className={`w-full pl-10 pr-4 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm ${isMobile ? 'h-[38px]' : 'py-1.5'}`}
               />
             </div>
-            <Dropdown
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(value) => setStatusFilter(value)}
-              placeholder="Filter by status..."
-              size="sm"
-              className="min-w-[200px]"
-            />
+            {isMobile ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsWorkflowFilterOpen(!isWorkflowFilterOpen)}
+                  className={`flex items-center justify-center w-10 h-[38px] border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors ${
+                    statusFilter !== 'all' ? 'bg-primary-50 border-primary-300' : ''
+                  }`}
+                >
+                  <Filter className={`h-4 w-4 ${
+                    statusFilter !== 'all' ? 'text-primary-600' : 'text-neutral-600'
+                  }`} />
+                </button>
+                
+                {isWorkflowFilterOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsWorkflowFilterOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-20">
+                      <div className="py-1">
+                        {statusOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setStatusFilter(option.value)
+                              setIsWorkflowFilterOpen(false)
+                              
+                              // Auto-expand the relevant accordion on mobile when a specific status is selected
+                              if (isMobile && option.value !== 'all') {
+                                // Map status values to stage IDs
+                                const statusToStageMap = {
+                                  'New': 'new',
+                                  'Quoting': 'quoting', 
+                                  'Scheduled': 'scheduled',
+                                  'Complete': 'complete',
+                                  'Closed': 'closed',
+                                  'Cancelled': 'cancelled'
+                                }
+                                const stageId = statusToStageMap[option.value]
+                                if (stageId) {
+                                  setSelectedWorkflowStage(stageId)
+                                }
+                              } else if (option.value === 'all') {
+                                // Close all accordions when "All" is selected
+                                setSelectedWorkflowStage(null)
+                              }
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors ${
+                              statusFilter === option.value ? 'bg-primary-50 text-primary-700' : 'text-neutral-700'
+                            }`}
+                          >
+                            <div className="font-medium">{option.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Dropdown
+                options={statusOptions}
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value)}
+                placeholder="Filter by status..."
+                size="sm"
+                className="min-w-[200px]"
+              />
+            )}
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4">
-            {workflowStages.map((stage, index) => (
-              <button
-                key={stage.id}
-                onClick={() => setSelectedWorkflowStage(selectedWorkflowStage === stage.id ? null : stage.id)}
-                className={`w-full border-2 rounded-lg p-2 lg:p-3 transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col h-full min-h-[80px] ${
-                  selectedWorkflowStage === stage.id 
+          <div className={`${isMobile ? 'space-y-3' : 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 lg:gap-4'}`}>
+            {workflowStages.map((stage, index) => {
+              // Check if this stage should be auto-expanded due to search results or status filter
+              const hasSearchResults = searchTerm.length > 0 && getFilteredStageCount(stage.id) > 0
+              const hasStatusFilterMatch = isMobile && statusFilter !== 'all' && statusFilter === stage.status
+              const shouldExpand = selectedWorkflowStage === stage.id || hasSearchResults || hasStatusFilterMatch
+              
+              return isMobile ? (
+                // Mobile: Accordion-style component
+                <div key={stage.id} className={`rounded-lg shadow-sm border-2 overflow-hidden transition-all duration-200 ${
+                  shouldExpand 
                     ? 'ring-2 ring-blue-500 ' + stage.color 
                     : stage.color
-                } hover:scale-105`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-medium text-neutral-900 font-inter text-sm lg:text-base">{stage.title}</h3>
-                  <span className="bg-white px-2 py-1 rounded-full text-xs lg:text-sm font-semibold text-neutral-700 font-inter">
-                    {stage.count}
-                  </span>
-                </div>
-                <p className="text-xs lg:text-sm text-gray-600 font-inter text-left flex-1">{stage.description}</p>
-                <div className="mt-1 lg:mt-2 w-full flex justify-center lg:justify-end items-center" style={{ minHeight: '16px' }}>
-                  {index < workflowStages.length - 1 && (
-                    <ArrowRight className="h-4 w-4 lg:h-5 lg:w-5 text-neutral-400" />
+                } ${
+                  stage.count > 0 ? 'hover:shadow-md' : 'opacity-75'
+                } ${
+                  hasSearchResults && selectedWorkflowStage !== stage.id ? 'ring-1 ring-green-400' : ''
+                } ${
+                  hasStatusFilterMatch && selectedWorkflowStage !== stage.id ? 'ring-1 ring-blue-400' : ''
+                }`}>
+                  {/* Accordion Header */}
+                  <button
+                    onClick={() => setSelectedWorkflowStage(selectedWorkflowStage === stage.id ? null : stage.id)}
+                    className="w-full p-3 flex items-center justify-between text-left hover:bg-white/20 transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <h3 className={`font-medium font-inter text-base ${
+                        hasSearchResults ? 'text-green-700' : hasStatusFilterMatch ? 'text-blue-700' : 'text-neutral-900'
+                      }`}>{stage.title}</h3>
+                      <span className={`px-2 py-1 rounded-full text-sm font-semibold font-inter ${
+                        stage.count > 0 
+                          ? hasSearchResults 
+                            ? 'bg-green-100 text-green-800' 
+                            : hasStatusFilterMatch
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-white text-neutral-700'
+                          : 'bg-white/50 text-neutral-500'
+                      }`}>
+                        {stage.count}
+                      </span>
+                      {hasSearchResults && (
+                        <span className="text-xs text-green-600 font-medium bg-green-50 px-2 py-1 rounded-full">
+                          Found!
+                        </span>
+                      )}
+                      {hasStatusFilterMatch && !hasSearchResults && (
+                        <span className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded-full">
+                          Filtered
+                        </span>
+                      )}
+                    </div>
+                    <ChevronDown className={`h-5 w-5 text-neutral-600 transition-transform duration-200 ${
+                      shouldExpand ? 'rotate-180' : ''
+                    }`} />
+                  </button>
+                  
+                  {/* Accordion Content - Auto-expand when search results found */}
+                  {shouldExpand && (
+                    <div className="border-t border-neutral-100 p-4 bg-neutral-50">
+                      {(() => {
+                        const allStageTickets = getTicketsForStage(stage.id)
+                        const stageTickets = allStageTickets.filter(ticket => {
+                          const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                               ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                          const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+                          const result = matchesSearch && matchesStatus
+                          
+                          return result
+                        })
+                        
+                        if (stageTickets.length === 0) {
+                          const hasTicketsButFiltered = getTicketsForStage(stage.id).length > 0
+                          return (
+                            <div className="text-center text-neutral-500 text-sm py-4">
+                              {hasTicketsButFiltered ? 'No tickets match your search' : 'No tickets in this stage'}
+                            </div>
+                          )
+                        }
+                        
+                        return (
+                          <TicketCards
+                            tickets={stageTickets}
+                            onTicketClick={handleTicketClick}
+                            className="mt-2"
+                          />
+                        )
+                      })()}
+                    </div>
                   )}
                 </div>
-              </button>
-            ))}
+              ) : (
+                // Desktop: Original button layout
+                <button
+                  key={stage.id}
+                  onClick={() => setSelectedWorkflowStage(selectedWorkflowStage === stage.id ? null : stage.id)}
+                  className={`w-full border-2 rounded-lg transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col h-full p-2 lg:p-3 min-h-[80px] hover:scale-105 ${
+                    selectedWorkflowStage === stage.id 
+                      ? 'ring-2 ring-blue-500 ' + stage.color 
+                      : stage.color
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-neutral-900 font-inter text-sm lg:text-base">{stage.title}</h3>
+                    <span className="bg-white px-2 py-1 rounded-full text-xs lg:text-sm font-semibold text-neutral-700 font-inter">
+                      {stage.count}
+                    </span>
+                  </div>
+                  <p className="text-xs lg:text-sm text-gray-600 font-inter text-left flex-1">{stage.description}</p>
+                  <div className="mt-1 lg:mt-2 w-full flex justify-center lg:justify-end items-center" style={{ minHeight: '16px' }}>
+                    {index < workflowStages.length - 1 && (
+                      <ArrowRight className="h-4 w-4 lg:h-5 lg:w-5 text-neutral-400" />
+                    )}
+                  </div>
+                </button>
+              )
+            })}
           </div>
 
-          {/* Filtered Stage View */}
-          {selectedWorkflowStage && (() => {
+          {/* Filtered Stage View - Desktop Only */}
+          {!isMobile && selectedWorkflowStage && (() => {
             const stageTickets = getTicketsForStage(selectedWorkflowStage)
             const stageWorkOrders = getWorkOrdersForStage(selectedWorkflowStage)
             
@@ -449,9 +685,14 @@ const Tickets: React.FC = () => {
               <div className="space-y-4">
                 {/* Direct table rendering without header */}
                 {(() => {
-                  // If there are only tickets, use the ticket table
+                  // If there are only tickets, use the ticket table/cards
                   if (stageTickets.length > 0 && stageWorkOrders.length === 0) {
-                    return (
+                    return isMobile ? (
+                      <TicketCards
+                        tickets={stageTickets}
+                        onTicketClick={handleTicketClick}
+                      />
+                    ) : (
                       <TicketTable
                         tickets={stageTickets}
                         onTicketClick={handleTicketClick}
@@ -538,27 +779,69 @@ const Tickets: React.FC = () => {
 
       {/* My Tickets Tab */}
       {activeTab === 'my-tickets' && (
-        <div className="space-y-4">
-          {/* Search and Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative w-96">
+        <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
+          {/* Search and Filters - Responsive */}
+          <div className={`flex items-center gap-2 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+            <div className={`relative ${isMobile ? 'flex-1' : 'w-96'}`}>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Search my tickets..."
+                placeholder={isMobile ? "Search..." : "Search my tickets..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+                className={`w-full pl-10 pr-4 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm ${isMobile ? 'h-[38px]' : 'py-1.5'}`}
               />
             </div>
-            <Dropdown
-              options={statusOptions}
-              value={statusFilter}
-              onChange={(value) => setStatusFilter(value)}
-              placeholder="Filter by status..."
-              size="sm"
-              className="min-w-[200px]"
-            />
+            {isMobile ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsMyTicketsFilterOpen(!isMyTicketsFilterOpen)}
+                  className={`flex items-center justify-center w-10 h-[38px] border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors ${
+                    statusFilter !== 'all' ? 'bg-primary-50 border-primary-300' : ''
+                  }`}
+                >
+                  <Filter className={`h-4 w-4 ${
+                    statusFilter !== 'all' ? 'text-primary-600' : 'text-neutral-600'
+                  }`} />
+                </button>
+                
+                {isMyTicketsFilterOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsMyTicketsFilterOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-20">
+                      <div className="py-1">
+                        {statusOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setStatusFilter(option.value)
+                              setIsMyTicketsFilterOpen(false)
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors ${
+                              statusFilter === option.value ? 'bg-primary-50 text-primary-700' : 'text-neutral-700'
+                            }`}
+                          >
+                            <div className="font-medium">{option.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Dropdown
+                options={statusOptions}
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value)}
+                placeholder="Filter by status..."
+                size="sm"
+                className="min-w-[200px]"
+              />
+            )}
           </div>
           
           {/* Info Banner for Managers */}
@@ -577,44 +860,103 @@ const Tickets: React.FC = () => {
           )}
 
           {/* My Tickets List */}
-          <TicketTable
-            tickets={getMyTickets().filter(ticket => {
-              const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
-              const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
-              return matchesSearch && matchesStatus
-            })}
-            onTicketClick={handleTicketClick}
-            showApprovalBadge={true}
-            currentUserId={currentUser?.id}
-            userRole={currentUser?.role}
-          />
+          {isMobile ? (
+            <TicketCards
+              tickets={getMyTickets().filter(ticket => {
+                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+                const result = matchesSearch && matchesStatus
+                
+                return result
+              })}
+              onTicketClick={handleTicketClick}
+              showApprovalBadge={true}
+              currentUserId={currentUser?.id}
+              userRole={currentUser?.role}
+            />
+          ) : (
+            <TicketTable
+              tickets={getMyTickets().filter(ticket => {
+                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+                return matchesSearch && matchesStatus
+              })}
+              onTicketClick={handleTicketClick}
+              showApprovalBadge={true}
+              currentUserId={currentUser?.id}
+              userRole={currentUser?.role}
+            />
+          )}
         </div>
       )}
       
       {/* All Tickets Tab */}
       {activeTab === 'tickets' && (
-        <div className="space-y-4">
-          {/* Search and Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative w-96">
+        <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
+          {/* Search and Filters - Responsive */}
+          <div className={`flex items-center gap-2 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+            <div className={`relative ${isMobile ? 'flex-1' : 'w-96'}`}>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Search active tickets..."
+                placeholder={isMobile ? "Search..." : "Search active tickets..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+                className={`w-full pl-10 pr-4 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm ${isMobile ? 'h-[38px]' : 'py-1.5'}`}
               />
             </div>
-            <Dropdown
-              options={activeStatusOptions}
-              value={statusFilter}
-              onChange={(value) => setStatusFilter(value)}
-              placeholder="Filter by status..."
-              size="sm"
-              className="min-w-[200px]"
-            />
+            {isMobile ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsAllTicketsFilterOpen(!isAllTicketsFilterOpen)}
+                  className={`flex items-center justify-center w-10 h-[38px] border border-neutral-300 rounded-lg hover:bg-neutral-50 transition-colors ${
+                    statusFilter !== 'all' ? 'bg-primary-50 border-primary-300' : ''
+                  }`}
+                >
+                  <Filter className={`h-4 w-4 ${
+                    statusFilter !== 'all' ? 'text-primary-600' : 'text-neutral-600'
+                  }`} />
+                </button>
+                
+                {isAllTicketsFilterOpen && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setIsAllTicketsFilterOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-20">
+                      <div className="py-1">
+                        {activeStatusOptions.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setStatusFilter(option.value)
+                              setIsAllTicketsFilterOpen(false)
+                            }}
+                            className={`w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition-colors ${
+                              statusFilter === option.value ? 'bg-primary-50 text-primary-700' : 'text-neutral-700'
+                            }`}
+                          >
+                            <div className="font-medium">{option.label}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <Dropdown
+                options={activeStatusOptions}
+                value={statusFilter}
+                onChange={(value) => setStatusFilter(value)}
+                placeholder="Filter by status..."
+                size="sm"
+                className="min-w-[200px]"
+              />
+            )}
           </div>
           
           {/* Info Banner */}
@@ -631,33 +973,52 @@ const Tickets: React.FC = () => {
           </div>
 
           {/* All Active Tickets List */}
-          <TicketTable
-            tickets={getActiveTickets().filter(ticket => {
-              const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
-              const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
-              return matchesSearch && matchesStatus
-            })}
-            onTicketClick={handleTicketClick}
-          />
+          {isMobile ? (
+            <TicketCards
+              tickets={getActiveTickets().filter(ticket => {
+                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+                return matchesSearch && matchesStatus
+              })}
+              onTicketClick={handleTicketClick}
+            />
+          ) : (
+            <TicketTable
+              tickets={getActiveTickets().filter(ticket => {
+                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter
+                return matchesSearch && matchesStatus
+              })}
+              onTicketClick={handleTicketClick}
+            />
+          )}
         </div>
       )}
 
       {/* Work Orders Tab */}
       {activeTab === 'work-orders' && (
-        <div className="space-y-4">
-          {/* Search and Filters */}
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative w-96">
+        <div className={isMobile ? 'space-y-3' : 'space-y-4'}>
+          {/* Search - Responsive */}
+          <div className={`flex items-center gap-2 ${isMobile ? 'mb-3' : 'mb-6'}`}>
+            <div className={`relative ${isMobile ? 'flex-1' : 'w-96'}`}>
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
               <input
                 type="text"
-                placeholder="Search scheduled tickets..."
+                placeholder={isMobile ? "Search..." : "Search scheduled tickets..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+                className={`w-full pl-10 pr-4 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm ${isMobile ? 'h-[38px]' : 'py-1.5'}`}
               />
             </div>
+            {isMobile && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-neutral-500 font-medium whitespace-nowrap">
+                  Scheduled only
+                </span>
+              </div>
+            )}
           </div>
           
           {/* Info Banner */}
@@ -674,15 +1035,29 @@ const Tickets: React.FC = () => {
           </div>
 
           {/* Scheduled Tickets List */}
-          <TicketTable
-            tickets={tickets.filter(ticket => {
-              const isScheduled = ticket.status === 'Scheduled'
-              const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                 ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
-              return isScheduled && matchesSearch
-            })}
-            onTicketClick={handleTicketClick}
-          />
+          {isMobile ? (
+            <TicketCards
+              tickets={tickets.filter(ticket => {
+                const isScheduled = ticket.status === 'Scheduled'
+                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                const result = isScheduled && matchesSearch
+                
+                return result
+              })}
+              onTicketClick={handleTicketClick}
+            />
+          ) : (
+            <TicketTable
+              tickets={tickets.filter(ticket => {
+                const isScheduled = ticket.status === 'Scheduled'
+                const matchesSearch = ticket.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                   ticket.description.toLowerCase().includes(searchTerm.toLowerCase())
+                return isScheduled && matchesSearch
+              })}
+              onTicketClick={handleTicketClick}
+            />
+          )}
         </div>
       )}
       
