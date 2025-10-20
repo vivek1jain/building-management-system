@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign, Receipt, ExternalLink } from 'lucide-react';
+import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign, Receipt, ExternalLink, MessageSquare, Activity, Settings, Quote, CalendarClock, CheckCircle, XCircle, X } from 'lucide-react';
 import { Ticket, TicketComment, TicketStatus, EnhancedQuote, Invoice } from '../types';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { TicketCommentService } from '../services/ticketCommentService';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
@@ -25,6 +26,21 @@ interface TicketDetailModalProps {
   onUpdate?: (updatedTicket: Ticket) => void;
 }
 
+type MobileTab = 'details' | 'management' | 'comments' | 'activity';
+
+interface MobileTabConfig {
+  id: MobileTab;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+const mobileTabsConfig: MobileTabConfig[] = [
+  { id: 'details', label: 'Details', icon: FileText },
+  { id: 'management', label: 'Manage', icon: Settings },
+  { id: 'comments', label: 'Comments', icon: MessageSquare },
+  { id: 'activity', label: 'Activity', icon: Activity },
+];
+
 export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   ticket,
   isOpen,
@@ -33,6 +49,11 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 }) => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
+  const isMobile = useIsMobile();
+  
+  // Mobile tab state
+  const [activeTab, setActiveTab] = useState<MobileTab>('details');
+  
   const [comments, setComments] = useState<TicketComment[]>([]);
   const [canComment, setCanComment] = useState(false);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(true);
@@ -1042,7 +1063,19 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
 
     const allStages = getAllWorkflowStages();
     
-    // Map status to user-friendly button text
+    // Map status to icons and button text
+    const getButtonIcon = (status: TicketStatus) => {
+      switch (status) {
+        case 'New': return FileText;
+        case 'Quoting': return DollarSign;
+        case 'Scheduled': return CalendarClock;
+        case 'Complete': return CheckCircle;
+        case 'Closed': return XCircle;
+        case 'Cancelled': return X;
+        default: return FileText;
+      }
+    };
+    
     const getButtonText = (status: TicketStatus) => {
       switch (status) {
         case 'New': return 'New';
@@ -1083,27 +1116,35 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     };
 
     return (
-      <div className="space-y-3 text-center">
-        <h4 className="text-sm font-semibold text-neutral-900">Workflow</h4>
-        <div className="flex flex-wrap gap-2 justify-center">
+      <div className={isMobile ? 'space-y-2' : 'space-y-3 text-center'}>
+        {!isMobile && <h4 className="text-sm font-semibold text-neutral-900">Workflow</h4>}
+        <div className={`flex gap-2 ${isMobile ? 'justify-between' : 'flex-wrap justify-center'}`}>
           {/* Main workflow stages */}
           {allStages.map((status) => {
             const isAvailable = isStatusAvailable(status);
             const isCurrent = localTicket.status === status;
+            const ButtonIcon = getButtonIcon(status);
             
             return (
               <button
                 key={status}
                 onClick={isAvailable ? () => handleStatusUpdate(status) : undefined}
                 disabled={!isAvailable || isUpdatingStatus}
-                className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor(status, isAvailable, isCurrent)}`}
+                className={`inline-flex items-center justify-center font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor(status, isAvailable, isCurrent)} ${
+                  isMobile ? 'flex-1 px-2 py-2 text-xs min-w-0' : 'px-4 py-2 text-sm'
+                }`}
+                title={isMobile ? getButtonText(status) : undefined}
               >
                 {isUpdatingStatus && isAvailable ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : isMobile ? (
+                  <ButtonIcon className="w-4 h-4" />
                 ) : (
-                  isAvailable && !isCurrent && <ChevronRight className="w-4 h-4 mr-2" />
+                  <>
+                    {isAvailable && !isCurrent && <ChevronRight className="w-4 h-4 mr-2" />}
+                    {getButtonText(status)}
+                  </>
                 )}
-                {getButtonText(status)}
               </button>
             );
           })}
@@ -1113,14 +1154,21 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             <button
               onClick={() => handleStatusUpdate('Cancelled')}
               disabled={isUpdatingStatus}
-                className={`inline-flex items-center px-4 py-2 text-sm font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor('Cancelled', true, false)}`}
+              className={`inline-flex items-center justify-center font-medium border border-transparent rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 ${getButtonColor('Cancelled', true, false)} ${
+                isMobile ? 'flex-1 px-2 py-2 text-xs min-w-0' : 'px-4 py-2 text-sm'
+              }`}
+              title={isMobile ? 'Cancel' : undefined}
             >
               {isUpdatingStatus ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : isMobile ? (
+                <X className="w-4 h-4" />
               ) : (
-                <ChevronRight className="w-4 h-4 mr-2" />
+                <>
+                  <ChevronRight className="w-4 h-4 mr-2" />
+                  Cancel
+                </>
               )}
-              Cancel
             </button>
           )}
         </div>
@@ -1155,13 +1203,11 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     return completedActivity?.timestamp || localTicket.completedDate;
   };
 
-  // Custom header with status and priority badges
+  // Custom header with status and priority badges above title
   const customHeader = (
-    <div className="flex items-center justify-between w-full">
-      <h2 className="text-xl font-semibold text-neutral-900 flex-1 mr-4" title={localTicket.title}>
-        {localTicket.title.length > 30 ? `${localTicket.title.substring(0, 30)}...` : localTicket.title}
-      </h2>
-      <div className="flex items-center gap-2 flex-shrink-0">
+    <div className="w-full space-y-2">
+      {/* Status and Priority badges */}
+      <div className="flex items-center justify-start gap-2">
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(localTicket.status)}`}>
           {localTicket.status}
         </span>
@@ -1169,6 +1215,10 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           {localTicket.urgency}
         </span>
       </div>
+      {/* Title using full width */}
+      <h2 className="text-xl font-semibold text-neutral-900 w-full text-left leading-relaxed" title={localTicket.title}>
+        {localTicket.title}
+      </h2>
     </div>
   );
 
@@ -1181,48 +1231,76 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       size="xl"
     >
       {isLoadingModalContent ? (
-        <div className="flex items-center justify-center py-12">
+        <div className={`flex items-center justify-center py-12 ${isMobile ? 'min-h-[400px]' : ''}`}>
           <div className="text-center">
             <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary-600" />
             <p className="text-sm text-neutral-600">Loading ticket details...</p>
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-        {/* Ticket Information Card */}
-        <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-          {/* Main description - emphasized */}
-          <p className="text-neutral-900 text-base leading-relaxed mb-4">
-            {localTicket.description}
-          </p>
-          
-          {/* Footer info - inline */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 pt-3 border-t border-neutral-100">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4" />
-              <span>Requested by {getFirstName(localTicket.requestedBy)}</span>
+        <div className={isMobile ? 'space-y-3' : 'space-y-6'}>
+          {/* Mobile Tab Navigation */}
+          {isMobile && (
+            <div className="border-b border-neutral-200 sticky top-0 bg-white z-10">
+              <nav className="flex justify-evenly px-2">
+                {mobileTabsConfig.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex flex-col items-center justify-center py-3 px-3 flex-1 border-b-2 font-medium text-xs transition-colors duration-200 ${
+                        isActive
+                          ? 'border-primary-500 text-primary-600'
+                          : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5 mb-1" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4" />
-              <span>{localTicket.location}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4" />
-              <span>Created {formatDate(localTicket.createdAt)}</span>
-            </div>
-            {localTicket.assignedTo && (
-              <div className="flex items-center gap-2">
-                <User className="w-4 h-4" />
-                <span>Assigned to {getFirstName(localTicket.assignedTo)}</span>
+          )}
+
+          {/* Ticket Details Tab */}
+          {(!isMobile || activeTab === 'details') && (
+            <div className={`bg-white border border-neutral-200 rounded-lg p-6 shadow-sm ${isMobile ? 'min-h-[400px]' : ''}`}>
+              {/* Main description - emphasized */}
+              <p className="text-neutral-900 text-base leading-relaxed mb-4">
+                {localTicket.description}
+              </p>
+              
+              {/* Footer info - inline */}
+              <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-600 pt-3 border-t border-neutral-100">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  <span>Requested by {getFirstName(localTicket.requestedBy)}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  <span>{localTicket.location}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  <span>Created {formatDate(localTicket.createdAt)}</span>
+                </div>
+                {localTicket.assignedTo && (
+                  <div className="flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    <span>Assigned to {getFirstName(localTicket.assignedTo)}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
 
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Ticket Management - Contextual based on status */}
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm relative">
+          {/* Ticket Management Tab */}
+          {(!isMobile || activeTab === 'management') && (
+            <div className={`bg-white border border-neutral-200 rounded-lg p-6 shadow-sm relative ${isMobile ? 'min-h-[400px]' : 'lg:col-span-1'}`}>
             <h4 className="text-md font-semibold text-neutral-900 mb-4">Ticket Management</h4>
             
             {/* New Ticket */}
@@ -1721,46 +1799,50 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
           
-          {/* Comments Section */}
-          <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-            <TicketComments
-              ticketId={ticket.id}
-              comments={comments}
-              onAddComment={handleAddComment}
-              canComment={canComment}
-              isCheckingPermissions={isCheckingPermissions}
-              hideCommentIcon={true}
-              postButtonTitle="Post"
-              hideCommentAsDescription={true}
-            />
-          </div>
-        </div>
+          {/* Comments Tab */}
+          {(!isMobile || activeTab === 'comments') && (
+            <div className={`bg-white border border-neutral-200 rounded-lg p-6 shadow-sm ${isMobile ? 'min-h-[400px]' : ''}`}>
+              <TicketComments
+                ticketId={ticket.id}
+                comments={comments}
+                onAddComment={handleAddComment}
+                canComment={canComment}
+                isCheckingPermissions={isCheckingPermissions}
+                hideCommentIcon={true}
+                postButtonTitle="Post"
+                hideCommentAsDescription={true}
+              />
+            </div>
+          )}
 
-        {/* Activity Log - Full Width at Bottom */}
-        <div className="bg-white border border-neutral-200 rounded-lg p-6 shadow-sm">
-          <h4 className="text-md font-semibold text-neutral-900 mb-4">Activity Log</h4>
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {localTicket.activityLog.map((activity) => (
-              <div key={activity.id} className="border-l-2 border-primary-200 pl-4 py-2 flex items-center justify-between hover:bg-neutral-25 transition-colors duration-150">
-                <div className="flex items-center gap-2 flex-1">
-                  <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
-                  <span className="font-medium text-neutral-900 text-sm">{activity.action}</span>
-                  <span className="text-sm text-neutral-600 truncate">
-                    {activity.description === 'Ticket created by user' ? 
-                      `Ticket created by ${getFirstName(activity.performedBy)}` : 
-                      activity.description}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-neutral-500 flex-shrink-0">
-                  <span>by {getFirstName(activity.performedBy)}</span>
-                  <span>{formatDate(activity.timestamp)}</span>
-                </div>
+          {/* Activity Log Tab */}
+          {(!isMobile || activeTab === 'activity') && (
+            <div className={`bg-white border border-neutral-200 rounded-lg p-6 shadow-sm ${isMobile ? 'min-h-[400px]' : ''}`}>
+              <h4 className="text-md font-semibold text-neutral-900 mb-4">Activity Log</h4>
+              <div className={`space-y-1 ${isMobile ? 'max-h-80' : 'max-h-64'} overflow-y-auto`}>
+                {localTicket.activityLog.map((activity) => (
+                  <div key={activity.id} className="border-l-2 border-primary-200 pl-4 py-2 flex items-center justify-between hover:bg-neutral-25 transition-colors duration-150">
+                    <div className="flex items-center gap-2 flex-1">
+                      <FileText className="w-4 h-4 text-primary-600 flex-shrink-0" />
+                      <span className="font-medium text-neutral-900 text-sm">{activity.action}</span>
+                      <span className="text-sm text-neutral-600 truncate">
+                        {activity.description === 'Ticket created by user' ? 
+                          `Ticket created by ${getFirstName(activity.performedBy)}` : 
+                          activity.description}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-neutral-500 flex-shrink-0">
+                      <span>by {getFirstName(activity.performedBy)}</span>
+                      <span>{formatDate(activity.timestamp)}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
+          )}
         </div>
       )}
 

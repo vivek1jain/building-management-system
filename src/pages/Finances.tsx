@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { useBuilding } from '../contexts/BuildingContext';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { 
   Building as BuildingType, 
   Budget, 
@@ -56,7 +57,8 @@ import {
   Users,
   Search,
   Filter,
-  BookOpen
+  BookOpen,
+  Info
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption, PageLoading, SectionLoading, TabLoadingSkeleton, TableRowSkeleton, WidgetSkeleton } from '../components/UI'
 import { ServiceChargePeriodDropdown } from '../components/ServiceCharges/ServiceChargePeriodDropdown'
@@ -79,6 +81,7 @@ const Finances: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
+  const isMobile = useIsMobile()
 
   
   // Core state
@@ -118,6 +121,7 @@ const Finances: React.FC = () => {
   // UI state
   const [showBudgetSetup, setShowBudgetSetup] = useState(false)
   const [budgetLocked, setBudgetLocked] = useState(false)
+  const [showExpenseHelpModal, setShowExpenseHelpModal] = useState(false)
   
   // Form states
   const [budgetForm, setBudgetForm] = useState({
@@ -1136,27 +1140,34 @@ const Finances: React.FC = () => {
     return <PageLoading message="Loading financial data..." />
   }
 
+  // Tab configuration for consistent mobile/desktop rendering
+  const financeTabs = [
+    { id: 'expenses', name: 'Expenses', icon: Receipt },
+    { id: 'invoices', name: 'Invoices', icon: FileText },
+    { id: 'demands', name: 'Service Charges', icon: FileText },
+    { id: 'budget', name: 'Budget', icon: BarChart3 }
+  ]
+
   return (
     <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
+        isMobile ? 'py-2 space-y-3' : 'py-8 space-y-6'
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Financial Management</h1>
-            <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Finances</h1>
+            {!isMobile && (
+              <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
+            )}
           </div>
         </div>
 
 
         {/* Tab Navigation */}
         <div className="border-b border-neutral-200">
-          <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-            {[
-              { id: 'expenses', name: 'Expenses', icon: Receipt },
-              { id: 'invoices', name: 'Invoices', icon: FileText },
-              { id: 'demands', name: 'Service Charges', icon: FileText },
-              { id: 'budget', name: 'Budget', icon: BarChart3 }
-            ].map((tab) => {
+          <nav className={`-mb-px flex ${isMobile ? 'justify-between px-4' : 'space-x-8'}`} aria-label="Tabs">
+            {financeTabs.map((tab) => {
               const Icon = tab.icon
               const isActive = activeTab === tab.id
               return (
@@ -1167,11 +1178,13 @@ const Finances: React.FC = () => {
                     isActive
                       ? 'border-blue-500 text-primary-600'
                       : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                  } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors font-inter`}
+                  } py-2 border-b-2 font-medium text-sm transition-colors font-inter flex items-center ${
+                    isMobile ? 'min-w-[44px] justify-center' : 'px-1 gap-2'
+                  }`}
                   aria-current={isActive ? 'page' : undefined}
                 >
                   <Icon className="h-4 w-4" />
-                  {tab.name}
+                  {!isMobile && <span>{tab.name}</span>}
                 </button>
               )
             })}
@@ -1336,7 +1349,9 @@ const Finances: React.FC = () => {
               </div>
 
               {/* Service Charges Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`grid gap-4 ${
+                isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
+              }`}>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h3 className="font-medium text-blue-900 font-inter">Total Demands</h3>
                   <p className="text-2xl font-bold text-primary-600 font-inter">{serviceCharges.length}</p>
@@ -1739,16 +1754,29 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
           {activeTab === 'expenses' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-neutral-900 font-inter">Expense Forecasts</h2>
-                <div className="flex items-center space-x-3">
-                  <div className="text-sm text-gray-600 font-inter">
-                    Showing forecast expenses from completed tickets
-                  </div>
+                <div className="flex items-center space-x-2">
+                  <h2 className="text-lg font-semibold text-neutral-900 font-inter">Expense Forecasts</h2>
+                  <button
+                    onClick={() => setShowExpenseHelpModal(true)}
+                    className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                    title="About Expense Forecasts"
+                  >
+                    <Info className="h-4 w-4" />
+                  </button>
                 </div>
+                {!isMobile && (
+                  <div className="flex items-center space-x-3">
+                    <div className="text-sm text-gray-600 font-inter">
+                      Showing forecast expenses from completed tickets
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Expenses Summary */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`grid gap-4 ${
+                isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
+              }`}>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                   <h3 className="font-medium text-blue-900 font-inter">Total Forecasts</h3>
                   <p className="text-2xl font-bold text-primary-600 font-inter">{expenses.length}</p>
@@ -1773,171 +1801,265 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                 </div>
               </div>
 
-              {/* Expenses Table */}
-              <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-neutral-200">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Forecast Expenses</h3>
-                  <p className="text-sm text-gray-600 font-inter mt-1">
-                    Expenses automatically created from completed maintenance tickets
-                  </p>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-neutral-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Ticket/Description
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Supplier
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Category
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Date Created
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {expenses.map((expense) => (
-                        <tr key={expense.id} className="hover:bg-neutral-50">
-                          <td className="px-6 py-4 text-sm text-neutral-900 font-inter">
-                            <div>
-                              <div className="font-medium">{expense.description}</div>
-                              {expense.ticketId && (
-                                <div className="text-xs text-gray-500 mt-1">
-                                  Ticket: {expense.ticketId.substring(0, 8)}...
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {expense.vendorName || expense.supplierName || 'Unknown Supplier'}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            <div className="font-medium">
-                              {formatCurrency(expense.amount || 0)}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            <span className="capitalize">{expense.category?.replace('_', ' ')}</span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${
-                              expense.status === 'forecast'
-                                ? 'bg-orange-100 text-orange-800'
-                                : expense.status === 'invoiced'
-                                ? 'bg-red-100 text-red-800'
-                                : expense.status === 'paid'
-                                ? 'bg-success-100 text-success-800'
-                                : 'bg-neutral-100 text-gray-800'
-                            }`}>
-                              {expense.status === 'forecast' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                              {expense.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
-                              {expense.status === 'forecast' ? 'Pending Invoice' : expense.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {new Date(expense.createdAt).toLocaleDateString('en-GB')}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div className="flex items-center space-x-2">
-                              {expense.ticketId && (
-                                <button
-                                  onClick={() => {
-                                    // TODO: Navigate to ticket detail
-                                    addNotification({
-                                      userId: currentUser?.id || '',
-                                      title: 'Info',
-                                      message: `Ticket ${expense.ticketId.substring(0, 8)}... linked to this expense`,
-                                      type: 'info'
-                                    })
-                                  }}
-                                  className="text-primary-600 hover:text-blue-800 font-inter"
-                                  title="View Ticket"
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </button>
-                              )}
-                              {expense.status === 'forecast' && (
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await expenseService.markAsInvoiced(expense.id, currentUser?.id || '')
-                                      addNotification({
-                                        userId: currentUser?.id || '',
-                                        title: 'Success',
-                                        message: 'Expense marked as invoiced',
-                                        type: 'success'
-                                      })
-                                      await loadFinancialData()
-                                    } catch (error) {
-                                      addNotification({
-                                        userId: currentUser?.id || '',
-                                        title: 'Error',
-                                        message: 'Failed to update expense status',
-                                        type: 'error'
-                                      })
-                                    }
-                                  }}
-                                  className="text-success-600 hover:text-success-800 font-inter"
-                                  title="Mark as Invoiced"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {expenses.length === 0 && (
-                    <div className="text-center py-12">
+              {/* Expenses Display - Cards on Mobile, Table on Desktop */}
+              {isMobile ? (
+                // Mobile Card Layout
+                <div className="space-y-3">
+                  <div className="px-4 py-3 border-b border-neutral-200 bg-white rounded-t-lg">
+                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Forecast Expenses</h3>
+                  </div>
+                  {expenses.length === 0 ? (
+                    <div className="bg-white rounded-lg p-6 text-center">
                       <Receipt className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-neutral-900 font-inter">No Expense Forecasts</h3>
                       <p className="text-gray-600 font-inter">
                         Complete some tickets with final costs to see expense forecasts here
                       </p>
-                      <div className="mt-4">
-                        <p className="text-sm text-gray-500 font-inter">
-                          💡 Tip: When you mark tickets as complete with a final cost, forecast expenses are automatically created here
-                        </p>
-                      </div>
                     </div>
+                  ) : (
+                    expenses.map((expense) => (
+                      <div key={expense.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 p-4">
+                        {/* Header with Description and Amount */}
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1 pr-2">
+                            <h4 className="text-sm font-medium text-neutral-900 font-inter line-clamp-2">
+                              {expense.description}
+                            </h4>
+                            {expense.ticketId && (
+                              <div className="text-xs text-gray-500 mt-1">
+                                Ticket: {expense.ticketId.substring(0, 8)}...
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-sm font-medium text-neutral-900 font-inter">
+                            {formatCurrency(expense.amount || 0)}
+                          </div>
+                        </div>
+                        
+                        {/* Supplier and Category */}
+                        <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
+                          <div className="flex items-center space-x-3">
+                            <span className="truncate max-w-[120px]" title={expense.vendorName || expense.supplierName || 'Unknown Supplier'}>
+                              {expense.vendorName || expense.supplierName || 'Unknown Supplier'}
+                            </span>
+                            {expense.category && (
+                              <span className="capitalize">
+                                {expense.category.replace('_', ' ')}
+                              </span>
+                            )}
+                          </div>
+                          <span>{new Date(expense.createdAt).toLocaleDateString('en-GB')}</span>
+                        </div>
+                        
+                        {/* Status and Actions */}
+                        <div className="flex items-center justify-between">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${
+                            expense.status === 'forecast'
+                              ? 'bg-orange-100 text-orange-800'
+                              : expense.status === 'invoiced'
+                              ? 'bg-red-100 text-red-800'
+                              : expense.status === 'paid'
+                              ? 'bg-success-100 text-success-800'
+                              : 'bg-neutral-100 text-gray-800'
+                          }`}>
+                            {expense.status === 'forecast' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                            {expense.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
+                            {expense.status === 'forecast' ? 'Pending Invoice' : expense.status}
+                          </span>
+                          <div className="flex items-center space-x-2">
+                            {expense.ticketId && (
+                              <button
+                                onClick={() => {
+                                  addNotification({
+                                    userId: currentUser?.id || '',
+                                    title: 'Info',
+                                    message: `Ticket ${expense.ticketId.substring(0, 8)}... linked to this expense`,
+                                    type: 'info'
+                                  })
+                                }}
+                                className="text-primary-600 hover:text-blue-800 font-inter"
+                                title="View Ticket"
+                              >
+                                <ExternalLink className="h-4 w-4" />
+                              </button>
+                            )}
+                            {expense.status === 'forecast' && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await expenseService.markAsInvoiced(expense.id, currentUser?.id || '')
+                                    addNotification({
+                                      userId: currentUser?.id || '',
+                                      title: 'Success',
+                                      message: 'Expense marked as invoiced',
+                                      type: 'success'
+                                    })
+                                    await loadFinancialData()
+                                  } catch (error) {
+                                    addNotification({
+                                      userId: currentUser?.id || '',
+                                      title: 'Error',
+                                      message: 'Failed to update expense status',
+                                      type: 'error'
+                                    })
+                                  }
+                                }}
+                                className="text-success-600 hover:text-success-800 font-inter"
+                                title="Mark as Invoiced"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
                   )}
                 </div>
-              </div>
-
-              {expenses.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-start space-x-3">
-                    <div className="flex-shrink-0">
-                      <Receipt className="h-5 w-5 text-primary-600 mt-0.5" />
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-medium text-primary-900 font-inter">About Expense Forecasts</h3>
-                      <div className="mt-2 text-sm text-primary-700 font-inter">
-                        <p className="mb-2">
-                          These forecasts are automatically created when maintenance tickets are completed with a final cost.
+              ) : (
+                // Desktop Table Layout
+                <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                  <div className="px-6 py-4 border-b border-neutral-200">
+                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Forecast Expenses</h3>
+                    <p className="text-sm text-gray-600 font-inter mt-1">
+                      Expenses automatically created from completed maintenance tickets
+                    </p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-neutral-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Ticket/Description
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Supplier
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Category
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Date Created
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {expenses.map((expense) => (
+                          <tr key={expense.id} className="hover:bg-neutral-50">
+                            <td className="px-6 py-4 text-sm text-neutral-900 font-inter">
+                              <div>
+                                <div className="font-medium">{expense.description}</div>
+                                {expense.ticketId && (
+                                  <div className="text-xs text-gray-500 mt-1">
+                                    Ticket: {expense.ticketId.substring(0, 8)}...
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                              {expense.vendorName || expense.supplierName || 'Unknown Supplier'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                              <div className="font-medium">
+                                {formatCurrency(expense.amount || 0)}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                              <span className="capitalize">{expense.category?.replace('_', ' ')}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${
+                                expense.status === 'forecast'
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : expense.status === 'invoiced'
+                                  ? 'bg-red-100 text-red-800'
+                                  : expense.status === 'paid'
+                                  ? 'bg-success-100 text-success-800'
+                                  : 'bg-neutral-100 text-gray-800'
+                              }`}>
+                                {expense.status === 'forecast' && <AlertTriangle className="h-3 w-3 mr-1" />}
+                                {expense.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
+                                {expense.status === 'forecast' ? 'Pending Invoice' : expense.status}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                              {new Date(expense.createdAt).toLocaleDateString('en-GB')}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                              <div className="flex items-center space-x-2">
+                                {expense.ticketId && (
+                                  <button
+                                    onClick={() => {
+                                      // TODO: Navigate to ticket detail
+                                      addNotification({
+                                        userId: currentUser?.id || '',
+                                        title: 'Info',
+                                        message: `Ticket ${expense.ticketId.substring(0, 8)}... linked to this expense`,
+                                        type: 'info'
+                                      })
+                                    }}
+                                    className="text-primary-600 hover:text-blue-800 font-inter"
+                                    title="View Ticket"
+                                  >
+                                    <ExternalLink className="h-4 w-4" />
+                                  </button>
+                                )}
+                                {expense.status === 'forecast' && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await expenseService.markAsInvoiced(expense.id, currentUser?.id || '')
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Success',
+                                          message: 'Expense marked as invoiced',
+                                          type: 'success'
+                                        })
+                                        await loadFinancialData()
+                                      } catch (error) {
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Error',
+                                          message: 'Failed to update expense status',
+                                          type: 'error'
+                                        })
+                                      }
+                                    }}
+                                    className="text-success-600 hover:text-success-800 font-inter"
+                                    title="Mark as Invoiced"
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {expenses.length === 0 && (
+                      <div className="text-center py-12">
+                        <Receipt className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-neutral-900 font-inter">No Expense Forecasts</h3>
+                        <p className="text-gray-600 font-inter">
+                          Complete some tickets with final costs to see expense forecasts here
                         </p>
-                        <ul className="list-disc list-inside space-y-1 text-xs">
-                          <li><strong>Pending Invoice:</strong> Work completed, waiting for supplier invoice</li>
-                          <li><strong>Invoiced:</strong> Invoice received and processed</li>
-                          <li><strong>Paid:</strong> Invoice has been paid</li>
-                        </ul>
+                        <div className="mt-4">
+                          <p className="text-sm text-gray-500 font-inter">
+                            💡 Tip: When you mark tickets as complete with a final cost, forecast expenses are automatically created here
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1945,6 +2067,78 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
           )}
         </div>
       </div>
+
+      {/* Expense Help Modal */}
+      {showExpenseHelpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" style={{ zIndex: 1400 }}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <Receipt className="h-6 w-6 text-primary-600" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-neutral-900 font-inter">
+                    About Expense Forecasts
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowExpenseHelpModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label="Close help modal"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-700 font-inter">
+                  These forecasts are automatically created when maintenance tickets are completed with a final cost.
+                </p>
+                
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-neutral-900 font-inter">Status Definitions:</h3>
+                  <ul className="space-y-2 text-sm text-neutral-700 font-inter">
+                    <li className="flex items-start space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mt-0.5">
+                        Pending Invoice
+                      </span>
+                      <span>Work completed, waiting for supplier invoice</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-0.5">
+                        Invoiced
+                      </span>
+                      <span>Invoice received and processed</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800 mt-0.5">
+                        Paid
+                      </span>
+                      <span>Invoice has been paid</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
+                  <p className="text-xs text-neutral-600 font-inter">
+                    💡 Tip: When you mark tickets as complete with a final cost, forecast expenses are automatically created here
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowExpenseHelpModal(false)}
+                  className="btn-primary"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Budget Setup Modal */}
       {showBudgetSetup && (

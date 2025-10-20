@@ -4,9 +4,11 @@ import {
   Users, 
   Home, 
   Truck, 
-  Package
+  Package,
+  Plus
 } from 'lucide-react'
 import { Card, CardHeader, CardContent, TabLoadingSkeleton } from '../components/UI'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import PeopleDataTable from '../components/BuildingData/PeopleDataTable'
 import FlatsDataTable from '../components/BuildingData/FlatsDataTableFixed'
 import SuppliersDataTable from '../components/BuildingData/SuppliersDataTable'
@@ -22,6 +24,7 @@ interface TabConfig {
 const BuildingDataManagement: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('people')
   const [loading, setLoading] = useState<boolean>(false)
+  const isMobile = useIsMobile()
   
   // Handle add button click for active tab
   const handleAddClick = () => {
@@ -64,19 +67,36 @@ const BuildingDataManagement: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
+        isMobile ? 'py-2 space-y-3' : 'py-8 space-y-6'
+      }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Building Data Management</h1>
-            <p className="text-gray-600 font-inter">Manage people, flats, suppliers, and assets data for your buildings</p>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Building</h1>
+            {!isMobile && (
+              <p className="text-gray-600 font-inter">Manage people, flats, suppliers, and assets data for your buildings</p>
+            )}
           </div>
+          {/* Add Button - Mobile only in header */}
+          {isMobile && (
+            <button
+              onClick={handleAddClick}
+              className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
+              title={`Add ${activeTab === 'people' ? 'Person' : 
+                       activeTab === 'assets' ? 'Asset' : 
+                       activeTab === 'suppliers' ? 'Supplier' : 
+                       activeTab === 'flats' ? 'Flat' : 'Item'}`}
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          )}
         </div>
 
         {/* Tab Navigation */}
         <div className="border-b border-neutral-200">
           <div className="flex items-center justify-between">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+            <nav className={`-mb-px flex ${isMobile ? 'justify-between px-4 flex-1' : 'space-x-8'}`} aria-label="Tabs">
               {tabs.map((tab) => {
                 const Icon = tab.icon
                 const isActive = activeTab === tab.id
@@ -88,26 +108,30 @@ const BuildingDataManagement: React.FC = () => {
                       isActive
                         ? 'border-blue-500 text-primary-600'
                         : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors`}
+                    } py-2 border-b-2 font-medium text-sm transition-colors flex items-center ${
+                      isMobile ? 'min-w-[44px] justify-center' : 'px-1 gap-2'
+                    }`}
                     aria-current={isActive ? 'page' : undefined}
                   >
                     <Icon className="h-4 w-4" />
-                    {tab.label}
+                    {!isMobile && <span>{tab.label}</span>}
                   </button>
                 )
               })}
             </nav>
             
-            {/* Add Button - Aligned with tab headers */}
-            <button
-              onClick={handleAddClick}
-              className="btn-primary flex items-center font-inter"
-            >
-              Add {activeTab === 'people' ? 'Person' : 
-                   activeTab === 'assets' ? 'Asset' : 
-                   activeTab === 'suppliers' ? 'Supplier' : 
-                   activeTab === 'flats' ? 'Flat' : 'Item'}
-            </button>
+            {/* Add Button - Desktop only, mobile uses header button */}
+            {!isMobile && (
+              <button
+                onClick={handleAddClick}
+                className="btn-primary flex items-center font-inter"
+              >
+                Add {activeTab === 'people' ? 'Person' : 
+                     activeTab === 'assets' ? 'Asset' : 
+                     activeTab === 'suppliers' ? 'Supplier' : 
+                     activeTab === 'flats' ? 'Flat' : 'Item'}
+              </button>
+            )}
           </div>
         </div>
 

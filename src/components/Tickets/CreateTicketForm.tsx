@@ -321,14 +321,15 @@ const CreateTicketForm: React.FC<CreateTicketFormProps> = ({ onSuccess, onCancel
         <Button
           type="submit"
           disabled={loading}
+          className="min-w-[100px] relative"
         >
-          {loading ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              Creating...
-            </>
-          ) : (
-            'Submit'
+          <span className={`${loading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-150`}>
+            Submit
+          </span>
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            </div>
           )}
         </Button>
       </div>

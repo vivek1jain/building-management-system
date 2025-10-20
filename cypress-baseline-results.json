@@ -1,0 +1,5 @@
+npm error Missing script: "cy:run"
+npm error
+npm error To see a list of scripts, run:
+npm error   npm run
+npm error A complete log of this run can be found in: /Users/ankur/.npm/_logs/2025-09-23T08_22_55_947Z-debug-0.log
