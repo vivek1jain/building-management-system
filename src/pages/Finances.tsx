@@ -13,11 +13,18 @@ import {
   ServiceChargeDemandStatus,
   PaymentMethod,
   PaymentRecord,
-  InvoiceStatus
+  InvoiceStatus,
+  BudgetCategoryMaster,
+  BudgetCategoryItem,
+  BudgetValidationResult
 } from '../types';
 import { budgetService } from '../services/budgetService';
+import budgetCategoryMasterService from '../services/budgetCategoryMasterService';
+import budgetValidationUtils from '../utils/budgetValidation';
 import { FlatLedgerModal } from '../components/FlatLedger';
 import { financialIntegrationService } from '../services/financialIntegrationService';
+import { TicketDetailModal } from '../components/TicketDetailModal';
+import { ticketService } from '../services/ticketService';
 
 type SortField = 'flatNumber' | 'residentName' | 'totalAmountDue' | 'outstandingAmount' | 'dueDate' | 'status'
 type SortDirection = 'asc' | 'desc'
@@ -117,30 +124,40 @@ const Finances: React.FC = () => {
     residentName: string
   } | null>(null)
   
+  // Ticket Modal state
+  const [selectedTicketForModal, setSelectedTicketForModal] = useState<any>(null)
+  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false)
+  
   
   // UI state
   const [showBudgetSetup, setShowBudgetSetup] = useState(false)
   const [budgetLocked, setBudgetLocked] = useState(false)
   const [showExpenseHelpModal, setShowExpenseHelpModal] = useState(false)
+  const [expandedExpenses, setExpandedExpenses] = useState<Set<string>>(new Set())
+  const [expandedServiceCharges, setExpandedServiceCharges] = useState<Set<string>>(new Set())
+  const [activeStatusFilterTile, setActiveStatusFilterTile] = useState<'paid' | 'invoiced' | 'forecast' | null>(null)
+  const [activeServiceChargeFilterTile, setActiveServiceChargeFilterTile] = useState<'paid' | 'outstanding' | 'overdue' | null>(null)
   
-  // Form states
+  // Service Charge Issue Demands states
+  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false)
+  const [showDemandsConfirmation, setShowDemandsConfirmation] = useState(false)
+  const [selectedPeriodForDemands, setSelectedPeriodForDemands] = useState('')
+  
+  // Budget category management
+  const [budgetCategoryMasters, setBudgetCategoryMasters] = useState<BudgetCategoryMaster[]>([])
+  const [budgetValidation, setBudgetValidation] = useState<BudgetValidationResult | null>(null)
+  
+  // Enhanced form state
   const [budgetForm, setBudgetForm] = useState({
     year: new Date().getFullYear(),
     financialYearStart: new Date('2024-04-01'), // UK financial year
-    status: 'draft',
+    status: 'draft' as const,
     serviceChargeRate: 0,
-    groundRentRate: 0,
-    incomeCategories: UK_INCOME_CATEGORIES.map(cat => ({
-      ...cat,
-      budgetAmount: 0,
-      actualAmount: 0
-    })),
-    expenditureCategories: UK_EXPENDITURE_CATEGORIES.map(cat => ({
-      ...cat,
-      budgetAmount: 0,
-      actualAmount: 0,
-      approvalThreshold: 1000
-    }))
+    totalBudgetAmount: 0,
+    totalSqFt: 0,
+    ratePerSqFt: 0,
+    previousYearRatePerSqFt: 0,
+    categories: [] as BudgetCategoryItem[]
   })
 
   // Calculate dynamic financial summary based on real Firebase data
@@ -197,6 +214,65 @@ const Finances: React.FC = () => {
   }
 
   const financialSummary = getFinancialSummary()
+  
+  // Generate period options for service charge demands
+  const generatePeriodOptions = () => {
+    const currentYear = new Date().getFullYear()
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
+    const options = []
+    
+    // Generate last year, current year, and next year quarters
+    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
+      for (const quarter of quarters) {
+        const periodString = `${quarter} ${year}`
+        options.push({
+          value: periodString,
+          label: periodString,
+          description: `Service charges for ${quarter} ${year}`
+        })
+      }
+    }
+    
+    return options.reverse() // Most recent first
+  }
+  
+  const periodOptions = generatePeriodOptions()
+  
+  // Handle opening period dropdown
+  const handleIssueDemands = () => {
+    if (!selectedBuildingId) {
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Please select a building first',
+        type: 'error'
+      })
+      return
+    }
+    setShowPeriodDropdown(true)
+  }
+  
+  // Handle period selection from dropdown
+  const handlePeriodSelection = (period: string) => {
+    setSelectedPeriodForDemands(period)
+    setShowPeriodDropdown(false)
+    setShowDemandsConfirmation(true)
+  }
+  
+  // Handle confirmation of demands generation
+  const handleConfirmGenerateDemands = async () => {
+    if (!selectedPeriodForDemands) return
+    
+    setShowDemandsConfirmation(false)
+    await handleGenerateDemands(selectedPeriodForDemands)
+    setSelectedPeriodForDemands('')
+  }
+  
+  // Cancel demands generation
+  const handleCancelGenerateDemands = () => {
+    setShowDemandsConfirmation(false)
+    setSelectedPeriodForDemands('')
+  }
 
   useEffect(() => {
     if (selectedBuildingId) {
@@ -204,7 +280,225 @@ const Finances: React.FC = () => {
     }
   }, [selectedBuildingId])
 
-
+  // Load budget category masters when building changes
+  useEffect(() => {
+    if (selectedBuildingId) {
+      loadBudgetCategoryMasters()
+    }
+  }, [selectedBuildingId])
+  
+  // Update budget form when selected building changes
+  useEffect(() => {
+    if (selectedBuilding?.financialSettings && flats.length > 0) {
+      const settings = selectedBuilding.financialSettings
+      
+      // Create financial year start date from settings
+      const financialYearStart = new Date(
+        settings.currentYear || new Date().getFullYear(),
+        (settings.startMonth || 4) - 1, // Convert to 0-based month (April = 3)
+        settings.startDay || 1
+      )
+      
+      // Calculate total square feet from flats
+      const totalSqFt = flats.reduce((sum, flat) => sum + (flat.areaSqFt || 0), 0)
+      
+      setBudgetForm(prev => ({
+        ...prev,
+        year: settings.currentYear || new Date().getFullYear(),
+        financialYearStart,
+        serviceChargeRate: settings.serviceChargeRatePerSqFt || 0,
+        totalSqFt,
+        ratePerSqFt: budgetValidationUtils.calculateRatePerSqFt(prev.totalBudgetAmount, totalSqFt)
+      }))
+    }
+  }, [selectedBuilding, flats])
+  
+  // Load budget category masters
+  const loadBudgetCategoryMasters = async () => {
+    if (!selectedBuildingId) return
+    
+    try {
+      const categories = await budgetCategoryMasterService.getBudgetCategoryMasters(selectedBuildingId)
+      setBudgetCategoryMasters(categories)
+      
+      // If no categories exist, initialize default ones
+      if (categories.length === 0) {
+        await budgetCategoryMasterService.initializeDefaultCategories(selectedBuildingId)
+        const defaultCategories = await budgetCategoryMasterService.getBudgetCategoryMasters(selectedBuildingId)
+        setBudgetCategoryMasters(defaultCategories)
+      }
+    } catch (error) {
+      console.error('Error loading budget category masters:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to load budget categories',
+        type: 'error'
+      })
+    }
+  }
+  
+  // Budget category management functions
+  const addBudgetCategory = () => {
+    const newCategory: BudgetCategoryItem = {
+      id: `temp-${Date.now()}`,
+      name: '',
+      type: 'expenditure',
+      budgetAmount: 0,
+      percentageOfTotal: 0,
+      actualAmount: 0,
+      allocatedAmount: 0,
+      spentAmount: 0,
+      remainingAmount: 0
+    }
+    
+    setBudgetForm(prev => ({
+      ...prev,
+      categories: [...prev.categories, newCategory]
+    }))
+  }
+  
+  const removeBudgetCategory = (categoryId: string) => {
+    setBudgetForm(prev => {
+      const updatedCategories = prev.categories.filter(cat => cat.id !== categoryId)
+      const updatedCategoriesWithPercentages = budgetValidationUtils.updateCategoryPercentages(
+        updatedCategories,
+        prev.totalBudgetAmount
+      )
+      
+      return {
+        ...prev,
+        categories: updatedCategoriesWithPercentages
+      }
+    })
+  }
+  
+  const updateBudgetCategory = (categoryId: string, updates: Partial<BudgetCategoryItem>) => {
+    setBudgetForm(prev => {
+      const updatedCategories = prev.categories.map(cat => 
+        cat.id === categoryId ? { ...cat, ...updates } : cat
+      )
+      
+      // If amount changed, recalculate percentages
+      // If percentage changed, recalculate amounts
+      let finalCategories = updatedCategories
+      
+      if (updates.budgetAmount !== undefined) {
+        finalCategories = budgetValidationUtils.updateCategoryPercentages(
+          updatedCategories,
+          prev.totalBudgetAmount
+        )
+      } else if (updates.percentageOfTotal !== undefined) {
+        finalCategories = budgetValidationUtils.updateCategoryAmounts(
+          updatedCategories,
+          prev.totalBudgetAmount
+        )
+      }
+      
+      return {
+        ...prev,
+        categories: finalCategories
+      }
+    })
+  }
+  
+  const updateTotalBudget = (newTotal: number) => {
+    setBudgetForm(prev => {
+      const updatedCategories = budgetValidationUtils.updateCategoryAmounts(
+        prev.categories,
+        newTotal
+      )
+      
+      const newRatePerSqFt = budgetValidationUtils.calculateRatePerSqFt(newTotal, prev.totalSqFt)
+      
+      return {
+        ...prev,
+        totalBudgetAmount: newTotal,
+        categories: updatedCategories,
+        ratePerSqFt: newRatePerSqFt
+      }
+    })
+  }
+  
+  const autoAdjustPercentages = () => {
+    setBudgetForm(prev => ({
+      ...prev,
+      categories: budgetValidationUtils.autoAdjustPercentages(prev.categories)
+    }))
+  }
+  
+  // Validate budget whenever categories or total changes
+  useEffect(() => {
+    const validation = budgetValidationUtils.validateBudget(
+      budgetForm.categories,
+      budgetForm.totalBudgetAmount
+    )
+    setBudgetValidation(validation)
+  }, [budgetForm.categories, budgetForm.totalBudgetAmount])
+  
+  // Handle budget form submission
+  const handleBudgetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!selectedBuildingId || !budgetValidation?.isValid) {
+      return
+    }
+    
+    try {
+      setLoading(true)
+      
+      const budgetData = {
+        buildingId: selectedBuildingId,
+        year: budgetForm.year,
+        financialYearStart: budgetForm.financialYearStart,
+        status: budgetForm.status,
+        categories: budgetForm.categories,
+        totalBudgetAmount: budgetForm.totalBudgetAmount,
+        totalSqFt: budgetForm.totalSqFt,
+        ratePerSqFt: budgetForm.ratePerSqFt,
+        previousYearRatePerSqFt: budgetForm.previousYearRatePerSqFt,
+        // Legacy fields for backward compatibility
+        totalAmount: budgetForm.totalBudgetAmount,
+        allocatedAmount: budgetForm.totalBudgetAmount,
+        spentAmount: 0,
+        remainingAmount: budgetForm.totalBudgetAmount,
+        createdBy: currentUser?.id || ''
+      }
+      
+      if (budget) {
+        await budgetService.updateBudget(budget.id, budgetData)
+        addNotification({
+          userId: currentUser?.id || '',
+          title: 'Success',
+          message: 'Budget updated successfully',
+          type: 'success'
+        })
+      } else {
+        await budgetService.createBudget(budgetData)
+        addNotification({
+          userId: currentUser?.id || '',
+          title: 'Success', 
+          message: 'Budget created successfully',
+          type: 'success'
+        })
+      }
+      
+      setShowBudgetSetup(false)
+      await loadFinancialData()
+      
+    } catch (error) {
+      console.error('Error saving budget:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to save budget',
+        type: 'error'
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+  
   const loadFinancialData = async () => {
     if (!selectedBuildingId) return
     
@@ -314,11 +608,30 @@ const Finances: React.FC = () => {
     }
   }
 
+  // Derived service charges based on active tile filter
+  const filteredServiceCharges = useMemo(() => {
+    if (!activeServiceChargeFilterTile) return serviceCharges
+    
+    return serviceCharges.filter(sc => {
+      switch (activeServiceChargeFilterTile) {
+        case 'paid':
+          return sc.status === ServiceChargeDemandStatus.PAID
+        case 'outstanding':
+          return (sc.outstandingAmount || 0) > 0
+        case 'overdue':
+          return (sc.status === ServiceChargeDemandStatus.ISSUED || sc.status === ServiceChargeDemandStatus.PARTIALLY_PAID) &&
+                 new Date(sc.dueDate) < new Date()
+        default:
+          return true
+      }
+    })
+  }, [serviceCharges, activeServiceChargeFilterTile])
+
   // Group service charges by financial quarter/period
   const groupedServiceCharges = useMemo(() => {
     const groups: Record<string, ServiceChargeDemand[]> = {}
     
-    serviceCharges.forEach(charge => {
+    filteredServiceCharges.forEach(charge => {
       const period = charge.financialQuarterDisplayString || 'Unknown Period'
       if (!groups[period]) {
         groups[period] = []
@@ -412,7 +725,7 @@ const Finances: React.FC = () => {
     })
     
     return result
-  }, [serviceCharges, sortField, sortDirection])
+  }, [filteredServiceCharges, sortField, sortDirection])
   
   // Auto-expand periods on first load
   useEffect(() => {
@@ -467,121 +780,6 @@ const Finances: React.FC = () => {
     )
   }
 
-  const handleBudgetSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!selectedBuildingId) {
-      addNotification({ 
-        userId: currentUser?.id || '', 
-        title: 'Error', 
-        message: 'Please select a building before creating a budget', 
-        type: 'error' 
-      })
-      return
-    }
-
-    try {
-      setLoading(true)
-      
-      // Validate that we have at least some budget data
-      const totalIncome = budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0)
-      const totalExpenditure = budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0)
-      
-      if (totalIncome === 0 && totalExpenditure === 0) {
-        addNotification({ 
-          userId: currentUser?.id || '', 
-          title: 'Warning', 
-          message: 'Budget has no income or expenditure amounts. Please add some budget values.', 
-          type: 'warning' 
-        })
-      }
-      
-      const newBudget: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'> = {
-        buildingId: selectedBuildingId,
-        year: budgetForm.year,
-        financialYearStart: budgetForm.financialYearStart,
-        status: budgetForm.status as any,
-        categories: [
-          ...budgetForm.incomeCategories.map(cat => ({
-            id: cat.id,
-            budgetId: '',
-            type: 'income' as 'income' | 'expenditure',
-            name: cat.name,
-            budgetAmount: cat.budgetAmount,
-            actualAmount: cat.actualAmount,
-            allocatedAmount: cat.budgetAmount,
-            spentAmount: 0,
-            remainingAmount: cat.budgetAmount,
-            approvalThreshold: 1000,
-            attachments: [],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })),
-          ...budgetForm.expenditureCategories.map(cat => ({
-            id: cat.id,
-            budgetId: '',
-            type: 'expenditure' as 'income' | 'expenditure',
-            name: cat.name,
-            budgetAmount: cat.budgetAmount,
-            actualAmount: cat.actualAmount,
-            allocatedAmount: cat.budgetAmount,
-            spentAmount: 0,
-            remainingAmount: cat.budgetAmount,
-            approvalThreshold: 1000,
-            attachments: [],
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }))
-        ],
-        totalAmount: budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0),
-        totalIncome: budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0),
-        totalExpenditure: budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0),
-        netBudget: budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0) - 
-                   budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0),
-        allocatedAmount: budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0),
-        spentAmount: 0,
-        remainingAmount: budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0),
-        createdBy: currentUser?.id || ''
-      }
-
-      if (budget) {
-        await budgetService.updateBudget(budget.id, newBudget)
-        addNotification({ 
-          userId: currentUser?.id || '', 
-          title: 'Success', 
-          message: 'Budget updated successfully!', 
-          type: 'success' 
-        })
-      } else {
-        const createdBudget = await budgetService.createBudget(newBudget)
-        console.log('Budget created:', createdBudget)
-        addNotification({ 
-          userId: currentUser?.id || '', 
-          title: 'Success', 
-          message: 'Budget created successfully!', 
-          type: 'success' 
-        })
-      }
-      
-      setShowBudgetSetup(false)
-      await loadFinancialData()
-    } catch (error) {
-      console.error('Error saving budget:', error)
-      
-      let errorMessage = 'Error saving budget'
-      if (error instanceof Error) {
-        errorMessage = `Error saving budget: ${error.message}`
-      }
-      
-      addNotification({ 
-        userId: currentUser?.id || '', 
-        title: 'Error', 
-        message: errorMessage, 
-        type: 'error' 
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const createSampleFlats = async () => {
     if (!selectedBuildingId) return
@@ -858,20 +1056,23 @@ const Finances: React.FC = () => {
   }
 
   // Service Charges handlers
-  const handleGenerateDemands = async () => {
+  const handleGenerateDemands = async (periodToUse?: string) => {
     if (!selectedBuildingId) {
       addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Please select a building first', type: 'error' })
       return
     }
     
-    if (!selectedPeriod) {
+    // Use the provided period or fall back to selectedPeriod
+    const periodForGeneration = periodToUse || selectedPeriod
+    
+    if (!periodForGeneration) {
       addNotification({ userId: currentUser?.id || '', title: 'Error', message: 'Please select a period first', type: 'error' })
       return
     }
 
     // Check if demands already exist for this period
     const existingDemandsForPeriod = serviceCharges.filter(
-      demand => demand.financialQuarterDisplayString === selectedPeriod
+      demand => demand.financialQuarterDisplayString === periodForGeneration
     )
     
     if (existingDemandsForPeriod.length > 0) {
@@ -885,7 +1086,7 @@ const Finances: React.FC = () => {
       
       // Show comprehensive dialog
       const action = await showExistingDemandsDialog({
-        period: selectedPeriod,
+        period: periodForGeneration,
         totalDemands: existingDemandsForPeriod.length,
         paidCount,
         partiallyPaidCount,
@@ -916,7 +1117,7 @@ const Finances: React.FC = () => {
         case 'view_existing':
           // Scroll to and expand the relevant period
           const newExpanded = new Set(expandedPeriods)
-          newExpanded.add(selectedPeriod)
+          newExpanded.add(periodForGeneration)
           setExpandedPeriods(newExpanded)
           
           const demandsSectionView = document.querySelector('[data-demands-section]')
@@ -1022,12 +1223,12 @@ const Finances: React.FC = () => {
       
       console.log('Generating service charge demands for:', {
         buildingId: selectedBuildingId,
-        period: selectedPeriod,
+        period: periodForGeneration,
         rate,
         flatsCount: flats.length
       })
       
-      const demands = await generateServiceChargeDemands(selectedBuildingId, selectedPeriod, rate, flats)
+      const demands = await generateServiceChargeDemands(selectedBuildingId, periodForGeneration, rate, flats)
       
       console.log('Generated demands:', demands)
       
@@ -1095,6 +1296,17 @@ const Finances: React.FC = () => {
     }
   }
 
+  // Ticket Modal handlers
+  const handleCloseTicketModal = () => {
+    setIsTicketModalOpen(false)
+    setSelectedTicketForModal(null)
+  }
+
+  const handleTicketUpdate = (updatedTicket: any) => {
+    // Refresh financial data to reflect any changes
+    loadFinancialData()
+  }
+
   const handleSubmitPayment = async () => {
     if (!selectedDemand || !paymentAmount) return
 
@@ -1135,6 +1347,12 @@ const Finances: React.FC = () => {
     }
   }
 
+  // Derived expenses based on active tile filter
+  const visibleExpenses = useMemo(() => {
+    if (!activeStatusFilterTile) return expenses
+    return expenses.filter(e => e.status === activeStatusFilterTile)
+  }, [expenses, activeStatusFilterTile])
+
   // Show loading spinner while buildings or initial financial data are loading
   if (buildingsLoading || (loading && !budget && serviceCharges.length === 0 && invoices.length === 0 && expenses.length === 0)) {
     return <PageLoading message="Loading financial data..." />
@@ -1143,7 +1361,6 @@ const Finances: React.FC = () => {
   // Tab configuration for consistent mobile/desktop rendering
   const financeTabs = [
     { id: 'expenses', name: 'Expenses', icon: Receipt },
-    { id: 'invoices', name: 'Invoices', icon: FileText },
     { id: 'demands', name: 'Service Charges', icon: FileText },
     { id: 'budget', name: 'Budget', icon: BarChart3 }
   ]
@@ -1151,7 +1368,7 @@ const Finances: React.FC = () => {
   return (
     <div className="min-h-screen bg-neutral-50">
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
-        isMobile ? 'py-2 space-y-3' : 'py-8 space-y-6'
+        isMobile ? 'pt-2 space-y-3' : 'py-8 space-y-6'
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -1162,34 +1379,38 @@ const Finances: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
 
+      {/* Tab Navigation */}
+      <div className={`border-b border-neutral-200 ${
+        isMobile ? 'sticky top-0 bg-white/95 backdrop-blur-sm border-b-2 shadow-sm z-20' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'
+      }`}>
+        <nav className={`-mb-px flex ${isMobile ? 'flex-1 justify-between px-4' : 'space-x-8'}`} aria-label="Tabs">
+          {financeTabs.map((tab) => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px]' : 'gap-2'} ${
+                  isActive
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+                aria-current={isActive ? 'page' : undefined}
+              >
+                <Icon className="h-4 w-4" />
+                {!isMobile && <span>{tab.name}</span>}
+              </button>
+            )
+          })}
+        </nav>
+      </div>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-neutral-200">
-          <nav className={`-mb-px flex ${isMobile ? 'justify-between px-4' : 'space-x-8'}`} aria-label="Tabs">
-            {financeTabs.map((tab) => {
-              const Icon = tab.icon
-              const isActive = activeTab === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`${
-                    isActive
-                      ? 'border-blue-500 text-primary-600'
-                      : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                  } py-2 border-b-2 font-medium text-sm transition-colors font-inter flex items-center ${
-                    isMobile ? 'min-w-[44px] justify-center' : 'px-1 gap-2'
-                  }`}
-                  aria-current={isActive ? 'page' : undefined}
-                >
-                  <Icon className="h-4 w-4" />
-                  {!isMobile && <span>{tab.name}</span>}
-                </button>
-              )
-            })}
-          </nav>
-        </div>
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
+        isMobile ? 'pb-2' : ''
+      }`}>
 
         {/* Tab Content */}
         <div className="space-y-6">
@@ -1211,7 +1432,7 @@ const Finances: React.FC = () => {
                       <span>{budgetLocked ? 'Locked' : 'Unlocked'}</span>
                     </button>
                   )}
-<Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                  <Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />}>
                     {budget ? 'Edit Budget' : 'Create Budget'}
                   </Button>
                 </div>
@@ -1334,209 +1555,340 @@ const Finances: React.FC = () => {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-neutral-900 font-inter">Service Charge Management</h2>
-                <div className="flex items-center space-x-3">
+                {!isMobile && (
+                  <div className="flex items-center space-x-3">
+                    <ServiceChargePeriodDropdown
+                      value={selectedPeriod}
+                      onChange={(value) => setSelectedPeriod(value)}
+                      placeholder="Select period..."
+                      className="min-w-[350px]"
+                      existingDemands={serviceCharges}
+                    />
+                    <div className="relative">
+                      <button
+                        onClick={handleIssueDemands}
+                        disabled={loading || !selectedBuildingId}
+                        className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
+                        title="Issue Demands"
+                      >
+                        <Plus className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Mobile controls - on new line */}
+              {isMobile && (
+                <div className="flex items-center justify-between space-x-3">
                   <ServiceChargePeriodDropdown
                     value={selectedPeriod}
                     onChange={(value) => setSelectedPeriod(value)}
                     placeholder="Select period..."
-                    className="min-w-[350px]"
+                    className="flex-1"
                     existingDemands={serviceCharges}
                   />
-                  <Button onClick={handleGenerateDemands} disabled={loading || !selectedBuildingId}>
-                    Issue Demands
-                  </Button>
+                  <button
+                    onClick={handleIssueDemands}
+                    disabled={loading || !selectedBuildingId}
+                    className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
+                    title="Issue Demands"
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
                 </div>
-              </div>
+              )}
 
-              {/* Service Charges Summary */}
+              {/* Service Charges Summary (clickable filters) */}
               <div className={`grid gap-4 ${
                 isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
               }`}>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-medium text-blue-900 font-inter">Total Demands</h3>
-                  <p className="text-2xl font-bold text-primary-600 font-inter">{serviceCharges.length}</p>
-                </div>
-                <div className="bg-success-50 border border-success-200 rounded-lg p-4">
-                  <h3 className="font-medium text-success-900 font-inter">Total Amount</h3>
-                  <p className="text-2xl font-bold text-success-600 font-inter">
+                <button
+                  type="button"
+                  onClick={() => setActiveServiceChargeFilterTile(null)}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-success-50 border border-success-200 ${
+                    activeServiceChargeFilterTile === null ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-success-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Total Amount</h3>
+                  <p className={`font-bold text-success-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                     {formatCurrency(serviceCharges.reduce((sum, d) => sum + (d.totalAmountDue || 0), 0))}
                   </p>
-                </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <h3 className="font-medium text-yellow-900 font-inter">Outstanding</h3>
-                  <p className="text-2xl font-bold text-yellow-600 font-inter">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveServiceChargeFilterTile(null)}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-blue-50 border border-blue-200 ${
+                    activeServiceChargeFilterTile === null ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-blue-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Total Demands</h3>
+                  <p className={`font-bold text-primary-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>{serviceCharges.length}</p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveServiceChargeFilterTile(prev => (prev === 'outstanding' ? null : 'outstanding'))}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-yellow-50 border border-yellow-200 ${
+                    activeServiceChargeFilterTile === 'outstanding' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-yellow-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Outstanding</h3>
+                  <p className={`font-bold text-yellow-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                     {formatCurrency(serviceCharges.reduce((sum, d) => sum + (d.outstandingAmount || 0), 0))}
                   </p>
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h3 className="font-medium text-red-900 font-inter">Overdue</h3>
-                  <p className="text-2xl font-bold text-red-600 font-inter">
-                    {serviceCharges.filter(sc => sc.status === ServiceChargeDemandStatus.ISSUED || sc.status === ServiceChargeDemandStatus.PARTIALLY_PAID).length}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveServiceChargeFilterTile(prev => (prev === 'overdue' ? null : 'overdue'))}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-red-50 border border-red-200 ${
+                    activeServiceChargeFilterTile === 'overdue' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-red-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Overdue</h3>
+                  <p className={`font-bold text-red-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {serviceCharges.filter(sc => (sc.status === ServiceChargeDemandStatus.ISSUED || sc.status === ServiceChargeDemandStatus.PARTIALLY_PAID) && new Date(sc.dueDate) < new Date()).length}
                   </p>
-                </div>
+                </button>
               </div>
 
-              {/* Demands Accordion by Period */}
-              <div data-demands-section className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-neutral-200">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands</h3>
-                  {Object.keys(groupedServiceCharges).length > 1 && (
-                    <p className="text-sm text-gray-600 font-inter mt-1">
-                      Grouped by period • Click to expand/collapse periods
-                    </p>
-                  )}
-                </div>
-                
-                {Object.keys(groupedServiceCharges).length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
-                    <p className="text-gray-600 font-inter">Generate demands for the selected period to get started</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-neutral-200">
-                    {Object.entries(groupedServiceCharges).map(([period, demands], periodIndex) => {
+              {/* Service Charge Demands - Cards on Mobile, Table on Desktop */}
+              {isMobile ? (
+                // Mobile Card Layout - Grouped by Period
+                <div className="space-y-4">
+                  {Object.keys(groupedServiceCharges).length === 0 ? (
+                    <div className="bg-white rounded-lg p-6 text-center">
+                      <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
+                      <p className="text-gray-600 font-inter">
+                        Generate demands for the selected period to get started
+                      </p>
+                    </div>
+                  ) : (
+                    Object.entries(groupedServiceCharges).map(([period, demands]) => {
                       const isExpanded = expandedPeriods.has(period)
-                      const periodTotal = demands.reduce((sum, d) => sum + (d.totalAmountDue || 0), 0)
-                      const periodOutstanding = demands.reduce((sum, d) => sum + (d.outstandingAmount || 0), 0)
-                      const periodPaid = demands.filter(d => d.status === ServiceChargeDemandStatus.PAID).length
-                      const periodOverdue = demands.filter(d => 
-                        (d.status === ServiceChargeDemandStatus.ISSUED || d.status === ServiceChargeDemandStatus.PARTIALLY_PAID) &&
-                        new Date(d.dueDate) < new Date()
-                      ).length
+                      
+                      // Helper function to get period date range
+                      const getPeriodDateRange = (periodString: string) => {
+                        console.log('getPeriodDateRange called with:', periodString)
+                        try {
+                          // Handle both "2025-Q3" and "Q3 2025" formats
+                          let quarter, year
+                          
+                          if (periodString.includes('-Q')) {
+                            // Format: "2025-Q3"
+                            const parts = periodString.split('-')
+                            if (parts.length === 2) {
+                              year = parts[0]
+                              quarter = parts[1] // This will be "Q3"
+                            }
+                          } else if (periodString.includes(' ')) {
+                            // Format: "Q3 2025"
+                            const parts = periodString.split(' ')
+                            if (parts.length === 2) {
+                              quarter = parts[0]
+                              year = parts[1]
+                            }
+                          }
+                          
+                          console.log('Parsed - Quarter:', quarter, 'Year:', year)
+                          
+                          if (!quarter || !year) {
+                            console.log('Could not parse period, returning original:', periodString)
+                            return periodString
+                          }
+                          
+                          let result
+                          switch (quarter?.toUpperCase()) {
+                            case 'Q1':
+                              result = `Jan - Mar ${year}`
+                              break
+                            case 'Q2':
+                              result = `Apr - Jun ${year}`
+                              break
+                            case 'Q3':
+                              result = `Jul - Sep ${year}`
+                              break
+                            case 'Q4':
+                              result = `Oct - Dec ${year}`
+                              break
+                            default:
+                              result = periodString
+                          }
+                          console.log('Returning date range:', result)
+                          return result
+                        } catch (error) {
+                          console.log('Error parsing period:', periodString, error)
+                          return periodString
+                        }
+                      }
                       
                       return (
-                        <div key={period} className="">
-                          {/* Period Header */}
+                        <div key={period} className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+                          {/* Clickable Period Header */}
                           <div 
-                            className="px-6 py-4 bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors duration-200 flex items-center justify-between"
+                            className="px-4 py-3 bg-neutral-50 cursor-pointer hover:bg-neutral-100 transition-colors duration-200 flex items-center justify-between"
                             onClick={() => togglePeriodExpansion(period)}
                           >
                             <div className="flex items-center space-x-3">
                               <ChevronDown 
-                                className={`h-5 w-5 text-neutral-500 transition-transform duration-200 ${
+                                className={`h-4 w-4 text-neutral-500 transition-transform duration-200 ${
                                   isExpanded ? 'rotate-0' : '-rotate-90'
                                 }`}
                               />
                               <div>
-                                <h4 className="text-lg font-semibold text-neutral-900 font-inter">{period}</h4>
-                                <div className="flex items-center space-x-4 mt-1">
-                                  <span className="text-sm text-neutral-600 font-inter">
-                                    {demands.length} demands • {formatCurrency(periodTotal)} total
-                                  </span>
-                                  {periodOutstanding > 0 && (
-                                    <span className="text-sm text-orange-600 font-inter">
-                                      {formatCurrency(periodOutstanding)} outstanding
-                                    </span>
-                                  )}
-                                </div>
+                                <h3 className="text-lg font-semibold text-neutral-900 font-inter">{period}</h3>
+                                <p className="text-sm text-gray-500 font-inter">{getPeriodDateRange(period)}</p>
                               </div>
                             </div>
-                            <div className="flex items-center space-x-4">
-                              {periodPaid > 0 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-800">
-                                  {periodPaid} paid
-                                </span>
-                              )}
-                              {periodOverdue > 0 && (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                  {periodOverdue} overdue
-                                </span>
-                              )}
+                            <div className="text-sm text-neutral-600 font-inter">
+                              {demands.length} demands
                             </div>
                           </div>
                           
-                          {/* Period Content */}
+                          {/* Collapsible Period Cards */}
                           {isExpanded && (
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                {periodIndex === 0 && (
-                                  <thead className="bg-neutral-50">
-                                    <tr>
-                                      <SortableHeader field="flatNumber">Flat</SortableHeader>
-                                      <SortableHeader field="residentName">Resident</SortableHeader>
-                                      <SortableHeader field="totalAmountDue">Amount Due</SortableHeader>
-                                      <SortableHeader field="outstandingAmount">Outstanding</SortableHeader>
-                                      <SortableHeader field="dueDate">Due Date</SortableHeader>
-                                      <SortableHeader field="status">Status</SortableHeader>
-                                      <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Actions</th>
-                                    </tr>
-                                  </thead>
-                                )}
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                  {demands.map((demand) => (
-                                    <tr key={demand.id} className="hover:bg-neutral-50">
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 font-inter">
-                                        {demand.flatNumber}
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                                        {demand.residentName}
-                                      </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                            {demand.hasCreditApplied ? (
-                              <div>
-                                <div className="text-gray-500 line-through text-sm">
-                                  {formatCurrency((demand.originalAmountBeforeCredit || demand.totalAmountDue) || 0)}
-                                </div>
-                                <div className="text-green-600 font-medium">
-                                  {formatCurrency(demand.totalAmountDue || 0)}
-                                  <span className="text-xs ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
-                                    Credit: £{(demand.creditAppliedAmount || 0).toFixed(2)}
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div>{formatCurrency(demand.totalAmountDue || 0)}</div>
-                            )}
-                          </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                                        {formatCurrency(demand.outstandingAmount || 0)}
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
-                                        {new Date(demand.dueDate).toLocaleDateString('en-GB')}
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
-                                          demand.status === ServiceChargeDemandStatus.PAID
-                                            ? 'bg-success-100 text-success-800'
-                                            : demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
-                                            ? 'bg-yellow-100 text-yellow-800'
-                                            : demand.status === ServiceChargeDemandStatus.OVERDUE
-                                            ? 'bg-red-100 text-red-800'
-                                            : 'bg-neutral-100 text-gray-800'
-                                        }`}>
-                                          {demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID 
-                                            ? 'Partially Paid' 
-                                            : demand.status === ServiceChargeDemandStatus.ISSUED && new Date(demand.dueDate) < new Date() 
-                                            ? 'Overdue' 
-                                            : demand.status}
-                                        </span>
-                                      </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                        <div className="flex items-center space-x-2">
+                            <div className="divide-y divide-neutral-100">
+                            {demands.map((demand) => {
+                              const isExpanded = expandedServiceCharges.has(demand.id)
+                              const isOverdue = (demand.status === ServiceChargeDemandStatus.ISSUED || demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID) && new Date(demand.dueDate) < new Date()
+                              
+                              const toggleExpanded = () => {
+                                const newExpanded = new Set(expandedServiceCharges)
+                                if (newExpanded.has(demand.id)) {
+                                  newExpanded.delete(demand.id)
+                                } else {
+                                  newExpanded.add(demand.id)
+                                }
+                                setExpandedServiceCharges(newExpanded)
+                              }
+                              
+                              return (
+                                <div key={demand.id} className="">
+                                  {/* Main clickable area */}
+                                  <div 
+                                    onClick={toggleExpanded}
+                                    className="p-3 flex flex-col min-h-[60px] cursor-pointer hover:bg-neutral-25 transition-colors"
+                                  >
+                                    {/* Top section with Flat and Amount */}
+                                    <div className="flex items-start justify-between mb-1">
+                                      <div className="flex-1 pr-2">
+                                        <h4 className="text-sm font-medium text-neutral-900 font-inter truncate">
+                                          {demand.flatNumber} • {demand.residentName}
+                                        </h4>
+                                      </div>
+                                      <div className="flex items-start space-x-2">
+                                        <div className="text-right">
+                                          <div className="text-sm font-medium text-neutral-900 font-inter">
+                                            {formatCurrency(demand.totalAmountDue || 0)}
+                                          </div>
+                                        </div>
+                                        <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${
+                                          isExpanded ? 'rotate-180' : ''
+                                        }`} />
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Bottom section with Status and Actions */}
+                                    <div className="flex items-end justify-between mt-auto">
+                                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium font-inter ${
+                                        demand.status === ServiceChargeDemandStatus.PAID
+                                          ? 'bg-success-100 text-success-800'
+                                          : demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
+                                          ? 'bg-yellow-100 text-yellow-800'
+                                          : isOverdue
+                                          ? 'bg-red-100 text-red-800'
+                                          : 'bg-neutral-100 text-gray-800'
+                                      }`}>
+                                        {demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID 
+                                          ? 'Partially Paid' 
+                                          : isOverdue
+                                          ? 'Overdue' 
+                                          : demand.status === ServiceChargeDemandStatus.PAID
+                                          ? 'Paid'
+                                          : 'Issued'}
+                                      </span>
+                                      
+                                      {demand.status !== ServiceChargeDemandStatus.PAID && (
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent tile expansion
+                                            handleRecordPayment(demand)
+                                          }}
+                                          className="text-blue-600 hover:text-blue-800 font-inter text-xs"
+                                          title="Record Payment"
+                                        >
+                                          Record Payment
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Expandable Details */}
+                                  {isExpanded && (
+                                    <div className="px-3 pb-3 bg-neutral-25">
+                                      <div className="pt-3 border-t border-neutral-200 space-y-2">
+                                        {/* Due Date and Credit Info */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                          <div>
+                                            <h5 className="text-xs font-medium text-gray-700 mb-1">Due Date</h5>
+                                            <p className={`text-sm font-inter ${
+                                              isOverdue ? 'text-red-600 font-semibold' : 'text-neutral-900'
+                                            }`}>
+                                              {new Date(demand.dueDate).toLocaleDateString('en-GB')}
+                                              {isOverdue && (
+                                                <span className="ml-1 text-xs bg-red-100 text-red-800 px-1 py-0.5 rounded">
+                                                  OVERDUE
+                                                </span>
+                                              )}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <h5 className="text-xs font-medium text-gray-700 mb-1">Amount Paid</h5>
+                                            <p className="text-sm text-neutral-900 font-inter">
+                                              {formatCurrency(demand.amountPaid || 0)}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        
+                                        {/* Credit Applied Info */}
+                                        {demand.hasCreditApplied && (
+                                          <div>
+                                            <h5 className="text-xs font-medium text-gray-700 mb-1">Credit Applied</h5>
+                                            <div className="text-green-600 font-medium text-sm">
+                                              £{(demand.creditAppliedAmount || 0).toFixed(2)}
+                                              <span className="text-xs ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
+                                                Original: {formatCurrency((demand.originalAmountBeforeCredit || demand.totalAmountDue) || 0)}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
+                                        
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-end space-x-2 pt-2">
                                           <button
                                             onClick={() => handleViewDemandDetails(demand)}
-                                            className="text-primary-600 hover:text-blue-800 font-inter"
+                                            className="text-primary-600 hover:text-blue-800 font-inter flex items-center text-xs"
                                             title="View Details"
                                           >
-                                            <Eye className="h-4 w-4" />
+                                            <Eye className="h-3 w-3 mr-1" />
+                                            View Details
                                           </button>
-                                          {demand.status !== 'Paid' && (
-                                            <button
-                                              onClick={() => handleRecordPayment(demand)}
-                                              className="text-success-600 hover:text-success-800 font-inter"
-                                              title="Record Payment"
-                                            >
-                                              <CreditCard className="h-4 w-4" />
-                                            </button>
-                                          )}
-                                          {demand.status !== 'Paid' && (
+                                          {demand.status !== ServiceChargeDemandStatus.PAID && (
                                             <button
                                               onClick={() => handleSendReminder(demand)}
-                                              className="text-orange-600 hover:text-orange-800 font-inter"
+                                              className="text-orange-600 hover:text-orange-800 font-inter flex items-center text-xs"
                                               title="Send Reminder"
                                             >
-                                              <Send className="h-4 w-4" />
+                                              <Send className="h-3 w-3 mr-1" />
+                                              Send Reminder
                                             </button>
                                           )}
                                           <button
@@ -1548,207 +1900,222 @@ const Finances: React.FC = () => {
                                               })
                                               setShowFlatLedger(true)
                                             }}
-                                            className="text-purple-600 hover:text-purple-800 font-inter"
+                                            className="text-purple-600 hover:text-purple-800 font-inter flex items-center text-xs"
                                             title="View Flat Ledger"
                                           >
-                                            <BookOpen className="h-4 w-4" />
+                                            <BookOpen className="h-3 w-3 mr-1" />
+                                            Ledger
                                           </button>
                                         </div>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )
+                            })}
                             </div>
                           )}
                         </div>
                       )
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'invoices' && (
-            <div className="space-y-6">
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-neutral-900 font-inter">Invoices</h3>
-                <p className="text-gray-600 font-inter">Invoice management features will be available soon</p>
-              </div>
-              
-              {/* Development Proposal */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-                <div className="flex items-start space-x-3">
-                  <div className="flex-shrink-0">
-                    <FileText className="h-6 w-6 text-blue-600 mt-1" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-4">📋 Invoice Management System - Development Proposal</h3>
-                    <div className="bg-white rounded-lg p-6 border border-blue-200">
-                      <div className="prose prose-sm max-w-none text-gray-800 leading-relaxed">
-                        <div className="whitespace-pre-wrap font-mono text-xs leading-relaxed">
-{`🎯 CORE INVOICE MANAGEMENT FEATURES
-
-1. Multi-Channel Invoice Input
-• Drag & Drop Zone: Large, prominent area for dragging PDF/image files directly into the app
-• File Upload: Traditional file picker supporting batch uploads (multiple files/folders)
-• Email Integration:
-  - Dedicated email address for the building (e.g., invoices-building123@yourapp.com)
-  - Email forwarding with automatic attachment extraction
-  - Email parsing to extract vendor info from sender/subject
-
-2. Intelligent File Processing & OCR
-• Automatic Data Extraction:
-  - Vendor name, invoice number, date, amount, line items
-  - Tax/VAT identification
-  - Due dates and payment terms
-• File Format Support: PDF, JPG, PNG, TIFF
-• Multi-page Document Handling: Split or keep as single invoice
-
-3. Smart File Naming & Organization
-Auto-generated naming convention:
-  YYYY-MM-DD_VendorName_InvoiceNumber_Amount.pdf
-  2024-03-15_AcmePlumbing_INV001234_£450.00.pdf
-
-• Manual Override: Allow editing of auto-generated names
-• Duplicate Detection: Flag potential duplicates based on vendor/amount/date
-• Version Control: Handle invoice revisions/corrections
-
-4. Advanced Search & Filtering
-• Full-text Search: Search within invoice content (OCR'd text)
-• Filter by:
-  - Date range, vendor, amount range
-  - Invoice status (pending, paid, overdue, disputed)
-  - Category/expense type
-  - Associated ticket/work order
-• Quick Filters: "This month", "Overdue", "High value (>£1000)"
-
-5. Expense Reconciliation Engine
-
-Automatic Matching:
-• Ticket-to-Invoice Matching:
-  - Match by vendor name and approximate amount
-  - Match by work description/location
-  - Date proximity (invoice within reasonable timeframe of ticket completion)
-• Smart Suggestions: "This invoice might relate to Ticket #TKT-123 (Boiler Repair - £445)"
-
-Manual Linking Interface:
-• Side-by-side View: Show invoice details alongside potential expense forecasts
-• Drag & Drop Linking: Drag invoice onto expense forecast to link them
-• Bulk Actions: Link multiple invoices to large work orders
-
-6. Invoice Status Workflow
-Received → Under Review → Approved → Scheduled for Payment → Paid → Archived
-                ↓
-           Disputed/Rejected → Vendor Communication
-
-7. Approval & Authorization System
-• Approval Thresholds: Auto-approve <£200, require approval >£1000
-• Multi-level Approval: Building Manager → Regional Manager → Finance Team
-• Approval History: Track who approved what and when
-
-🔧 TECHNICAL IMPLEMENTATION APPROACH
-
-File Storage Strategy:
-• Cloud Storage: AWS S3/Google Cloud for scalability
-• CDN Integration: Fast file access globally
-• Backup & Versioning: Automatic backups with version history
-
-OCR & AI Integration:
-• OCR Engine: Google Vision API or AWS Textract for text extraction
-• AI Enhancement:
-  - GPT-4 Vision for complex invoice layouts
-  - Custom training for common UK invoice formats
-  - Learning from user corrections
-
-Email Integration Options:
-1. Dedicated Email Service:
-   - Unique email per building
-   - Automatic forwarding rules
-   - Parse sender domain for vendor identification
-
-2. Email API Integration:
-   - Gmail/Outlook API access
-   - Rule-based processing
-   - Attachment extraction
-
-Database Schema Considerations:
-invoices:
-- id, building_id, vendor_id, invoice_number
-- amount, currency, tax_amount, net_amount
-- invoice_date, due_date, received_date
-- status, approval_status, payment_date
-- file_path, original_filename, ocr_text
-- linked_expense_id, linked_ticket_id
-
-invoice_line_items:
-- invoice_id, description, quantity, unit_price, total
-- category, expense_type
-
-vendor_mappings:
-- email_domain, vendor_name, default_category
-
-📱 USER EXPERIENCE DESIGN
-
-Dashboard Integration:
-• Invoice Alerts: "3 new invoices need review"
-• Overdue Warnings: "2 invoices overdue for payment"
-• Reconciliation Status: "5 expenses awaiting invoice match"
-
-Workflow Efficiency:
-• Batch Operations: Select multiple invoices for bulk approval/payment
-• Keyboard Shortcuts: Quick navigation and actions
-• Mobile Optimized: Review/approve invoices on mobile devices
-
-Vendor Management:
-• Vendor Profiles: Contact info, payment terms, tax details
-• Performance Tracking: Average payment time, dispute history
-• Communication Log: Track email exchanges about invoices
-
-🎯 PROPOSED MVP FEATURES (Phase 1)
-
-1. Basic Upload: Drag & drop + file picker
-2. OCR Processing: Extract key fields (vendor, amount, date)
-3. Manual Review Interface: Confirm/edit extracted data
-4. Simple Search: By vendor, date, amount
-5. Expense Linking: Manual linking to forecast expenses
-6. Status Tracking: Received → Approved → Paid
-
-🚀 ADVANCED FEATURES (Phase 2+)
-
-1. Email Integration: Automated email processing
-2. AI-Powered Matching: Automatic expense reconciliation
-3. Approval Workflows: Multi-level approval system
-4. Payment Integration: Connect to accounting systems
-5. Analytics: Vendor performance, spending patterns
-6. Mobile App: Invoice approval on-the-go
-
-🔄 INTEGRATION POINTS
-
-• Expenses Tab: Seamless linking to forecast expenses
-• Tickets System: Auto-suggest invoice-to-ticket relationships
-• Vendor Management: Central vendor database
-• Accounting Export: QuickBooks, Xero integration
-• Bank Reconciliation: Match payments to invoices
-
-💡 IMPLEMENTATION PRIORITY
-
-Recommended starting point: Basic upload and OCR functionality, then build out the reconciliation features with the existing expense forecasting system.`}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-4">
-                      <p className="text-sm text-blue-700 font-medium">
-                        💭 This comprehensive proposal outlines the complete invoice management system we can build to handle drag & drop uploads, email forwarding, OCR processing, expense reconciliation, and approval workflows.
-                      </p>
-                    </div>
-                  </div>
+                    })
+                  )}
                 </div>
-              </div>
+              ) : (
+                // Desktop Table Layout - Period Accordion
+                <div data-demands-section className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                  <div className="px-6 py-4 border-b border-neutral-200">
+                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands</h3>
+                    {Object.keys(groupedServiceCharges).length > 1 && (
+                      <p className="text-sm text-gray-600 font-inter mt-1">
+                        Grouped by period • Click to expand/collapse periods
+                      </p>
+                    )}
+                  </div>
+                  
+                  {Object.keys(groupedServiceCharges).length === 0 ? (
+                    <div className="text-center py-12">
+                      <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-neutral-900 font-inter">No Service Charge Demands</h3>
+                      <p className="text-gray-600 font-inter">Generate demands for the selected period to get started</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-neutral-200">
+                      {Object.entries(groupedServiceCharges).map(([period, demands], periodIndex) => {
+                        const isExpanded = expandedPeriods.has(period)
+                        const periodTotal = demands.reduce((sum, d) => sum + (d.totalAmountDue || 0), 0)
+                        const periodOutstanding = demands.reduce((sum, d) => sum + (d.outstandingAmount || 0), 0)
+                        const periodPaid = demands.filter(d => d.status === ServiceChargeDemandStatus.PAID).length
+                        const periodOverdue = demands.filter(d => 
+                          (d.status === ServiceChargeDemandStatus.ISSUED || d.status === ServiceChargeDemandStatus.PARTIALLY_PAID) &&
+                          new Date(d.dueDate) < new Date()
+                        ).length
+                        
+                        return (
+                          <div key={period} className="">
+                            {/* Period Header */}
+                            <div 
+                              className="px-6 py-4 bg-neutral-50 hover:bg-neutral-100 cursor-pointer transition-colors duration-200 flex items-center justify-between"
+                              onClick={() => togglePeriodExpansion(period)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <ChevronDown 
+                                  className={`h-5 w-5 text-neutral-500 transition-transform duration-200 ${
+                                    isExpanded ? 'rotate-0' : '-rotate-90'
+                                  }`}
+                                />
+                                <div>
+                                  <h4 className="text-lg font-semibold text-neutral-900 font-inter">{period}</h4>
+                                  <div className="flex items-center space-x-4 mt-1">
+                                    <span className="text-sm text-neutral-600 font-inter">
+                                      {demands.length} demands • {formatCurrency(periodTotal)} total
+                                    </span>
+                                    {periodOutstanding > 0 && (
+                                      <span className="text-sm text-orange-600 font-inter">
+                                        {formatCurrency(periodOutstanding)} outstanding
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-4">
+                                {periodPaid > 0 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-100 text-success-800">
+                                    {periodPaid} paid
+                                  </span>
+                                )}
+                                {periodOverdue > 0 && (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    {periodOverdue} overdue
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Period Content */}
+                            {isExpanded && (
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                  {periodIndex === 0 && (
+                                    <thead className="bg-neutral-50">
+                                      <tr>
+                                        <SortableHeader field="flatNumber">Flat</SortableHeader>
+                                        <SortableHeader field="residentName">Resident</SortableHeader>
+                                        <SortableHeader field="totalAmountDue">Amount Due</SortableHeader>
+                                        <SortableHeader field="outstandingAmount">Outstanding</SortableHeader>
+                                        <SortableHeader field="dueDate">Due Date</SortableHeader>
+                                        <SortableHeader field="status">Status</SortableHeader>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider font-inter">Actions</th>
+                                      </tr>
+                                    </thead>
+                                  )}
+                                  <tbody className="bg-white divide-y divide-gray-200">
+                                    {demands.map((demand) => (
+                                      <tr key={demand.id} className="hover:bg-neutral-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-neutral-900 font-inter">
+                                          {demand.flatNumber}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                          {demand.residentName}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                          {demand.hasCreditApplied ? (
+                                            <div>
+                                              <div className="text-gray-500 line-through text-sm">
+                                                {formatCurrency((demand.originalAmountBeforeCredit || demand.totalAmountDue) || 0)}
+                                              </div>
+                                              <div className="text-green-600 font-medium">
+                                                {formatCurrency(demand.totalAmountDue || 0)}
+                                                <span className="text-xs ml-1 bg-green-100 text-green-800 px-1.5 py-0.5 rounded-full">
+                                                  Credit: £{(demand.creditAppliedAmount || 0).toFixed(2)}
+                                                </span>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div>{formatCurrency(demand.totalAmountDue || 0)}</div>
+                                          )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                          {formatCurrency(demand.outstandingAmount || 0)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
+                                          {new Date(demand.dueDate).toLocaleDateString('en-GB')}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full font-inter ${
+                                            demand.status === ServiceChargeDemandStatus.PAID
+                                              ? 'bg-success-100 text-success-800'
+                                              : demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID
+                                              ? 'bg-yellow-100 text-yellow-800'
+                                              : demand.status === ServiceChargeDemandStatus.OVERDUE
+                                              ? 'bg-red-100 text-red-800'
+                                              : 'bg-neutral-100 text-gray-800'
+                                          }`}>
+                                            {demand.status === ServiceChargeDemandStatus.PARTIALLY_PAID 
+                                              ? 'Partially Paid' 
+                                              : demand.status === ServiceChargeDemandStatus.ISSUED && new Date(demand.dueDate) < new Date() 
+                                              ? 'Overdue' 
+                                              : demand.status}
+                                          </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                          <div className="flex items-center space-x-2">
+                                            <button
+                                              onClick={() => handleViewDemandDetails(demand)}
+                                              className="text-primary-600 hover:text-blue-800 font-inter"
+                                              title="View Details"
+                                            >
+                                              <Eye className="h-4 w-4" />
+                                            </button>
+                                            {demand.status !== 'Paid' && (
+                                              <button
+                                                onClick={() => handleRecordPayment(demand)}
+                                                className="text-success-600 hover:text-success-800 font-inter"
+                                                title="Record Payment"
+                                              >
+                                                <CreditCard className="h-4 w-4" />
+                                              </button>
+                                            )}
+                                            {demand.status !== 'Paid' && (
+                                              <button
+                                                onClick={() => handleSendReminder(demand)}
+                                                className="text-orange-600 hover:text-orange-800 font-inter"
+                                                title="Send Reminder"
+                                              >
+                                                <Send className="h-4 w-4" />
+                                              </button>
+                                            )}
+                                            <button
+                                              onClick={() => {
+                                                setSelectedFlatForLedger({
+                                                  flatId: demand.flatId,
+                                                  flatNumber: demand.flatNumber,
+                                                  residentName: demand.residentName
+                                                })
+                                                setShowFlatLedger(true)
+                                              }}
+                                              className="text-purple-600 hover:text-purple-800 font-inter"
+                                              title="View Flat Ledger"
+                                            >
+                                              <BookOpen className="h-4 w-4" />
+                                            </button>
+                                          </div>
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
+
 
 
           {activeTab === 'expenses' && (
@@ -1773,42 +2140,73 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                 )}
               </div>
 
-              {/* Expenses Summary */}
+              {/* Expenses Summary (clickable filters) */}
               <div className={`grid gap-4 ${
                 isMobile ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-4'
               }`}>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="font-medium text-blue-900 font-inter">Total Forecasts</h3>
-                  <p className="text-2xl font-bold text-primary-600 font-inter">{expenses.length}</p>
-                </div>
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <h3 className="font-medium text-orange-900 font-inter">Pending Invoices</h3>
-                  <p className="text-2xl font-bold text-orange-600 font-inter">
-                    {expenses.filter(e => e.status === 'forecast').length}
-                  </p>
-                </div>
-                <div className="bg-success-50 border border-success-200 rounded-lg p-4">
-                  <h3 className="font-medium text-success-900 font-inter">Total Amount</h3>
-                  <p className="text-2xl font-bold text-success-600 font-inter">
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusFilterTile(null)}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-success-50 border border-success-200 ${
+                    activeStatusFilterTile === null ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-success-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Expense Total</h3>
+                  <p className={`font-bold text-success-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
                     {formatCurrency(expenses.reduce((sum, e) => sum + (e.amount || 0), 0))}
                   </p>
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <h3 className="font-medium text-red-900 font-inter">Invoiced</h3>
-                  <p className="text-2xl font-bold text-red-600 font-inter">
-                    {expenses.filter(e => e.status === 'invoiced').length}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusFilterTile(prev => (prev === 'paid' ? null : 'paid'))}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-blue-50 border border-blue-200 ${
+                    activeStatusFilterTile === 'paid' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-blue-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Paid</h3>
+                  <p className={`font-bold text-primary-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {formatCurrency(expenses.filter(e => e.status === 'paid').reduce((sum, e) => sum + (e.amount || 0), 0))}
                   </p>
-                </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusFilterTile(prev => (prev === 'invoiced' ? null : 'invoiced'))}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-red-50 border border-red-200 ${
+                    activeStatusFilterTile === 'invoiced' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-red-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Invoiced</h3>
+                  <p className={`font-bold text-red-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {formatCurrency(expenses.filter(e => e.status === 'invoiced').reduce((sum, e) => sum + (e.amount || 0), 0))}
+                  </p>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveStatusFilterTile(prev => (prev === 'forecast' ? null : 'forecast'))}
+                  className={`w-full text-left rounded-lg ${
+                    isMobile ? 'p-3 min-h-[80px]' : 'p-4'
+                  } bg-orange-50 border border-orange-200 ${
+                    activeStatusFilterTile === 'forecast' ? 'ring-2 ring-blue-500' : ''
+                  }`}
+                >
+                  <h3 className={`font-medium text-orange-900 font-inter ${isMobile ? 'text-sm' : ''}`}>Forecast</h3>
+                  <p className={`font-bold text-orange-600 font-inter ${isMobile ? 'text-lg' : 'text-2xl'}`}>
+                    {formatCurrency(expenses.filter(e => e.status === 'forecast').reduce((sum, e) => sum + (e.amount || 0), 0))}
+                  </p>
+                </button>
               </div>
 
               {/* Expenses Display - Cards on Mobile, Table on Desktop */}
               {isMobile ? (
                 // Mobile Card Layout
                 <div className="space-y-3">
-                  <div className="px-4 py-3 border-b border-neutral-200 bg-white rounded-t-lg">
-                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Forecast Expenses</h3>
-                  </div>
-                  {expenses.length === 0 ? (
+                  {visibleExpenses.length === 0 ? (
                     <div className="bg-white rounded-lg p-6 text-center">
                       <Receipt className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
                       <h3 className="text-lg font-medium text-neutral-900 font-inter">No Expense Forecasts</h3>
@@ -1817,103 +2215,193 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                       </p>
                     </div>
                   ) : (
-                    expenses.map((expense) => (
-                      <div key={expense.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 p-4">
-                        {/* Header with Description and Amount */}
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex-1 pr-2">
-                            <h4 className="text-sm font-medium text-neutral-900 font-inter line-clamp-2">
-                              {expense.description}
-                            </h4>
-                            {expense.ticketId && (
-                              <div className="text-xs text-gray-500 mt-1">
-                                Ticket: {expense.ticketId.substring(0, 8)}...
+                    visibleExpenses.map((expense) => {
+                      const isExpanded = expandedExpenses.has(expense.id)
+                      
+                      const toggleExpanded = () => {
+                        const newExpanded = new Set(expandedExpenses)
+                        if (newExpanded.has(expense.id)) {
+                          newExpanded.delete(expense.id)
+                        } else {
+                          newExpanded.add(expense.id)
+                        }
+                        setExpandedExpenses(newExpanded)
+                      }
+                      
+                      return (
+                        <div key={expense.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+                          {/* Main clickable area */}
+                          <div 
+                            onClick={toggleExpanded}
+                            className="p-2 flex flex-col min-h-[60px] cursor-pointer hover:bg-neutral-50 transition-colors"
+                          >
+                            {/* Top section with Contractor and Amount */}
+                            <div className="flex items-start justify-between mb-1">
+                              <div className="flex-1 pr-2">
+                                <h4 className="text-sm font-medium text-neutral-900 font-inter truncate">
+                                  {expense.vendorName || expense.supplierName || 'Unknown Supplier'}
+                                </h4>
                               </div>
-                            )}
-                          </div>
-                          <div className="text-sm font-medium text-neutral-900 font-inter">
-                            {formatCurrency(expense.amount || 0)}
-                          </div>
-                        </div>
-                        
-                        {/* Supplier and Category */}
-                        <div className="flex items-center justify-between text-xs text-gray-600 mb-3">
-                          <div className="flex items-center space-x-3">
-                            <span className="truncate max-w-[120px]" title={expense.vendorName || expense.supplierName || 'Unknown Supplier'}>
-                              {expense.vendorName || expense.supplierName || 'Unknown Supplier'}
-                            </span>
-                            {expense.category && (
-                              <span className="capitalize">
-                                {expense.category.replace('_', ' ')}
+                              <div className="flex items-start space-x-2">
+                                <div className="text-right">
+                                  <div className="text-sm font-medium text-neutral-900 font-inter">
+                                    {formatCurrency(expense.amount || 0)}
+                                  </div>
+                                </div>
+                                <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`} />
+                              </div>
+                            </div>
+                            
+                            {/* Bottom section with Status and Actions */}
+                            <div className="flex items-end justify-between mt-auto">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium font-inter ${
+                                expense.status === 'forecast'
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : expense.status === 'invoiced'
+                                  ? 'bg-red-100 text-red-800'
+                                  : expense.status === 'paid'
+                                  ? 'bg-success-100 text-success-800'
+                                  : 'bg-neutral-100 text-gray-800'
+                              }`}>
+                                {expense.status === 'forecast' ? 'Pending' : expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
                               </span>
-                            )}
+                              
+                              {expense.status === 'invoiced' && (
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation(); // Prevent tile expansion
+                                    try {
+                                      await expenseService.markExpenseAsPaid(expense.id)
+                                      addNotification({
+                                        userId: currentUser?.id || '',
+                                        title: 'Success',
+                                        message: 'Expense marked as paid',
+                                        type: 'success'
+                                      })
+                                      await loadFinancialData()
+                                    } catch (error) {
+                                      addNotification({
+                                        userId: currentUser?.id || '',
+                                        title: 'Error',
+                                        message: 'Failed to mark expense as paid',
+                                        type: 'error'
+                                      })
+                                    }
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800 font-inter text-xs"
+                                  title="Mark as Paid"
+                                >
+                                  Mark as Paid
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <span>{new Date(expense.createdAt).toLocaleDateString('en-GB')}</span>
+                          
+                          {/* Expandable Details */}
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-neutral-100 space-y-2">
+                              {/* Ticket Description */}
+                              <div>
+                                <h5 className="text-xs font-medium text-gray-700 mb-1">Description</h5>
+                                <p className="text-sm text-neutral-900 font-inter">{expense.description}</p>
+                              </div>
+                              
+                              {/* Date, Ticket ID and Category */}
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <h5 className="text-xs font-medium text-gray-700 mb-1">Date Created</h5>
+                                  <p className="text-sm text-neutral-900 font-inter">
+                                    {new Date(expense.createdAt).toLocaleDateString('en-GB')}
+                                  </p>
+                                </div>
+                                {expense.ticketId && (
+                                  <div>
+                                    <h5 className="text-xs font-medium text-gray-700 mb-1">Ticket ID</h5>
+                                    <p className="text-sm text-neutral-900 font-inter">
+                                      {expense.ticketId.substring(0, 8)}...
+                                    </p>
+                                  </div>
+                                )}
+                                {expense.category && (
+                                  <div>
+                                    <h5 className="text-xs font-medium text-gray-700 mb-1">Category</h5>
+                                    <p className="text-sm text-neutral-900 font-inter capitalize">
+                                      {expense.category.replace('_', ' ')}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Actions */}
+                              <div className="flex items-center justify-end space-x-2 pt-2">
+                                {expense.ticketId && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const ticket = await ticketService.getTicketById(expense.ticketId)
+                                        if (ticket) {
+                                          setSelectedTicketForModal(ticket)
+                                          setIsTicketModalOpen(true)
+                                        } else {
+                                          addNotification({
+                                            userId: currentUser?.id || '',
+                                            title: 'Error',
+                                            message: 'Ticket not found',
+                                            type: 'error'
+                                          })
+                                        }
+                                      } catch (error) {
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Error',
+                                          message: 'Failed to load ticket details',
+                                          type: 'error'
+                                        })
+                                      }
+                                    }}
+                                    className="text-primary-600 hover:text-blue-800 font-inter flex items-center text-xs"
+                                    title="View Ticket"
+                                  >
+                                    <ExternalLink className="h-3 w-3 mr-1" />
+                                    View Ticket
+                                  </button>
+                                )}
+                                {expense.status === 'forecast' && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await expenseService.markAsInvoiced(expense.id, currentUser?.id || '')
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Success',
+                                          message: 'Expense marked as invoiced',
+                                          type: 'success'
+                                        })
+                                        await loadFinancialData()
+                                      } catch (error) {
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Error',
+                                          message: 'Failed to update expense status',
+                                          type: 'error'
+                                        })
+                                      }
+                                    }}
+                                    className="text-success-600 hover:text-success-800 font-inter flex items-center text-xs"
+                                    title="Mark as Invoiced"
+                                  >
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Mark Invoiced
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        
-                        {/* Status and Actions */}
-                        <div className="flex items-center justify-between">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${
-                            expense.status === 'forecast'
-                              ? 'bg-orange-100 text-orange-800'
-                              : expense.status === 'invoiced'
-                              ? 'bg-red-100 text-red-800'
-                              : expense.status === 'paid'
-                              ? 'bg-success-100 text-success-800'
-                              : 'bg-neutral-100 text-gray-800'
-                          }`}>
-                            {expense.status === 'forecast' && <AlertTriangle className="h-3 w-3 mr-1" />}
-                            {expense.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
-                            {expense.status === 'forecast' ? 'Pending Invoice' : expense.status}
-                          </span>
-                          <div className="flex items-center space-x-2">
-                            {expense.ticketId && (
-                              <button
-                                onClick={() => {
-                                  addNotification({
-                                    userId: currentUser?.id || '',
-                                    title: 'Info',
-                                    message: `Ticket ${expense.ticketId.substring(0, 8)}... linked to this expense`,
-                                    type: 'info'
-                                  })
-                                }}
-                                className="text-primary-600 hover:text-blue-800 font-inter"
-                                title="View Ticket"
-                              >
-                                <ExternalLink className="h-4 w-4" />
-                              </button>
-                            )}
-                            {expense.status === 'forecast' && (
-                              <button
-                                onClick={async () => {
-                                  try {
-                                    await expenseService.markAsInvoiced(expense.id, currentUser?.id || '')
-                                    addNotification({
-                                      userId: currentUser?.id || '',
-                                      title: 'Success',
-                                      message: 'Expense marked as invoiced',
-                                      type: 'success'
-                                    })
-                                    await loadFinancialData()
-                                  } catch (error) {
-                                    addNotification({
-                                      userId: currentUser?.id || '',
-                                      title: 'Error',
-                                      message: 'Failed to update expense status',
-                                      type: 'error'
-                                    })
-                                  }
-                                }}
-                                className="text-success-600 hover:text-success-800 font-inter"
-                                title="Mark as Invoiced"
-                              >
-                                <CheckCircle className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))
+                      )
+                    })
                   )}
                 </div>
               ) : (
@@ -1953,11 +2441,43 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {expenses.map((expense) => (
+                        {visibleExpenses.map((expense) => (
                           <tr key={expense.id} className="hover:bg-neutral-50">
                             <td className="px-6 py-4 text-sm text-neutral-900 font-inter">
                               <div>
-                                <div className="font-medium">{expense.description}</div>
+                                {expense.ticketId ? (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const ticket = await ticketService.getTicketById(expense.ticketId)
+                                        if (ticket) {
+                                          setSelectedTicketForModal(ticket)
+                                          setIsTicketModalOpen(true)
+                                        } else {
+                                          addNotification({
+                                            userId: currentUser?.id || '',
+                                            title: 'Error',
+                                            message: 'Ticket not found',
+                                            type: 'error'
+                                          })
+                                        }
+                                      } catch (error) {
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Error',
+                                          message: 'Failed to load ticket details',
+                                          type: 'error'
+                                        })
+                                      }
+                                    }}
+                                    className="font-medium text-primary-600 hover:text-primary-800 hover:underline text-left"
+                                    title="View related ticket"
+                                  >
+                                    {expense.description}
+                                  </button>
+                                ) : (
+                                  <div className="font-medium">{expense.description}</div>
+                                )}
                                 {expense.ticketId && (
                                   <div className="text-xs text-gray-500 mt-1">
                                     Ticket: {expense.ticketId.substring(0, 8)}...
@@ -1988,7 +2508,7 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                               }`}>
                                 {expense.status === 'forecast' && <AlertTriangle className="h-3 w-3 mr-1" />}
                                 {expense.status === 'paid' && <CheckCircle className="h-3 w-3 mr-1" />}
-                                {expense.status === 'forecast' ? 'Pending Invoice' : expense.status}
+                                {expense.status === 'forecast' ? 'Pending' : expense.status.charAt(0).toUpperCase() + expense.status.slice(1)}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-neutral-900 font-inter">
@@ -1996,23 +2516,6 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <div className="flex items-center space-x-2">
-                                {expense.ticketId && (
-                                  <button
-                                    onClick={() => {
-                                      // TODO: Navigate to ticket detail
-                                      addNotification({
-                                        userId: currentUser?.id || '',
-                                        title: 'Info',
-                                        message: `Ticket ${expense.ticketId.substring(0, 8)}... linked to this expense`,
-                                        type: 'info'
-                                      })
-                                    }}
-                                    className="text-primary-600 hover:text-blue-800 font-inter"
-                                    title="View Ticket"
-                                  >
-                                    <ExternalLink className="h-4 w-4" />
-                                  </button>
-                                )}
                                 {expense.status === 'forecast' && (
                                   <button
                                     onClick={async () => {
@@ -2034,10 +2537,38 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                                         })
                                       }
                                     }}
-                                    className="text-success-600 hover:text-success-800 font-inter"
+                                    className="text-success-600 hover:text-success-800 font-inter flex items-center"
                                     title="Mark as Invoiced"
                                   >
-                                    <CheckCircle className="h-4 w-4" />
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                    Mark Invoiced
+                                  </button>
+                                )}
+                                {expense.status === 'invoiced' && (
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        await expenseService.markExpenseAsPaid(expense.id)
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Success',
+                                          message: 'Expense marked as paid',
+                                          type: 'success'
+                                        })
+                                        await loadFinancialData()
+                                      } catch (error) {
+                                        addNotification({
+                                          userId: currentUser?.id || '',
+                                          title: 'Error',
+                                          message: 'Failed to mark expense as paid',
+                                          type: 'error'
+                                        })
+                                      }
+                                    }}
+                                    className="text-blue-600 hover:text-blue-800 font-inter"
+                                    title="Mark as Paid"
+                                  >
+                                    Mark as Paid
                                   </button>
                                 )}
                               </div>
@@ -2068,82 +2599,17 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
         </div>
       </div>
 
-      {/* Expense Help Modal */}
-      {showExpenseHelpModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" style={{ zIndex: 1400 }}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    <Receipt className="h-6 w-6 text-primary-600" />
-                  </div>
-                  <h2 className="text-xl font-semibold text-neutral-900 font-inter">
-                    About Expense Forecasts
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setShowExpenseHelpModal(false)}
-                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
-                  aria-label="Close help modal"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <p className="text-sm text-neutral-700 font-inter">
-                  These forecasts are automatically created when maintenance tickets are completed with a final cost.
-                </p>
-                
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-neutral-900 font-inter">Status Definitions:</h3>
-                  <ul className="space-y-2 text-sm text-neutral-700 font-inter">
-                    <li className="flex items-start space-x-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mt-0.5">
-                        Pending Invoice
-                      </span>
-                      <span>Work completed, waiting for supplier invoice</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-0.5">
-                        Invoiced
-                      </span>
-                      <span>Invoice received and processed</span>
-                    </li>
-                    <li className="flex items-start space-x-2">
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800 mt-0.5">
-                        Paid
-                      </span>
-                      <span>Invoice has been paid</span>
-                    </li>
-                  </ul>
-                </div>
-                
-                <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
-                  <p className="text-xs text-neutral-600 font-inter">
-                    💡 Tip: When you mark tickets as complete with a final cost, forecast expenses are automatically created here
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setShowExpenseHelpModal(false)}
-                  className="btn-primary"
-                >
-                  Got it
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Budget Setup Modal */}
       {showBudgetSetup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" style={{ zIndex: 1400 }}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" 
+          style={{ zIndex: 1400 }}
+          onClick={() => setShowBudgetSetup(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div>
@@ -2154,7 +2620,7 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                     Building: {selectedBuilding?.name || 'No building selected'}
                   </p>
                 </div>
-<Button variant="ghost" size="sm" onClick={() => setShowBudgetSetup(false)} aria-label="Close budget modal">
+                <Button variant="ghost" size="sm" onClick={() => setShowBudgetSetup(false)} aria-label="Close budget modal">
                   <X className="h-6 w-6" />
                 </Button>
               </div>
@@ -2179,210 +2645,262 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
                   </div>
                 )}
 
-                {/* Budget Year and Financial Year Start */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                {/* Total Budget Input */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Annual Budget</h3>
+                    {budgetValidation && (
+                      <div className="flex items-center space-x-2">
+                        {budgetValidation.isValid ? (
+                          <span className="flex items-center text-success-600 text-sm font-inter">
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Valid ({budgetValidation.totalPercentage}%)
+                          </span>
+                        ) : (
+                          <span className="flex items-center text-red-600 text-sm font-inter">
+                            <AlertTriangle className="h-4 w-4 mr-1" />
+                            {budgetValidation.totalPercentage}% allocated
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
+                        Total Budget Amount (£)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={budgetForm.totalBudgetAmount}
+                        onChange={(e) => updateTotalBudget(parseFloat(e.target.value) || 0)}
+                        className="text-lg font-semibold"
+                        placeholder="Enter total budget"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
+                        Rate per Sq Ft (£/sqft)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={budgetForm.ratePerSqFt}
+                        disabled
+                        className="bg-neutral-50 text-neutral-600 text-lg font-semibold"
+                      />
+                      <p className="text-xs text-neutral-500 mt-1">
+                        Auto-calculated from total budget ÷ {budgetForm.totalSqFt} sq ft
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {budgetForm.previousYearRatePerSqFt > 0 && (
+                    <div className="mt-3 p-3 bg-neutral-50 rounded-lg">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-neutral-600 font-inter">Previous year rate:</span>
+                        <span className="font-medium font-inter">£{budgetForm.previousYearRatePerSqFt}/sqft</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm mt-1">
+                        <span className="text-neutral-600 font-inter">Change:</span>
+                        <span className={`font-medium font-inter ${
+                          budgetValidationUtils.calculateRateChange(budgetForm.ratePerSqFt, budgetForm.previousYearRatePerSqFt) >= 0
+                            ? 'text-red-600' : 'text-success-600'
+                        }`}>
+                          {budgetValidationUtils.calculateRateChange(budgetForm.ratePerSqFt, budgetForm.previousYearRatePerSqFt) > 0 ? '+' : ''}
+                          {budgetValidationUtils.calculateRateChange(budgetForm.ratePerSqFt, budgetForm.previousYearRatePerSqFt)}%
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Budget Details - Single Row */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="h-[100px] flex flex-col">
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Budget Year
                     </label>
-<Input
+                    <Input
                       type="number"
                       value={budgetForm.year}
                       onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
                       required
+                      className="h-10 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
+                    <p className="text-xs text-neutral-500 mt-1 h-8 leading-4">
+                      {/* Empty space for alignment */}
+                    </p>
                   </div>
-                  <div>
+                  <div className="h-[100px] flex flex-col">
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                       Financial Year Start
                     </label>
-<Input
+                    <Input
                       type="date"
                       value={budgetForm.financialYearStart.toISOString().split('T')[0]}
                       onChange={(e) => setBudgetForm({ ...budgetForm, financialYearStart: new Date(e.target.value) })}
-                      required
+                      disabled
+                      className="bg-neutral-50 text-neutral-600 h-10"
                     />
+                    <p className="text-xs text-neutral-500 mt-1 h-8 leading-4">
+                      From Financial Setup settings
+                    </p>
                   </div>
-                </div>
-
-                {/* Service Charge and Ground Rent Rates */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className="h-[100px] flex flex-col">
                     <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                      Service Charge Rate (£ per sq ft)
+                      Service Charge (£/sqft)
                     </label>
-<Input
+                    <Input
                       type="number"
                       step="0.01"
                       value={budgetForm.serviceChargeRate || 0}
                       onChange={(e) => setBudgetForm({ ...budgetForm, serviceChargeRate: parseFloat(e.target.value) })}
-                      required
+                      disabled
+                      className="bg-neutral-50 text-neutral-600 h-10 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                      Ground Rent Rate (£ per sq ft)
-                    </label>
-<Input
-                      type="number"
-                      step="0.01"
-                      value={budgetForm.groundRentRate}
-                      onChange={(e) => setBudgetForm({ ...budgetForm, groundRentRate: parseFloat(e.target.value) })}
-                      required
-                    />
+                    <p className="text-xs text-neutral-500 mt-1 h-8 leading-4">
+                      From Financial Setup settings
+                    </p>
                   </div>
                 </div>
 
-                {/* Income Categories */}
+                {/* Budget Categories */}
                 <div>
-                  <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Income Categories</h3>
-                  <div className="space-y-4">
-                    {budgetForm.incomeCategories.map((category, index) => (
-                      <div key={category.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Budget Categories</h3>
+                    <div className="flex items-center space-x-2">
+                      {budgetValidation && !budgetValidation.isValid && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={autoAdjustPercentages}
+                          className="text-xs"
+                        >
+                          Auto-adjust to 100%
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={addBudgetCategory}
+                        leftIcon={<Plus className="h-4 w-4" />}
+                      >
+                        Add Category
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Validation Messages */}
+                  {budgetValidation && (
+                    <div className="mb-4 space-y-2">
+                      {budgetValidation.errors.map((error, index) => (
+                        <div key={index} className="flex items-center space-x-2 text-red-600 text-sm">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>{error}</span>
+                        </div>
+                      ))}
+                      {budgetValidation.warnings.map((warning, index) => (
+                        <div key={index} className="flex items-center space-x-2 text-yellow-600 text-sm">
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>{warning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Categories List */}
+                  <div className="space-y-3">
+                    {budgetForm.categories.map((category, index) => (
+                      <div key={category.id} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-lg border">
                         <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
+                          <label className="block text-xs font-medium text-neutral-600 mb-1">
                             Category Name
                           </label>
-<Input
+                          <Input
                             type="text"
                             value={category.name}
-                            onChange={(e) => {
-                              const updated = [...budgetForm.incomeCategories]
-                              updated[index] = { ...updated[index], name: e.target.value }
-                              setBudgetForm({ ...budgetForm, incomeCategories: updated })
-                            }}
-                            required
+                            onChange={(e) => updateBudgetCategory(category.id, { name: e.target.value })}
+                            placeholder="Enter category name"
+                            className="text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                            Budget Amount (£)
+                          <label className="block text-xs font-medium text-neutral-600 mb-1">
+                            Amount (£)
                           </label>
-<Input
+                          <Input
                             type="number"
                             step="0.01"
                             value={category.budgetAmount}
-                            onChange={(e) => {
-                              const updated = [...budgetForm.incomeCategories]
-                              updated[index] = { ...updated[index], budgetAmount: parseFloat(e.target.value) || 0 }
-                              setBudgetForm({ ...budgetForm, incomeCategories: updated })
-                            }}
-                            required
+                            onChange={(e) => updateBudgetCategory(category.id, { budgetAmount: parseFloat(e.target.value) || 0 })}
+                            className="text-sm"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                            Actual Amount (£)
+                          <label className="block text-xs font-medium text-neutral-600 mb-1">
+                            Percentage (%)
                           </label>
-<Input
+                          <Input
                             type="number"
                             step="0.01"
-                            value={category.actualAmount}
-                            onChange={(e) => {
-                              const updated = [...budgetForm.incomeCategories]
-                              updated[index] = { ...updated[index], actualAmount: parseFloat(e.target.value) || 0 }
-                              setBudgetForm({ ...budgetForm, incomeCategories: updated })
-                            }}
+                            min="0"
+                            max="100"
+                            value={category.percentageOfTotal}
+                            onChange={(e) => updateBudgetCategory(category.id, { percentageOfTotal: parseFloat(e.target.value) || 0 })}
+                            className="text-sm"
                           />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-neutral-600 mb-1">
+                            Progress
+                          </label>
+                          <div className="flex items-center space-x-2 mt-2">
+                            <div className="flex-1 bg-neutral-200 rounded-full h-2">
+                              <div 
+                                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min(category.percentageOfTotal, 100)}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-neutral-600 w-12">
+                              {category.percentageOfTotal.toFixed(1)}%
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-end">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeBudgetCategory(category.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
                         </div>
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* Expenditure Categories */}
-                <div>
-                  <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Expenditure Categories</h3>
-                  <div className="space-y-4">
-                    {budgetForm.expenditureCategories.map((category, index) => (
-                      <div key={category.id} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-red-50 rounded-lg">
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                            Category Name
-                          </label>
-<Input
-                            type="text"
-                            value={category.name}
-                            onChange={(e) => {
-                              const updated = [...budgetForm.expenditureCategories]
-                              updated[index] = { ...updated[index], name: e.target.value }
-                              setBudgetForm({ ...budgetForm, expenditureCategories: updated })
-                            }}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                            Budget Amount (£)
-                          </label>
-<Input
-                            type="number"
-                            step="0.01"
-                            value={category.budgetAmount}
-                            onChange={(e) => {
-                              const updated = [...budgetForm.expenditureCategories]
-                              updated[index] = { ...updated[index], budgetAmount: parseFloat(e.target.value) || 0 }
-                              setBudgetForm({ ...budgetForm, expenditureCategories: updated })
-                            }}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">
-                            Actual Amount (£)
-                          </label>
-<Input
-                            type="number"
-                            step="0.01"
-                            value={category.actualAmount}
-                            onChange={(e) => {
-                              const updated = [...budgetForm.expenditureCategories]
-                              updated[index] = { ...updated[index], actualAmount: parseFloat(e.target.value) || 0 }
-                              setBudgetForm({ ...budgetForm, expenditureCategories: updated })
-                            }}
-                          />
-                        </div>
+                    
+                    {budgetForm.categories.length === 0 && (
+                      <div className="text-center py-8 text-neutral-500">
+                        <p className="font-inter">No categories added yet.</p>
+                        <p className="text-sm font-inter mt-1">Click "Add Category" to get started.</p>
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Budget Summary */}
-                <div className="bg-neutral-50 p-4 rounded-lg">
-                  <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Budget Summary</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600 font-inter">Total Income</p>
-                      <p className="text-xl font-semibold text-success-600 font-inter">
-                        £{budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600 font-inter">Total Expenditure</p>
-                      <p className="text-xl font-semibold text-red-600 font-inter">
-                        £{budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm text-gray-600 font-inter">Net Budget</p>
-                      <p className={`text-xl font-semibold font-inter ${
-                        (budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0) - 
-                         budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0)) >= 0
-                          ? 'text-success-600' : 'text-red-600'
-                      }`}>
-                        £{(budgetForm.incomeCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0) - 
-                           budgetForm.expenditureCategories.reduce((sum, cat) => sum + cat.budgetAmount, 0)).toLocaleString()}
-                      </p>
-                    </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Form Actions */}
-<div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
+                <div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
                   <Button variant="secondary" type="button" onClick={() => setShowBudgetSetup(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={loading || !selectedBuildingId} loading={loading}>
+                  <Button 
+                    type="submit" 
+                    disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
+                    loading={loading}
+                  >
                     {budget ? 'Update Budget' : 'Create Budget'}
                   </Button>
                 </div>
@@ -2393,7 +2911,7 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
       )}
 
       {/* Payment Recording Modal */}
-{showPaymentModal && selectedDemand && (
+      {showPaymentModal && selectedDemand && (
         <Modal
           isOpen={showPaymentModal}
           onClose={() => {
@@ -2459,7 +2977,7 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
       )}
 
       {/* Demand Details Modal */}
-{showDemandDetails && selectedDemand && (
+      {showDemandDetails && selectedDemand && (
         <Modal
           isOpen={showDemandDetails}
           onClose={() => {
@@ -2604,6 +3122,16 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
         </Modal>
       )}
 
+      {/* Ticket Detail Modal */}
+      {selectedTicketForModal && (
+        <TicketDetailModal
+          ticket={selectedTicketForModal}
+          isOpen={isTicketModalOpen}
+          onClose={handleCloseTicketModal}
+          onUpdate={handleTicketUpdate}
+        />
+      )}
+
       {/* Flat Ledger Modal */}
       {selectedFlatForLedger && (
         <FlatLedgerModal
@@ -2617,6 +3145,157 @@ Recommended starting point: Basic upload and OCR functionality, then build out t
           flatNumber={selectedFlatForLedger.flatNumber}
           residentName={selectedFlatForLedger.residentName}
         />
+      )}
+
+      {/* Period Selection Dropdown */}
+      {showPeriodDropdown && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1500 }}>
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Select Period for Service Charges</h3>
+              <p className="text-sm text-gray-600 mb-4 font-inter">
+                Choose the quarter and year for which you want to issue service charge demands.
+              </p>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {periodOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handlePeriodSelection(option.value)}
+                    className="w-full text-left px-3 py-2 rounded-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
+                  >
+                    <div className="font-medium text-neutral-900 font-inter">{option.label}</div>
+                    <div className="text-sm text-gray-500 font-inter">{option.description}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setShowPeriodDropdown(false)}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200 font-inter"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Issue Demands */}
+      {showDemandsConfirmation && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1500 }}>
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3">
+              <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Confirm Issue Service Charges</h3>
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-900 font-inter mb-2">Period Selected:</h4>
+                <p className="text-lg font-semibold text-blue-700 font-inter">{selectedPeriodForDemands}</p>
+              </div>
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-start space-x-2">
+                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-yellow-800 font-inter mb-1">Important:</h4>
+                    <p className="text-sm text-yellow-700 font-inter">
+                      This will generate service charge demands for all flats in the selected building for {selectedPeriodForDemands}. 
+                      Make sure this is the correct period before proceeding.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <p className="text-sm text-gray-600 mb-6 font-inter">
+                Are you sure you want to issue service charge demands for <strong>{selectedPeriodForDemands}</strong>?
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={handleCancelGenerateDemands}
+                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200 font-inter"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmGenerateDemands}
+                  disabled={loading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 font-inter"
+                >
+                  {loading ? 'Issuing...' : 'Yes, Issue Demands'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expense Help Modal */}
+      {showExpenseHelpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" style={{ zIndex: 1400 }}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <Receipt className="h-6 w-6 text-primary-600" />
+                  </div>
+                  <h2 className="text-xl font-semibold text-neutral-900 font-inter">
+                    About Expense Forecasts
+                  </h2>
+                </div>
+                <button
+                  onClick={() => setShowExpenseHelpModal(false)}
+                  className="text-neutral-400 hover:text-neutral-600 transition-colors"
+                  aria-label="Close help modal"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <p className="text-sm text-neutral-700 font-inter">
+                  These forecasts are automatically created when maintenance tickets are completed with a final cost.
+                </p>
+                
+                <div className="space-y-3">
+                  <h3 className="text-sm font-medium text-neutral-900 font-inter">Status Definitions:</h3>
+                  <ul className="space-y-2 text-sm text-neutral-700 font-inter">
+                    <li className="flex items-start space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mt-0.5">
+                        Pending
+                      </span>
+                      <span>Work completed, waiting for supplier invoice</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 mt-0.5">
+                        Invoiced
+                      </span>
+                      <span>Invoice received and processed</span>
+                    </li>
+                    <li className="flex items-start space-x-2">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-success-100 text-success-800 mt-0.5">
+                        Paid
+                      </span>
+                      <span>Invoice has been paid</span>
+                    </li>
+                  </ul>
+                </div>
+                
+                <div className="mt-4 p-3 bg-neutral-50 rounded-lg">
+                  <p className="text-xs text-neutral-600 font-inter">
+                    💡 Tip: When you mark tickets as complete with a final cost, forecast expenses are automatically created here
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowExpenseHelpModal(false)}
+                  className="btn-primary"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

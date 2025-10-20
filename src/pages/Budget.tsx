@@ -164,6 +164,7 @@ const BudgetPage: React.FC = () => {
         year: budgetForm.year,
         status: 'draft',
         categories: [],
+        totalBudgetAmount: budgetForm.totalAmount, // Required property
         totalAmount: budgetForm.totalAmount,
         allocatedAmount: 0,
         spentAmount: 0,
@@ -192,6 +193,7 @@ const BudgetPage: React.FC = () => {
         name: categoryForm.name,
         type: 'expenditure', // Default to expenditure type
         budgetAmount: categoryForm.allocatedAmount,
+        percentageOfTotal: selectedBudget.totalBudgetAmount ? (categoryForm.allocatedAmount / selectedBudget.totalBudgetAmount) * 100 : 0, // Required property
         actualAmount: 0,
         allocatedAmount: categoryForm.allocatedAmount,
         spentAmount: 0,

@@ -793,7 +793,7 @@ export const ticketService = {
       console.log('📝 Creating activity log entry...');
       
       // Create metadata object, filtering out undefined values to prevent Firebase errors
-      const baseMetadata = {
+      const baseMetadata: any = {
         previousStatus: ticket.status,
         finalCost,
         gracePeriodExpires: new Date(Date.now() + (7 * 24 * 60 * 60 * 1000)).toISOString()

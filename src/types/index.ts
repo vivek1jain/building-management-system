@@ -751,6 +751,7 @@ export interface BuildingEvent {
   startDate: Date;
   endDate: Date;
   ticketId?: string; // Linked ticket
+  ticketStatus?: TicketStatus; // Status from linked ticket (if applicable)
   priority?: string; // Priority from linked ticket (if applicable)
   assignedTo: string[]; // User IDs
   status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
@@ -883,6 +884,20 @@ export interface Meter {
   updatedAt: Date;
 }
 
+// Budget Category Master - for reusable category definitions
+export interface BudgetCategoryMaster {
+  id: string;
+  name: string;
+  description?: string;
+  buildingId: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  mergedIntoId?: string; // For category merging
+  historicalNames?: string[]; // Track name changes
+}
+
+// Enhanced Budget interface
 export interface Budget {
   id: string;
   buildingId: string;
@@ -890,6 +905,12 @@ export interface Budget {
   financialYearStart?: Date;
   status: BudgetStatus;
   categories: BudgetCategoryItem[];
+  totalBudgetAmount: number; // Main budget total
+  totalSqFt?: number; // Sum of all flat areas in building
+  ratePerSqFt?: number; // totalBudgetAmount / totalSqFt
+  previousYearRatePerSqFt?: number; // For comparison
+  
+  // Legacy fields - keep for backward compatibility
   totalAmount: number;
   totalIncome?: number;
   totalExpenditure?: number;
@@ -899,6 +920,7 @@ export interface Budget {
   allocatedAmount: number;
   spentAmount: number;
   remainingAmount: number;
+  
   approvedBy?: string; // User ID
   approvedAt?: Date;
   createdBy: string; // User ID
@@ -906,13 +928,18 @@ export interface Budget {
   updatedAt: Date;
 }
 
+// Enhanced Budget Category Item
 export interface BudgetCategoryItem {
   id: string;
   budgetId?: string;
+  categoryMasterId?: string; // Reference to master category
   name: string;
   type: 'income' | 'expenditure';
   budgetAmount: number;
+  percentageOfTotal: number; // Auto-calculated percentage
   actualAmount: number;
+  
+  // Legacy fields - keep for backward compatibility  
   allocatedAmount: number;
   spentAmount: number;
   remainingAmount: number;
@@ -922,6 +949,14 @@ export interface BudgetCategoryItem {
   attachments?: string[]; // File URLs
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+// Budget Validation Result
+export interface BudgetValidationResult {
+  isValid: boolean;
+  totalPercentage: number;
+  errors: string[];
+  warnings: string[];
 }
 
 export interface Invoice {
@@ -1088,6 +1123,7 @@ export interface ResidentAccountLedger {
   lastTransactionId?: string;
   lastTransactionDate?: Date;
   lastStatementDate?: Date;
+  transactions?: AccountTransaction[]; // Transaction history for this account
   
   // Account Settings
   isActive: boolean;

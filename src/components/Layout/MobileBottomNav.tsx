@@ -19,7 +19,7 @@ const MobileBottomNav = () => {
     if (pathname.startsWith('/tickets')) return 'tickets'
     if (pathname.startsWith('/finances')) return 'finances'  
     if (pathname.startsWith('/building-data')) return 'building'
-    if (pathname.startsWith('/settings') || pathname.startsWith('/events') || pathname.startsWith('/reports')) return 'more'
+    if (pathname.startsWith('/more') || pathname.startsWith('/events') || pathname.startsWith('/reports') || pathname.startsWith('/settings') || pathname.startsWith('/admin')) return 'more'
     return 'home'
   }
   
@@ -57,7 +57,7 @@ const MobileBottomNav = () => {
     {
       id: 'more',
       name: 'More',
-      href: '/settings',
+      href: '/more',
       icon: MoreHorizontal,
       badge: null // TODO: Add updates count
     }

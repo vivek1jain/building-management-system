@@ -239,6 +239,7 @@ export const completeBudgetSetupWizard = async (
           name: catAlloc.name,
           type: catAlloc.type,
           budgetAmount: catAlloc.allocatedAmount,
+          percentageOfTotal: (catAlloc.allocatedAmount / allocation.totalBudgetAmount) * 100, // Required property
           actualAmount: 0,
           allocatedAmount: catAlloc.allocatedAmount,
           spentAmount: 0,
@@ -251,6 +252,7 @@ export const completeBudgetSetupWizard = async (
         year: year,
         status: 'approved',
         categories: [],
+        totalBudgetAmount: allocation.totalBudgetAmount, // Required property
         totalAmount: allocation.totalBudgetAmount,
         allocatedAmount: allocation.totalBudgetAmount,
         spentAmount: 0,

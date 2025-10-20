@@ -345,7 +345,7 @@ const QuoteComparisonModal = ({
           ticket={ticket}
           onScheduled={(event, supplierInfo) => {
             const message = supplierInfo 
-              ? `Work scheduled with ${supplierInfo.supplier.companyName || 'Unknown Supplier'} for ${event.startDate.toLocaleDateString()}`
+              ? `Work scheduled with ${supplierInfo.supplier.companyName} for ${event.startDate.toLocaleDateString()}`
               : `Work scheduled for ${event.startDate.toLocaleDateString()}`
             
             addNotification({

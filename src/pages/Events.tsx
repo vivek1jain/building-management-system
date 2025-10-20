@@ -120,12 +120,20 @@ const Events = () => {
             const data = doc.data();
             return {
               id: doc.id,
-              ...data,
+              title: data.title || '',
+              description: data.description || '',
+              location: data.location || '',
+              buildingId: data.buildingId || '',
+              assignedTo: data.assignedTo || [],
+              status: data.status || 'scheduled',
+              ticketId: data.ticketId,
+              ticketStatus: data.ticketStatus,
+              priority: data.priority,
               startDate: data.startDate?.toDate ? data.startDate.toDate() : new Date(data.startDate),
               endDate: data.endDate?.toDate ? data.endDate.toDate() : new Date(data.endDate),
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
               updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt)
-            };
+            } as BuildingEvent;
           });
           
           console.log('📅🔄 Processed events data:', {

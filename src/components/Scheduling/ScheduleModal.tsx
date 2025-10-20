@@ -11,20 +11,12 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import { BuildingEvent, Ticket } from '../../types'
+import { BuildingEvent, Ticket, Supplier } from '../../types'
 import Modal, { ModalFooter } from '../UI/Modal'
 import Button from '../UI/Button'
 import { Dropdown, DropdownOption } from '../UI'
 import { getUserDisplayName, getFirstName } from '../../services/userLookupService'
 
-interface Supplier {
-  id: string
-  name: string
-  email: string
-  phone: string
-  specialties: string[]
-  rating: number
-}
 
 interface ScheduleModalProps {
   isOpen: boolean
@@ -68,7 +60,7 @@ const ScheduleModal = ({
       // Pre-select supplier if provided
       if (preSelectedSupplier && suppliersData) {
         const matchingSupplier = suppliersData.find(s => 
-          s.companyName === preSelectedSupplier || s.name === preSelectedSupplier
+          s.companyName === preSelectedSupplier
         )
         if (matchingSupplier) {
           setSelectedSupplier(matchingSupplier.id)
@@ -159,7 +151,7 @@ const ScheduleModal = ({
       // await eventService.createEvent(event)
       
       const successMessage = allowDirectScheduling 
-        ? `Work scheduled with ${suppliers.find(s => s.id === selectedSupplier)?.companyName || suppliers.find(s => s.id === selectedSupplier)?.name} for ${startDateTime.toLocaleDateString()} at ${startTime}. Expected cost: £${expectedCost}`
+        ? `Work scheduled with ${suppliers.find(s => s.id === selectedSupplier)?.companyName} for ${startDateTime.toLocaleDateString()} at ${startTime}. Expected cost: £${expectedCost}`
         : `Work scheduled for ${startDateTime.toLocaleDateString()} at ${startTime}`
       
       addNotification({
@@ -236,7 +228,7 @@ const ScheduleModal = ({
   // Convert suppliers to dropdown options
   const supplierOptions: DropdownOption[] = suppliers.map((supplier) => ({
     value: supplier.id,
-    label: supplier.companyName || 'Unknown Supplier',
+    label: supplier.companyName,
     description: `${supplier.email} • ${supplier.phone}`,
     icon: <User className="h-4 w-4" />
   }))

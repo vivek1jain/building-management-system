@@ -253,7 +253,7 @@ const TestingUtilities: React.FC<TestingUtilitiesProps> = ({ currentUser, addNot
                 <span className="text-sm text-neutral-700">Debug Mode</span>
                 <Button
                   onClick={toggleDebugMode}
-                  variant={isDebugMode ? "default" : "outline"}
+                  variant={isDebugMode ? "primary" : "outline"}
                   size="sm"
                   className="flex items-center gap-2"
                 >
@@ -302,7 +302,7 @@ const TestingUtilities: React.FC<TestingUtilitiesProps> = ({ currentUser, addNot
                 <span className="text-sm text-neutral-700">Network Mode</span>
                 <Button
                   onClick={toggleOfflineMode}
-                  variant={isOfflineMode ? "default" : "outline"}
+                  variant={isOfflineMode ? "primary" : "outline"}
                   size="sm"
                   className="flex items-center gap-2"
                 >

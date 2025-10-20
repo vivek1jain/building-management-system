@@ -61,6 +61,7 @@ export const completeBudgetSetup = async (
         year,
         status: 'approved', // Auto-approve wizard-created budgets
         categories: [], // Will be populated after category creation
+        totalBudgetAmount: allocation.totalBudgetAmount, // Required property
         totalAmount: allocation.totalBudgetAmount,
         allocatedAmount: allocation.totalBudgetAmount,
         spentAmount: 0,
@@ -70,7 +71,7 @@ export const completeBudgetSetup = async (
         approvedAt: new Date(),
         createdAt: new Date(),
         updatedAt: new Date()
-      }
+      };
 
       const budgetRef = doc(collection(db, 'budgets'))
       batch.set(budgetRef, {
@@ -92,6 +93,7 @@ export const completeBudgetSetup = async (
           name: categoryAllocation.name,
           type: categoryAllocation.type,
           budgetAmount: categoryAllocation.allocatedAmount,
+          percentageOfTotal: (categoryAllocation.allocatedAmount / allocation.totalBudgetAmount) * 100, // Required property
           actualAmount: 0,
           allocatedAmount: categoryAllocation.allocatedAmount,
           spentAmount: 0,
@@ -99,7 +101,7 @@ export const completeBudgetSetup = async (
           notes: categoryAllocation.notes || '',
           createdAt: new Date(),
           updatedAt: new Date()
-        }
+        };
 
         const categoryRef = doc(collection(db, 'budgetCategories'))
         batch.set(categoryRef, {
@@ -200,7 +202,7 @@ export const generateCompletionSummary = async (
       expenditureTotal,
       netPosition: incomeTotal - expenditureTotal,
       completedAt: new Date(),
-      completedBy: wizard.completedBy || completedBy,
+      completedBy: wizard.completedBy || 'system',
       setupDuration: wizard.completedAt && wizard.createdAt 
         ? Math.round((wizard.completedAt.getTime() - wizard.createdAt.getTime()) / (1000 * 60)) // minutes
         : undefined

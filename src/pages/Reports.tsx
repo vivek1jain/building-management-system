@@ -46,7 +46,7 @@ interface StatementFilters {
 const Reports: React.FC = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { selectedBuildingId, selectedBuilding, buildingsLoading } = useBuilding();
+  const { selectedBuildingId, selectedBuilding } = useBuilding();
   const location = useLocation();
 
   // Core state
@@ -209,7 +209,7 @@ const Reports: React.FC = () => {
         .reduce((sum, l) => sum + l.currentBalance, 0)),
       creditsAppliedTotal: filteredLedgers.reduce((sum, l) => 
         sum + (l.transactions || []).reduce((tSum, t) => 
-          t.type === 'credit_application' ? tSum + Math.abs(t.amount) : tSum, 0
+          t.type === 'credit' ? tSum + Math.abs(t.amount) : tSum, 0
         ), 0
       )
     };
@@ -265,7 +265,7 @@ const Reports: React.FC = () => {
           .filter(t => t.amount < 0)
           .reduce((sum, t) => sum + t.amount, 0)),
         creditsApplied: transactionsInRange
-          .filter(t => t.type === 'credit_application')
+          .filter(t => t.type === 'credit')
           .reduce((sum, t) => sum + Math.abs(t.amount), 0)
       }
     };
@@ -394,8 +394,8 @@ End of Statement
     setExpandedLedgers(newExpanded);
   };
 
-  // Show loading spinner while buildings are loading
-  if (buildingsLoading || (loading && residentLedgers.length === 0)) {
+  // Show loading spinner while data is loading
+  if (loading && residentLedgers.length === 0) {
     return <PageLoading message="Loading reports data..." />;
   }
 
@@ -836,7 +836,7 @@ End of Statement
                   const transactionsInRange = getTransactionsInDateRange(selectedLedger.transactions || []);
                   const totalCredits = transactionsInRange.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
                   const totalDebits = Math.abs(transactionsInRange.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
-                  const creditsApplied = transactionsInRange.filter(t => t.type === 'credit_application').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                  const creditsApplied = transactionsInRange.filter(t => t.type === 'credit').reduce((sum, t) => sum + Math.abs(t.amount), 0);
                   
                   return (
                     <>
@@ -883,7 +883,7 @@ End of Statement
                               </td>
                               <td className="px-4 py-2 text-sm text-neutral-900 font-inter">
                                 <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  transaction.type === 'credit_application' ? 'bg-green-100 text-green-800' :
+                                  transaction.type === 'credit' ? 'bg-green-100 text-green-800' :
                                   transaction.type === 'payment' ? 'bg-blue-100 text-blue-800' :
                                   transaction.type === 'adjustment' ? 'bg-yellow-100 text-yellow-800' :
                                   'bg-neutral-100 text-gray-800'

@@ -256,7 +256,7 @@ describe('Ticket Workflow - Complete to Closed Transition', () => {
       const updateDoc = require('firebase/firestore').updateDoc;
       updateDoc.mockResolvedValue(undefined);
 
-      await ticketService.completeTicket(mockTicketId, mockUserId, 'All work finished');
+      await ticketService.completeTicket(mockTicketId, mockUserId, 100, 'All work finished');
 
       expect(updateDoc).toHaveBeenCalledWith(
         expect.anything(),
@@ -287,7 +287,7 @@ describe('Ticket Workflow - Complete to Closed Transition', () => {
       const updateDoc = require('firebase/firestore').updateDoc;
       updateDoc.mockResolvedValue(undefined);
 
-      await ticketService.completeTicket(mockTicketId, mockUserId);
+      await ticketService.completeTicket(mockTicketId, mockUserId, 50);
 
       expect(updateDoc).toHaveBeenCalledWith(
         expect.anything(),
@@ -308,7 +308,7 @@ describe('Ticket Workflow - Complete to Closed Transition', () => {
     it('should fail to complete a non-existent ticket', async () => {
       jest.spyOn(ticketService, 'getTicketById').mockResolvedValue(null);
 
-      await expect(ticketService.completeTicket(mockTicketId, mockUserId))
+      await expect(ticketService.completeTicket(mockTicketId, mockUserId, 75))
         .rejects
         .toThrow('Failed to complete ticket');
     });

@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useBuilding } from '../contexts/BuildingContext'
 import { createPerson } from '../services/personService'
-import { PersonStatus, PersonRole } from '../types'
+import { PersonStatus, UserRole, Person } from '../types'
 import { Dropdown, DropdownOption } from '../components/UI'
 import { useNavigate } from 'react-router-dom'
 import { 

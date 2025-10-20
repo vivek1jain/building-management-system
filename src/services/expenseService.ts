@@ -256,12 +256,12 @@ export const expenseService = {
   // Update expense (e.g., when matching to invoice)
   async updateExpense(expenseId: string, updates: Partial<Expense>): Promise<void> {
     try {
-      const updateData = {
+      const updateData: any = {
         ...updates,
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
-      // Convert dates to Timestamps
+      // Convert dates to Timestamps for Firestore storage
       if (updates.date) {
         updateData.date = Timestamp.fromDate(updates.date);
       }

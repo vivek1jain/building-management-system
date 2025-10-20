@@ -22,6 +22,7 @@ import Finances from './pages/Finances' // Unified Financial Management
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Admin from './pages/Admin'
+import MobileMoreMenu from './components/Layout/MobileMoreMenu'
 import DensityTest from './components/DensityTest'
 import './utils/testPermissions' // Load test functions for development
 
@@ -56,6 +57,7 @@ function App() {
               <Route path="tickets/:id" element={<TicketDetail />} />
               <Route path="suppliers" element={<Suppliers />} />
               <Route path="events" element={<Events />} />
+              <Route path="more" element={<MobileMoreMenu />} />
               <Route path="settings" element={<Settings />} />
               <Route path="admin" element={<Admin />} />
               <Route path="density-test" element={<DensityTest />} />

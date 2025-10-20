@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { useBuilding } from '../contexts/BuildingContext'
 import { createAsset, getAllAssets } from '../services/assetService'
+import { Building, Asset, AssetStatus, AssetCategory } from '../types'
 import { Dropdown, DropdownOption } from '../components/UI'
 import { 
   Package, 
@@ -54,7 +55,27 @@ const AssetsPage: React.FC = () => {
   const loadBuildings = async () => {
     try {
       setLoading(true)
-      const buildingsData = await getAllBuildings()
+      // For now, use mock building data. Replace with actual building service call
+      const buildingsData = [
+        {
+          id: 'building-1',
+          name: 'Main Building',
+          address: '123 Main St',
+          code: 'MB001',
+          buildingType: 'Residential',
+          floors: 10,
+          units: 50,
+          capacity: 200,
+          area: 50000,
+          financialYearStart: new Date(),
+          managers: [],
+          admins: [],
+          assets: [],
+          meters: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ]
       setBuildings(buildingsData)
       
       if (buildingsData.length > 0) {

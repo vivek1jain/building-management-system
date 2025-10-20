@@ -503,7 +503,7 @@ export const getCreditApplicationHistory = async (buildingId: string): Promise<C
           targetDemandId: data.relatedDemandId || 'Unknown Demand',
           targetPeriod: data.relatedPeriod,
           appliedAmount: data.amount,
-          applicationMethod: 'unknown',
+          applicationMethod: 'manual', // Default to manual for historical entries
           appliedAt: data.processedAt?.toDate?.() || new Date(data.processedAt),
           appliedBy: data.processedBy,
           status: 'applied',

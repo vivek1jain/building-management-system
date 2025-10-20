@@ -255,8 +255,8 @@ export async function validateMigration(): Promise<{
     const validation = {
       completeTickets: completeSnapshot.size,
       closedTickets: closedSnapshot.size,
-      completeTicketsInGracePeriod,
-      completeTicketsExpired
+      completeTicketsInGracePeriod: completeInGracePeriod,
+      completeTicketsExpired: completeExpired
     };
     
     console.log('📊 Validation Results:');

@@ -175,13 +175,14 @@ export const validateBudgetAllocations = async (
     return {
       wizardId,
       isValid,
+      totalPercentage: 100, // Default placeholder for now
       hasWarnings,
       hasSuggestions,
       errors,
       warnings,
       suggestions,
       validatedAt: new Date()
-    }
+    };
   } catch (error) {
     console.error('Error validating budget allocations:', error)
     throw error
