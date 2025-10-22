@@ -702,6 +702,9 @@ export interface Ticket {
   finalCost?: number; // Final cost confirmed on completion
   finalCostCurrency?: string; // Currency for final cost (defaults to GBP)
   
+  // Expense categorization for budget tracking
+  expenseCategory?: string; // Budget category name for expense tracking
+  
   feedback?: Feedback;
   createdAt: Date;
   updatedAt: Date;

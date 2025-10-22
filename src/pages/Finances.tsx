@@ -159,6 +159,37 @@ const Finances: React.FC = () => {
     previousYearRatePerSqFt: 0,
     categories: [] as BudgetCategoryItem[]
   })
+  
+  // Previous year budget data
+  const [previousYearBudget, setPreviousYearBudget] = useState<Budget | null>(null)
+  
+  // Category management modal state
+  const [showCategoryManagement, setShowCategoryManagement] = useState(false)
+  const [editingCategoryMaster, setEditingCategoryMaster] = useState<BudgetCategoryMaster | null>(null)
+  const [categoryMasterForm, setCategoryMasterForm] = useState({ name: '', description: '' })
+  const [mergingCategories, setMergingCategories] = useState<{ sourceId: string; targetId: string } | null>(null)
+  const [categoryInputFocused, setCategoryInputFocused] = useState<string | null>(null)
+  const [showQuickAddDropdown, setShowQuickAddDropdown] = useState(false)
+  const [loadingCategoryMasters, setLoadingCategoryMasters] = useState(false)
+  
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    if (selectedBuildingId) {
+      const draftKey = `budget_draft_${selectedBuildingId}`
+      const savedDraft = localStorage.getItem(draftKey)
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft)
+          setBudgetForm({
+            ...parsed,
+            financialYearStart: new Date(parsed.financialYearStart)
+          })
+        } catch (error) {
+          console.error('Error loading budget draft:', error)
+        }
+      }
+    }
+  }, [selectedBuildingId])
 
   // Calculate dynamic financial summary based on real Firebase data
   const getFinancialSummary = () => {
@@ -287,6 +318,21 @@ const Finances: React.FC = () => {
     }
   }, [selectedBuildingId])
   
+  // Recalculate total budget whenever categories change
+  useEffect(() => {
+    const newTotal = budgetForm.categories.reduce((sum, cat) => sum + (cat.budgetAmount || 0), 0)
+    const newRatePerSqFt = budgetValidationUtils.calculateRatePerSqFt(newTotal, budgetForm.totalSqFt)
+    
+    // Only update if values actually changed to avoid infinite loops
+    if (Math.abs(newTotal - budgetForm.totalBudgetAmount) > 0.01 || Math.abs(newRatePerSqFt - budgetForm.ratePerSqFt) > 0.01) {
+      setBudgetForm(prev => ({
+        ...prev,
+        totalBudgetAmount: newTotal,
+        ratePerSqFt: newRatePerSqFt
+      }))
+    }
+  }, [budgetForm.categories, budgetForm.totalSqFt, budgetForm.totalBudgetAmount, budgetForm.ratePerSqFt])
+  
   // Update budget form when selected building changes
   useEffect(() => {
     if (selectedBuilding?.financialSettings && flats.length > 0) {
@@ -318,10 +364,11 @@ const Finances: React.FC = () => {
     if (!selectedBuildingId) return
     
     try {
+      setLoadingCategoryMasters(true)
       const categories = await budgetCategoryMasterService.getBudgetCategoryMasters(selectedBuildingId)
       setBudgetCategoryMasters(categories)
       
-      // If no categories exist, initialize default ones
+      // If no categories exist, initialize default ones silently
       if (categories.length === 0) {
         await budgetCategoryMasterService.initializeDefaultCategories(selectedBuildingId)
         const defaultCategories = await budgetCategoryMasterService.getBudgetCategoryMasters(selectedBuildingId)
@@ -329,12 +376,8 @@ const Finances: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading budget category masters:', error)
-      addNotification({
-        userId: currentUser?.id || '',
-        title: 'Error',
-        message: 'Failed to load budget categories',
-        type: 'error'
-      })
+    } finally {
+      setLoadingCategoryMasters(false)
     }
   }
   
@@ -344,7 +387,7 @@ const Finances: React.FC = () => {
       id: `temp-${Date.now()}`,
       name: '',
       type: 'expenditure',
-      budgetAmount: 0,
+      budgetAmount: undefined as any, // Start with undefined instead of 0
       percentageOfTotal: 0,
       actualAmount: 0,
       allocatedAmount: 0,
@@ -361,13 +404,20 @@ const Finances: React.FC = () => {
   const removeBudgetCategory = (categoryId: string) => {
     setBudgetForm(prev => {
       const updatedCategories = prev.categories.filter(cat => cat.id !== categoryId)
+      
+      // Calculate new total from remaining categories
+      const newTotal = updatedCategories.reduce((sum, cat) => sum + (cat.budgetAmount || 0), 0)
+      const newRatePerSqFt = budgetValidationUtils.calculateRatePerSqFt(newTotal, prev.totalSqFt)
+      
       const updatedCategoriesWithPercentages = budgetValidationUtils.updateCategoryPercentages(
         updatedCategories,
-        prev.totalBudgetAmount
+        newTotal
       )
       
       return {
         ...prev,
+        totalBudgetAmount: newTotal,
+        ratePerSqFt: newRatePerSqFt,
         categories: updatedCategoriesWithPercentages
       }
     })
@@ -379,6 +429,10 @@ const Finances: React.FC = () => {
         cat.id === categoryId ? { ...cat, ...updates } : cat
       )
       
+      // Calculate new total from all categories
+      const newTotal = updatedCategories.reduce((sum, cat) => sum + (cat.budgetAmount || 0), 0)
+      const newRatePerSqFt = budgetValidationUtils.calculateRatePerSqFt(newTotal, prev.totalSqFt)
+      
       // If amount changed, recalculate percentages
       // If percentage changed, recalculate amounts
       let finalCategories = updatedCategories
@@ -386,17 +440,19 @@ const Finances: React.FC = () => {
       if (updates.budgetAmount !== undefined) {
         finalCategories = budgetValidationUtils.updateCategoryPercentages(
           updatedCategories,
-          prev.totalBudgetAmount
+          newTotal
         )
       } else if (updates.percentageOfTotal !== undefined) {
         finalCategories = budgetValidationUtils.updateCategoryAmounts(
           updatedCategories,
-          prev.totalBudgetAmount
+          newTotal
         )
       }
       
       return {
         ...prev,
+        totalBudgetAmount: newTotal,
+        ratePerSqFt: newRatePerSqFt,
         categories: finalCategories
       }
     })
@@ -427,6 +483,200 @@ const Finances: React.FC = () => {
     }))
   }
   
+  // Save draft to localStorage
+  const handleSaveDraft = () => {
+    if (!selectedBuildingId) return
+    
+    const draftKey = `budget_draft_${selectedBuildingId}`
+    localStorage.setItem(draftKey, JSON.stringify(budgetForm))
+    
+    addNotification({
+      userId: currentUser?.id || '',
+      title: 'Draft Saved',
+      message: 'Budget draft has been saved locally',
+      type: 'success'
+    })
+  }
+  
+  // Clear draft from localStorage after successful save
+  const clearDraft = () => {
+    if (!selectedBuildingId) return
+    const draftKey = `budget_draft_${selectedBuildingId}`
+    localStorage.removeItem(draftKey)
+  }
+  
+  // Category Master Management Functions
+  const handleCreateCategoryMaster = async () => {
+    if (!selectedBuildingId || !categoryMasterForm.name.trim()) return
+    
+    try {
+      await budgetCategoryMasterService.createBudgetCategoryMaster({
+        name: categoryMasterForm.name.trim(),
+        description: categoryMasterForm.description.trim(),
+        buildingId: selectedBuildingId,
+        isActive: true
+      })
+      
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Success',
+        message: 'Category created successfully',
+        type: 'success'
+      })
+      
+      setCategoryMasterForm({ name: '', description: '' })
+      await loadBudgetCategoryMasters()
+    } catch (error) {
+      console.error('Error creating category:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to create category',
+        type: 'error'
+      })
+    }
+  }
+  
+  const handleUpdateCategoryMaster = async () => {
+    if (!editingCategoryMaster || !categoryMasterForm.name.trim()) return
+    
+    try {
+      await budgetCategoryMasterService.updateBudgetCategoryMaster(editingCategoryMaster.id, {
+        name: categoryMasterForm.name.trim(),
+        description: categoryMasterForm.description.trim()
+      })
+      
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Success',
+        message: 'Category updated successfully',
+        type: 'success'
+      })
+      
+      setEditingCategoryMaster(null)
+      setCategoryMasterForm({ name: '', description: '' })
+      await loadBudgetCategoryMasters()
+    } catch (error) {
+      console.error('Error updating category:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to update category',
+        type: 'error'
+      })
+    }
+  }
+  
+  const handleDeleteCategoryMaster = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this category?')) return
+    
+    try {
+      await budgetCategoryMasterService.deleteBudgetCategoryMaster(id)
+      
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Success',
+        message: 'Category deleted successfully',
+        type: 'success'
+      })
+      
+      await loadBudgetCategoryMasters()
+    } catch (error) {
+      console.error('Error deleting category:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to delete category',
+        type: 'error'
+      })
+    }
+  }
+  
+  const handleMergeCategoryMasters = async () => {
+    if (!mergingCategories) return
+    
+    try {
+      await budgetCategoryMasterService.mergeBudgetCategoryMasters(
+        mergingCategories.sourceId,
+        mergingCategories.targetId
+      )
+      
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Success',
+        message: 'Categories merged successfully',
+        type: 'success'
+      })
+      
+      setMergingCategories(null)
+      await loadBudgetCategoryMasters()
+    } catch (error) {
+      console.error('Error merging categories:', error)
+      addNotification({
+        userId: currentUser?.id || '',
+        title: 'Error',
+        message: 'Failed to merge categories',
+        type: 'error'
+      })
+    }
+  }
+  
+  const startEditingCategory = (category: BudgetCategoryMaster) => {
+    setEditingCategoryMaster(category)
+    setCategoryMasterForm({ name: category.name, description: category.description || '' })
+  }
+  
+  // Get filtered category suggestions based on input
+  const getCategorySuggestions = (inputValue: string) => {
+    if (!inputValue.trim()) return []
+    const searchLower = inputValue.toLowerCase()
+    return budgetCategoryMasters.filter(master => 
+      master.name.toLowerCase().includes(searchLower) &&
+      !budgetForm.categories.some(cat => cat.name.toLowerCase() === master.name.toLowerCase())
+    ).slice(0, 5) // Limit to 5 suggestions
+  }
+  
+  // Quick add all category masters to budget
+  const handleQuickAddAllCategories = () => {
+    const newCategories = budgetCategoryMasters
+      .filter(master => !budgetForm.categories.some(cat => cat.name.toLowerCase() === master.name.toLowerCase()))
+      .map(master => ({
+        id: `temp-${Date.now()}-${master.id}`,
+        name: master.name,
+        type: 'expenditure' as const,
+        budgetAmount: undefined as any,
+        percentageOfTotal: 0,
+        actualAmount: 0,
+        allocatedAmount: 0,
+        spentAmount: 0,
+        remainingAmount: 0,
+        categoryMasterId: master.id
+      }))
+    
+    setBudgetForm(prev => ({
+      ...prev,
+      categories: [...prev.categories, ...newCategories]
+    }))
+    
+    setShowQuickAddDropdown(false)
+    
+    addNotification({
+      userId: currentUser?.id || '',
+      title: 'Success',
+      message: `Added ${newCategories.length} categories from masters`,
+      type: 'success'
+    })
+  }
+  
+  // Apply category master suggestion
+  const applyCategorySuggestion = (categoryId: string, master: BudgetCategoryMaster) => {
+    updateBudgetCategory(categoryId, { 
+      name: master.name,
+      categoryMasterId: master.id
+    })
+    setCategoryInputFocused(null)
+  }
+  
   // Validate budget whenever categories or total changes
   useEffect(() => {
     const validation = budgetValidationUtils.validateBudget(
@@ -447,6 +697,17 @@ const Finances: React.FC = () => {
     try {
       setLoading(true)
       
+      // Calculate income and expenditure totals from categories
+      const totalIncome = budgetForm.categories
+        .filter(cat => cat.type === 'income')
+        .reduce((sum, cat) => sum + (cat.budgetAmount || 0), 0)
+      
+      const totalExpenditure = budgetForm.categories
+        .filter(cat => cat.type === 'expenditure')
+        .reduce((sum, cat) => sum + (cat.budgetAmount || 0), 0)
+      
+      const netBudget = totalIncome - totalExpenditure
+      
       const budgetData = {
         buildingId: selectedBuildingId,
         year: budgetForm.year,
@@ -454,6 +715,9 @@ const Finances: React.FC = () => {
         status: budgetForm.status,
         categories: budgetForm.categories,
         totalBudgetAmount: budgetForm.totalBudgetAmount,
+        totalIncome,
+        totalExpenditure,
+        netBudget,
         totalSqFt: budgetForm.totalSqFt,
         ratePerSqFt: budgetForm.ratePerSqFt,
         previousYearRatePerSqFt: budgetForm.previousYearRatePerSqFt,
@@ -484,6 +748,7 @@ const Finances: React.FC = () => {
       }
       
       setShowBudgetSetup(false)
+      clearDraft() // Clear draft after successful save
       await loadFinancialData()
       
     } catch (error) {
@@ -519,11 +784,20 @@ const Finances: React.FC = () => {
       
       // Process budget data
       if (budgetResult.status === 'fulfilled') {
-        setBudget(budgetResult.value.length > 0 ? budgetResult.value[0] : null)
-        console.log('✅ Budget data loaded:', budgetResult.value.length, 'budgets')
+        const budgets = budgetResult.value
+        setBudget(budgets.length > 0 ? budgets[0] : null)
+        
+        // Find previous year budget
+        const currentYear = new Date().getFullYear()
+        const previousYear = currentYear - 1
+        const prevBudget = budgets.find(b => b.year === previousYear)
+        setPreviousYearBudget(prevBudget || null)
+        
+        console.log('✅ Budget data loaded:', budgets.length, 'budgets')
       } else {
         console.error('❌ Budget loading failed:', budgetResult.reason)
         setBudget(null)
+        setPreviousYearBudget(null)
       }
       
       // Process service charges
@@ -1415,127 +1689,240 @@ const Finances: React.FC = () => {
         {/* Tab Content */}
         <div className="space-y-6">
           {activeTab === 'budget' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
+            <div className={isMobile ? 'space-y-3' : 'space-y-6'}>
+              <div className={`flex items-center justify-between ${
+                isMobile ? 'sticky top-[49px] bg-white z-10 py-3 -mx-4 px-4 border-b border-neutral-200' : ''
+              }`}>
                 <h2 className="text-lg font-semibold text-neutral-900 font-inter">Budget Management</h2>
-                <div className="flex items-center space-x-3">
+                {!isMobile && (
+                  <div className="flex items-center space-x-3">
+                    {budget && (
+                      <button
+                        onClick={() => setBudgetLocked(!budgetLocked)}
+                        className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-inter ${
+                          budgetLocked
+                            ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                            : 'bg-success-100 text-success-700 hover:bg-success-200'
+                        }`}
+                      >
+                        {budgetLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                        <span>{budgetLocked ? 'Locked' : 'Unlocked'}</span>
+                      </button>
+                    )}
+                    <Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                      {budget ? 'Edit Budget' : 'Create Budget'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Mobile action buttons */}
+              {isMobile && (
+                <div className="flex items-center justify-end space-x-3">
                   {budget && (
                     <button
                       onClick={() => setBudgetLocked(!budgetLocked)}
-                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-inter ${
+                      className={`flex items-center justify-center px-3 py-2 rounded-lg font-inter min-w-[44px] ${
                         budgetLocked
                           ? 'bg-red-100 text-red-700 hover:bg-red-200'
                           : 'bg-success-100 text-success-700 hover:bg-success-200'
                       }`}
+                      title={budgetLocked ? 'Locked' : 'Unlocked'}
                     >
-                      {budgetLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                      <span>{budgetLocked ? 'Locked' : 'Unlocked'}</span>
+                      {budgetLocked ? <Lock className="h-5 w-5" /> : <Unlock className="h-5 w-5" />}
                     </button>
                   )}
-                  <Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />}>
-                    {budget ? 'Edit Budget' : 'Create Budget'}
-                  </Button>
+                  <button
+                    onClick={() => setShowBudgetSetup(true)}
+                    className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
+                    title={budget ? 'Edit Budget' : 'Create Budget'}
+                  >
+                    <Plus className="h-5 w-5" />
+                  </button>
                 </div>
-              </div>
+              )}
 
               {budget ? (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-success-50 border border-success-200 rounded-lg p-4">
-                      <h3 className="font-medium text-success-900 font-inter">Total Income Budget</h3>
-                      <span className="text-2xl font-bold text-success-600">
-                        £{(budget.totalIncome || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <h3 className="font-medium text-red-900 font-inter">Total Expenditure Budget</h3>
-                      <span className="text-2xl font-bold text-red-600">
-                        £{(budget.totalExpenditure || 0).toLocaleString()}
-                      </span>
-                    </div>
-                    <div className={`border rounded-lg p-4 ${
-                      (budget?.netBudget || 0) >= 0 
-                        ? 'bg-success-50 border-success-200' 
-                        : 'bg-red-50 border-red-200'
-                    }`}>
-                      <h3 className="font-medium text-neutral-900 font-inter">
-                        Net Budget
-                      </h3>
-                      <span className={`text-sm font-medium ${
-                        (budget?.netBudget ?? 0) >= 0 ? 'text-success-600' : 'text-red-600'
-                      }`}>
-                        £{(budget?.netBudget ?? 0).toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Service Charge Impact on Budget */}
-                  {financialOverview && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <DollarSign className="h-5 w-5" />
-                          Service Charge Impact on Budget
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-blue-900">Budgeted Income</h4>
-                            <p className="text-xl font-bold text-blue-600">
-                              £{financialOverview.budget.totalBudgeted.toLocaleString()}
-                            </p>
+                <div className={isMobile ? 'space-y-3' : 'space-y-6'}>
+                  {isMobile ? (
+                    // Mobile: Accordion Layout
+                    <>
+                      {/* Total Summary Card */}
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+                        <h3 className="text-sm font-bold text-neutral-900 mb-2">Budget Summary</h3>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <p className="text-neutral-600">Annual Budget</p>
+                            <p className="text-base font-bold text-blue-900">£{(budget.totalBudgetAmount || 0).toLocaleString()}</p>
                           </div>
-                          <div className="bg-green-50 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-green-900">Actual Collections</h4>
-                            <p className="text-xl font-bold text-green-600">
-                              £{financialOverview.serviceCharges.collected.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="bg-orange-50 p-4 rounded-lg">
-                            <h4 className="text-sm font-medium text-orange-900">Outstanding</h4>
-                            <p className="text-xl font-bold text-orange-600">
-                              £{financialOverview.serviceCharges.outstanding.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className={`p-4 rounded-lg ${
-                            financialOverview.serviceCharges.collectionRate >= 90 
-                              ? 'bg-green-50' 
-                              : financialOverview.serviceCharges.collectionRate >= 70 
-                              ? 'bg-yellow-50' 
-                              : 'bg-red-50'
-                          }`}>
-                            <h4 className={`text-sm font-medium ${
-                              financialOverview.serviceCharges.collectionRate >= 90 
-                                ? 'text-green-900' 
-                                : financialOverview.serviceCharges.collectionRate >= 70 
-                                ? 'text-yellow-900' 
-                                : 'text-red-900'
-                            }`}>Collection Rate</h4>
-                            <p className={`text-xl font-bold ${
-                              financialOverview.serviceCharges.collectionRate >= 90 
-                                ? 'text-green-600' 
-                                : financialOverview.serviceCharges.collectionRate >= 70 
-                                ? 'text-yellow-600' 
-                                : 'text-red-600'
-                            }`}>
-                              {financialOverview.serviceCharges.collectionRate.toFixed(1)}%
+                          <div>
+                            <p className="text-neutral-600">Actuals (YTD)</p>
+                            <p className="text-base font-bold text-purple-900">
+                              £{expenses.filter(e => e.status === 'paid' || e.status === 'invoiced').reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}
                             </p>
                           </div>
                         </div>
-                        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium text-gray-700">
-                              Budget vs Actual Variance:
-                            </span>
-                            <span className={`font-bold ${
-                              (financialOverview.serviceCharges.collected - financialOverview.budget.totalBudgeted) >= 0 
-                                ? 'text-green-600' 
-                                : 'text-red-600'
-                            }`}>
-                              £{(financialOverview.serviceCharges.collected - financialOverview.budget.totalBudgeted).toLocaleString()}
-                            </span>
-                          </div>
+                      </div>
+
+                      {/* Category Accordions */}
+                      <div className="space-y-2">
+                        {budget.categories && budget.categories.map((category, index) => {
+                          const percentage = budget.totalBudgetAmount > 0 
+                            ? ((category.budgetAmount || 0) / budget.totalBudgetAmount * 100).toFixed(1)
+                            : '0.0'
+                          
+                          // Find previous year category amount
+                          const previousYearCategory = previousYearBudget?.categories?.find(
+                            c => c.name.toLowerCase() === category.name.toLowerCase()
+                          )
+                          const previousYearAmount = previousYearCategory?.budgetAmount || 0
+                          
+                          // Calculate actuals from expenses with matching category
+                          const categoryActuals = expenses
+                            .filter(expense => 
+                              expense.category?.toLowerCase() === category.name.toLowerCase() &&
+                              (expense.status === 'paid' || expense.status === 'invoiced')
+                            )
+                            .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+                          
+                          const isExpanded = expandedExpenses.has(category.id)
+                          
+                          const toggleExpanded = () => {
+                            const newExpanded = new Set(expandedExpenses)
+                            if (newExpanded.has(category.id)) {
+                              newExpanded.delete(category.id)
+                            } else {
+                              newExpanded.add(category.id)
+                            }
+                            setExpandedExpenses(newExpanded)
+                          }
+                          
+                          return (
+                            <div key={index} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+                              {/* Main clickable area */}
+                              <div 
+                                onClick={toggleExpanded}
+                                className="p-3 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                              >
+                                <div className="flex-1">
+                                  <h4 className="text-sm font-medium text-neutral-900 font-inter">
+                                    {category.name}
+                                  </h4>
+                                  <p className="text-xs text-neutral-500 mt-0.5">
+                                    {percentage}% of budget
+                                  </p>
+                                </div>
+                                <div className="flex items-center space-x-3">
+                                  <div className="text-right">
+                                    <div className="text-sm font-medium text-neutral-900 font-inter">
+                                      £{(category.budgetAmount || 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                  <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${
+                                    isExpanded ? 'rotate-180' : ''
+                                  }`} />
+                                </div>
+                              </div>
+                              
+                              {/* Expandable Details */}
+                              {isExpanded && (
+                                <div className="px-3 pb-3 pt-0 border-t border-neutral-100">
+                                  <div className="grid grid-cols-2 gap-3 mt-3">
+                                    <div>
+                                      <h5 className="text-xs font-medium text-gray-700 mb-1">Previous Year</h5>
+                                      <p className="text-sm text-neutral-900 font-inter">
+                                        {previousYearAmount > 0 ? `£${previousYearAmount.toLocaleString()}` : '-'}
+                                      </p>
+                                    </div>
+                                    <div>
+                                      <h5 className="text-xs font-medium text-gray-700 mb-1">Actuals (YTD)</h5>
+                                      <p className="text-sm text-neutral-900 font-inter font-medium">
+                                        £{categoryActuals.toLocaleString()}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    // Desktop: Table Layout
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Budget Categories
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead className="border-b border-neutral-200">
+                              <tr>
+                                <th className="text-left py-3 px-4 text-sm font-medium text-neutral-600">Category</th>
+                                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Previous Year</th>
+                                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Budgeted Amount</th>
+                                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">Actuals (YTD)</th>
+                                <th className="text-right py-3 px-4 text-sm font-medium text-neutral-600">% of Total</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-neutral-100">
+                              {/* Total Row at Top */}
+                              <tr className="bg-blue-50 border-b-2 border-blue-200">
+                                <td className="py-3 px-4 text-sm font-bold text-neutral-900">Total</td>
+                                <td className="py-3 px-4 text-sm font-bold text-right text-neutral-500">
+                                  {previousYearBudget ? `£${(previousYearBudget.totalBudgetAmount || 0).toLocaleString()}` : '-'}
+                                </td>
+                                <td className="py-3 px-4 text-sm font-bold text-right text-blue-900">
+                                  £{(budget.totalBudgetAmount || 0).toLocaleString()}
+                                </td>
+                                <td className="py-3 px-4 text-sm font-bold text-right text-purple-900">
+                                  £{expenses.filter(e => e.status === 'paid' || e.status === 'invoiced').reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}
+                                </td>
+                                <td className="py-3 px-4 text-sm font-bold text-right text-neutral-900">100%</td>
+                              </tr>
+                              {budget.categories && budget.categories.map((category, index) => {
+                                const percentage = budget.totalBudgetAmount > 0 
+                                  ? ((category.budgetAmount || 0) / budget.totalBudgetAmount * 100).toFixed(1)
+                                  : '0.0'
+                                
+                                // Find previous year category amount
+                                const previousYearCategory = previousYearBudget?.categories?.find(
+                                  c => c.name.toLowerCase() === category.name.toLowerCase()
+                                )
+                                const previousYearAmount = previousYearCategory?.budgetAmount || 0
+                                
+                                // Calculate actuals from expenses with matching category
+                                const categoryActuals = expenses
+                                  .filter(expense => 
+                                    expense.category?.toLowerCase() === category.name.toLowerCase() &&
+                                    (expense.status === 'paid' || expense.status === 'invoiced')
+                                  )
+                                  .reduce((sum, expense) => sum + (expense.amount || 0), 0)
+                                
+                                return (
+                                  <tr key={index} className="hover:bg-neutral-50">
+                                    <td className="py-3 px-4 text-sm font-medium text-neutral-900">{category.name}</td>
+                                    <td className="py-3 px-4 text-sm text-right text-neutral-500">
+                                      {previousYearAmount > 0 ? `£${previousYearAmount.toLocaleString()}` : '-'}
+                                    </td>
+                                    <td className="py-3 px-4 text-sm text-right text-neutral-900">
+                                      £{(category.budgetAmount || 0).toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-4 text-sm text-right font-medium text-neutral-900">
+                                      £{categoryActuals.toLocaleString()}
+                                    </td>
+                                    <td className="py-3 px-4 text-sm text-right text-neutral-600">
+                                      {percentage}%
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       </CardContent>
                     </Card>
@@ -2645,266 +3032,447 @@ const Finances: React.FC = () => {
                   </div>
                 )}
 
-                {/* Total Budget Input */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Annual Budget</h3>
-                    {budgetValidation && (
-                      <div className="flex items-center space-x-2">
-                        {budgetValidation.isValid ? (
-                          <span className="flex items-center text-success-600 text-sm font-inter">
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Valid ({budgetValidation.totalPercentage}%)
-                          </span>
-                        ) : (
-                          <span className="flex items-center text-red-600 text-sm font-inter">
-                            <AlertTriangle className="h-4 w-4 mr-1" />
-                            {budgetValidation.totalPercentage}% allocated
-                          </span>
-                        )}
+                {/* Previous Year Budget Section */}
+                <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-neutral-700 font-inter mb-3">Previous Year Budget</h3>
+                  {previousYearBudget ? (
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
+                          Year
+                        </label>
+                        <div className="text-base font-semibold text-neutral-900 font-inter">
+                          {previousYearBudget.year}
+                        </div>
                       </div>
-                    )}
-                  </div>
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
+                          Total Amount
+                        </label>
+                        <div className="text-base font-semibold text-neutral-900 font-inter">
+                          £{previousYearBudget.totalBudgetAmount?.toLocaleString() || '0'}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
+                          Rate per Sq Ft
+                        </label>
+                        <div className="text-base font-semibold text-neutral-900 font-inter">
+                          £{previousYearBudget.ratePerSqFt?.toFixed(2) || '0.00'}/sqft
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
+                          Year
+                        </label>
+                        <div className="text-base font-semibold text-neutral-900 font-inter">
+                          {budgetForm.year - 1}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
+                          Total Amount
+                        </label>
+                        <div className="text-base text-neutral-400 font-inter">
+                          No data
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
+                          Rate per Sq Ft
+                        </label>
+                        <div className="text-base text-neutral-400 font-inter">
+                          No data
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {!previousYearBudget && (
+                    <p className="text-xs text-neutral-500 mt-2 font-inter italic">
+                      No budget was created for {budgetForm.year - 1}. Starting fresh this year.
+                    </p>
+                  )}
+                </div>
+
+                {/* Annual Budget Section */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter mb-4">Annual Budget</h3>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Year, Amount, Rate in single row */}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
+                        Budget Year
+                      </label>
+                      <Input
+                        type="number"
+                        value={budgetForm.year}
+                        onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
+                        required
+                        className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                      />
+                    </div>
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
                         Total Budget Amount (£)
                       </label>
                       <Input
-                        type="number"
-                        step="0.01"
-                        value={budgetForm.totalBudgetAmount}
-                        onChange={(e) => updateTotalBudget(parseFloat(e.target.value) || 0)}
-                        className="text-lg font-semibold"
-                        placeholder="Enter total budget"
+                        type="text"
+                        value={budgetForm.totalBudgetAmount.toLocaleString('en-GB')}
+                        disabled
+                        className="bg-neutral-50 text-neutral-600"
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                        Rate per Sq Ft (£/sqft)
+                        Proposed Rate (£/sqft)
                       </label>
                       <Input
                         type="number"
                         step="0.01"
                         value={budgetForm.ratePerSqFt}
                         disabled
-                        className="bg-neutral-50 text-neutral-600 text-lg font-semibold"
+                        className="bg-neutral-50 text-neutral-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
                       />
-                      <p className="text-xs text-neutral-500 mt-1">
-                        Auto-calculated from total budget ÷ {budgetForm.totalSqFt} sq ft
-                      </p>
                     </div>
                   </div>
                   
-                  {budgetForm.previousYearRatePerSqFt > 0 && (
-                    <div className="mt-3 p-3 bg-neutral-50 rounded-lg">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-neutral-600 font-inter">Previous year rate:</span>
-                        <span className="font-medium font-inter">£{budgetForm.previousYearRatePerSqFt}/sqft</span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm mt-1">
-                        <span className="text-neutral-600 font-inter">Change:</span>
-                        <span className={`font-medium font-inter ${
-                          budgetValidationUtils.calculateRateChange(budgetForm.ratePerSqFt, budgetForm.previousYearRatePerSqFt) >= 0
-                            ? 'text-red-600' : 'text-success-600'
-                        }`}>
-                          {budgetValidationUtils.calculateRateChange(budgetForm.ratePerSqFt, budgetForm.previousYearRatePerSqFt) > 0 ? '+' : ''}
-                          {budgetValidationUtils.calculateRateChange(budgetForm.ratePerSqFt, budgetForm.previousYearRatePerSqFt)}%
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Budget Details - Single Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="h-[100px] flex flex-col">
-                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                      Budget Year
-                    </label>
-                    <Input
-                      type="number"
-                      value={budgetForm.year}
-                      onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
-                      required
-                      className="h-10 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                    />
-                    <p className="text-xs text-neutral-500 mt-1 h-8 leading-4">
-                      {/* Empty space for alignment */}
-                    </p>
-                  </div>
-                  <div className="h-[100px] flex flex-col">
-                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                      Financial Year Start
-                    </label>
-                    <Input
-                      type="date"
-                      value={budgetForm.financialYearStart.toISOString().split('T')[0]}
-                      onChange={(e) => setBudgetForm({ ...budgetForm, financialYearStart: new Date(e.target.value) })}
-                      disabled
-                      className="bg-neutral-50 text-neutral-600 h-10"
-                    />
-                    <p className="text-xs text-neutral-500 mt-1 h-8 leading-4">
-                      From Financial Setup settings
-                    </p>
-                  </div>
-                  <div className="h-[100px] flex flex-col">
-                    <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                      Service Charge (£/sqft)
-                    </label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={budgetForm.serviceChargeRate || 0}
-                      onChange={(e) => setBudgetForm({ ...budgetForm, serviceChargeRate: parseFloat(e.target.value) })}
-                      disabled
-                      className="bg-neutral-50 text-neutral-600 h-10 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                    />
-                    <p className="text-xs text-neutral-500 mt-1 h-8 leading-4">
-                      From Financial Setup settings
-                    </p>
-                  </div>
-                </div>
-
-                {/* Budget Categories */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-neutral-900 font-inter">Budget Categories</h3>
-                    <div className="flex items-center space-x-2">
-                      {budgetValidation && !budgetValidation.isValid && (
+                  {/* Budget Categories within the same tile */}
+                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-base font-medium text-neutral-900 font-inter">Budget Categories</h3>
+                      <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={autoAdjustPercentages}
-                          className="text-xs"
+                          onClick={() => {
+                            setShowCategoryManagement(true)
+                            loadBudgetCategoryMasters() // Reload to ensure fresh data
+                          }}
                         >
-                          Auto-adjust to 100%
+                          Manage
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={addBudgetCategory}
-                        leftIcon={<Plus className="h-4 w-4" />}
-                      >
-                        Add Category
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Validation Messages */}
-                  {budgetValidation && (
-                    <div className="mb-4 space-y-2">
-                      {budgetValidation.errors.map((error, index) => (
-                        <div key={index} className="flex items-center space-x-2 text-red-600 text-sm">
-                          <AlertTriangle className="h-4 w-4" />
-                          <span>{error}</span>
-                        </div>
-                      ))}
-                      {budgetValidation.warnings.map((warning, index) => (
-                        <div key={index} className="flex items-center space-x-2 text-yellow-600 text-sm">
-                          <AlertTriangle className="h-4 w-4" />
-                          <span>{warning}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Categories List */}
-                  <div className="space-y-3">
-                    {budgetForm.categories.map((category, index) => (
-                      <div key={category.id} className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 bg-neutral-50 rounded-lg border">
-                        <div>
-                          <label className="block text-xs font-medium text-neutral-600 mb-1">
-                            Category Name
-                          </label>
-                          <Input
-                            type="text"
-                            value={category.name}
-                            onChange={(e) => updateBudgetCategory(category.id, { name: e.target.value })}
-                            placeholder="Enter category name"
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-neutral-600 mb-1">
-                            Amount (£)
-                          </label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={category.budgetAmount}
-                            onChange={(e) => updateBudgetCategory(category.id, { budgetAmount: parseFloat(e.target.value) || 0 })}
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-neutral-600 mb-1">
-                            Percentage (%)
-                          </label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            max="100"
-                            value={category.percentageOfTotal}
-                            onChange={(e) => updateBudgetCategory(category.id, { percentageOfTotal: parseFloat(e.target.value) || 0 })}
-                            className="text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-neutral-600 mb-1">
-                            Progress
-                          </label>
-                          <div className="flex items-center space-x-2 mt-2">
-                            <div className="flex-1 bg-neutral-200 rounded-full h-2">
-                              <div 
-                                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min(category.percentageOfTotal, 100)}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-neutral-600 w-12">
-                              {category.percentageOfTotal.toFixed(1)}%
-                            </span>
+                        {budgetCategoryMasters.length > 0 && (
+                          <div className="relative">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowQuickAddDropdown(!showQuickAddDropdown)}
+                            >
+                              Quick Add ▾
+                            </Button>
+                            {showQuickAddDropdown && (
+                              <div className="absolute right-0 mt-1 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
+                                <div className="p-2">
+                                  <button
+                                    onClick={handleQuickAddAllCategories}
+                                    className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 rounded font-inter"
+                                  >
+                                    Add all category masters ({budgetCategoryMasters.filter(m => !budgetForm.categories.some(c => c.name.toLowerCase() === m.name.toLowerCase())).length})
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                        <div className="flex items-end">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeBudgetCategory(category.id)}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        )}
                       </div>
-                    ))}
+                    </div>
                     
-                    {budgetForm.categories.length === 0 && (
-                      <div className="text-center py-8 text-neutral-500">
-                        <p className="font-inter">No categories added yet.</p>
-                        <p className="text-sm font-inter mt-1">Click "Add Category" to get started.</p>
+                    {/* Categories Table */}
+                    {budgetForm.categories.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="w-full border-collapse">
+                          <thead>
+                            <tr className="border-b border-neutral-300">
+                              <th className="text-left text-xs font-medium text-neutral-600 py-2 px-2 font-inter">Category Name</th>
+                              <th className="text-right text-xs font-medium text-neutral-600 py-2 px-2 font-inter w-32">Amount (£)</th>
+                              <th className="text-right text-xs font-medium text-neutral-600 py-2 px-2 font-inter w-20">%</th>
+                              <th className="w-12"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {budgetForm.categories.map((category, index) => {
+                              const suggestions = categoryInputFocused === category.id ? getCategorySuggestions(category.name) : []
+                              const percentage = budgetForm.totalBudgetAmount > 0 
+                                ? ((category.budgetAmount || 0) / budgetForm.totalBudgetAmount * 100).toFixed(1)
+                                : '0.0'
+                              return (
+                              <tr key={category.id} className="border-b border-neutral-200 last:border-0">
+                                <td className="py-1 px-2 relative">
+                                  <Input
+                                    type="text"
+                                    value={category.name}
+                                    onChange={(e) => updateBudgetCategory(category.id, { name: e.target.value })}
+                                    onFocus={() => setCategoryInputFocused(category.id)}
+                                    onBlur={() => setTimeout(() => setCategoryInputFocused(null), 200)}
+                                    placeholder="Enter category name"
+                                    className="text-sm border-0 bg-white shadow-none focus:ring-1 focus:ring-primary-500 focus:outline-none px-2 h-8 rounded"
+                                  />
+                                  {suggestions.length > 0 && (
+                                    <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
+                                      {suggestions.map(master => (
+                                        <button
+                                          key={master.id}
+                                          onClick={() => applyCategorySuggestion(category.id, master)}
+                                          className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 border-b border-neutral-100 last:border-0 font-inter"
+                                        >
+                                          <div className="font-medium">{master.name}</div>
+                                          {master.description && (
+                                            <div className="text-xs text-neutral-500 truncate">{master.description}</div>
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-1 px-2">
+                                  <Input
+                                    type="text"
+                                    value={category.budgetAmount ? category.budgetAmount.toLocaleString('en-GB') : ''}
+                                    onChange={(e) => {
+                                      const rawValue = e.target.value.replace(/,/g, '')
+                                      const numValue = parseFloat(rawValue) || 0
+                                      updateBudgetCategory(category.id, { budgetAmount: numValue })
+                                    }}
+                                    placeholder="0"
+                                    className="text-sm text-right border-0 bg-white shadow-none focus:ring-1 focus:ring-primary-500 focus:outline-none px-2 h-8 rounded w-full"
+                                  />
+                                </td>
+                                <td className="py-1 px-2 text-right text-sm text-neutral-600 bg-neutral-50">
+                                  {percentage}%
+                                </td>
+                                <td className="py-1 text-center">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => removeBudgetCategory(category.id)}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </td>
+                              </tr>
+                            )})}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6 text-neutral-500">
+                        <p className="text-sm font-inter">No categories added yet.</p>
+                        <p className="text-xs font-inter mt-1">Click "Add Category" to get started.</p>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Form Actions */}
-                <div className="flex justify-end space-x-3 pt-6 border-t border-neutral-200">
-                  <Button variant="secondary" type="button" onClick={() => setShowBudgetSetup(false)}>
-                    Cancel
-                  </Button>
+                <div className="flex justify-between items-center pt-6 border-t border-neutral-200">
                   <Button 
-                    type="submit" 
-                    disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
-                    loading={loading}
+                    variant="outline" 
+                    type="button" 
+                    onClick={handleSaveDraft}
+                    disabled={!selectedBuildingId}
                   >
-                    {budget ? 'Update Budget' : 'Create Budget'}
+                    Save Draft
                   </Button>
+                  <div className="flex space-x-3">
+                    <Button variant="secondary" type="button" onClick={() => setShowBudgetSetup(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit" 
+                      disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
+                      loading={loading}
+                    >
+                      {budget ? 'Update Budget' : 'Create Budget'}
+                    </Button>
+                  </div>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Management Modal */}
+      {showCategoryManagement && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" 
+          style={{ zIndex: 1500 }}
+          onClick={() => setShowCategoryManagement(false)}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-neutral-900 font-inter">
+                  Manage Budget Categories
+                </h2>
+                <Button variant="ghost" size="sm" onClick={() => setShowCategoryManagement(false)} aria-label="Close">
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+
+              {/* Add/Edit Category Form */}
+              <div className="mb-6 p-4 bg-neutral-50 rounded-lg">
+                <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
+                  {editingCategoryMaster ? 'Edit Category' : 'Add New Category'}
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                      Category Name *
+                    </label>
+                    <Input
+                      type="text"
+                      value={categoryMasterForm.name}
+                      onChange={(e) => setCategoryMasterForm({ ...categoryMasterForm, name: e.target.value })}
+                      placeholder="Enter category name"
+                      className="text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                      Description
+                    </label>
+                    <Input
+                      type="text"
+                      value={categoryMasterForm.description}
+                      onChange={(e) => setCategoryMasterForm({ ...categoryMasterForm, description: e.target.value })}
+                      placeholder="Optional description"
+                      className="text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 mt-3">
+                  {editingCategoryMaster ? (
+                    <>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        onClick={() => {
+                          setEditingCategoryMaster(null)
+                          setCategoryMasterForm({ name: '', description: '' })
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={handleUpdateCategoryMaster} disabled={!categoryMasterForm.name.trim()}>
+                        Update Category
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" onClick={handleCreateCategoryMaster} disabled={!categoryMasterForm.name.trim()}>
+                      Create Category
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Existing Categories */}
+              <div>
+                <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
+                  Existing Categories
+                </h3>
+                {loadingCategoryMasters ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                    <p className="text-sm text-neutral-500 font-inter mt-2">Loading categories...</p>
+                  </div>
+                ) : budgetCategoryMasters.length > 0 ? (
+                  <div className="space-y-2">
+                    {budgetCategoryMasters.map((category) => (
+                      <div key={category.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-neutral-900 font-inter">{category.name}</div>
+                          {category.description && (
+                            <div className="text-xs text-neutral-500 font-inter mt-1">{category.description}</div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditingCategory(category)}
+                            className="text-primary-600 hover:text-primary-700"
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-500 font-inter text-center py-4">
+                    No categories created yet. Add your first category above.
+                  </p>
+                )}
+              </div>
+
+              {/* Merge Categories Section */}
+              {budgetCategoryMasters.length >= 2 && (
+                <div className="mt-6 p-4 bg-neutral-50 rounded-lg">
+                  <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
+                    Merge Categories
+                  </h3>
+                  <p className="text-xs text-neutral-600 font-inter mb-3">
+                    Merge two categories into one to preserve data integrity. The source category will be deactivated and all references will point to the target category.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                        Source Category (to be merged)
+                      </label>
+                      <Dropdown
+                        options={budgetCategoryMasters.map(cat => ({
+                          value: cat.id,
+                          label: cat.name
+                        }))}
+                        value={mergingCategories?.sourceId || ''}
+                        onChange={(value) => setMergingCategories(prev => ({ ...prev, sourceId: value, targetId: prev?.targetId || '' }))}
+                        placeholder="Select source..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                        Target Category (to keep)
+                      </label>
+                      <Dropdown
+                        options={budgetCategoryMasters
+                          .filter(cat => cat.id !== mergingCategories?.sourceId)
+                          .map(cat => ({
+                            value: cat.id,
+                            label: cat.name
+                          }))}
+                        value={mergingCategories?.targetId || ''}
+                        onChange={(value) => setMergingCategories(prev => ({ sourceId: prev?.sourceId || '', targetId: value }))}
+                        placeholder="Select target..."
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-3">
+                    <Button 
+                      size="sm" 
+                      onClick={handleMergeCategoryMasters} 
+                      disabled={!mergingCategories?.sourceId || !mergingCategories?.targetId}
+                    >
+                      Merge Categories
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end mt-6">
+                <Button onClick={() => setShowCategoryManagement(false)}>
+                  Done
+                </Button>
+              </div>
             </div>
           </div>
         </div>

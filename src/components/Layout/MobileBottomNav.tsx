@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home,
   Ticket,
-  DollarSign,
+  PoundSterling,
   Building,
   MoreHorizontal,
   Bell
@@ -44,7 +44,7 @@ const MobileBottomNav = () => {
       id: 'finances',
       name: 'Finances', 
       href: '/finances',
-      icon: DollarSign,
+      icon: PoundSterling,
       badge: null // TODO: Add pending approvals count
     },
     {

@@ -431,7 +431,7 @@ export const updateWorkOrderFinalPrice = async (
           workOrder.supplierId,
           workOrder.supplierName,
           workOrder.title,
-          'reactive_maintenance', // Default category for work order completion
+          'Maintenance & Repairs', // Default category - matches budget category master
           updatedByUid
         )
         

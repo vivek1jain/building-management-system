@@ -125,7 +125,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
   };
 
   return (
-    <div ref={dropdownRef} className={cn("relative inline-block", className)}>
+    <div ref={dropdownRef} className={cn("relative block", className)}>
       {/* Trigger Button */}
       <button
         ref={buttonRef}

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { DollarSign, CheckCircle, X } from 'lucide-react';
+import { PoundSterling, CheckCircle, X } from 'lucide-react';
 import Modal from './UI/Modal';
+import { ExpenseCategorySelector } from './Expenses/ExpenseCategorySelector';
 
 interface TicketCompletionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete: (finalCost: number, notes?: string) => void;
+  onComplete: (finalCost: number, expenseCategory: string, notes?: string) => void;
   isSubmitting?: boolean;
   ticketTitle: string;
   estimatedCost?: number; // From quotes or initial estimation
+  currentExpenseCategory?: string; // Pre-selected category from ticket
 }
 
 const TicketCompletionModal: React.FC<TicketCompletionModalProps> = ({
@@ -17,17 +19,20 @@ const TicketCompletionModal: React.FC<TicketCompletionModalProps> = ({
   onComplete,
   isSubmitting = false,
   ticketTitle,
-  estimatedCost
+  estimatedCost,
+  currentExpenseCategory
 }) => {
   const [finalCost, setFinalCost] = useState<string>(estimatedCost ? estimatedCost.toString() : '');
+  const [expenseCategory, setExpenseCategory] = useState<string>(currentExpenseCategory || '');
   const [notes, setNotes] = useState<string>('');
-  const [errors, setErrors] = useState<{ finalCost?: string }>({});
+  const [errors, setErrors] = useState<{ finalCost?: string; expenseCategory?: string }>({});
+  const [showCategoryError, setShowCategoryError] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validation
-    const newErrors: { finalCost?: string } = {};
+    const newErrors: { finalCost?: string; expenseCategory?: string } = {};
     
     if (!finalCost.trim()) {
       newErrors.finalCost = 'Final cost is required';
@@ -38,10 +43,15 @@ const TicketCompletionModal: React.FC<TicketCompletionModalProps> = ({
       }
     }
     
+    if (!expenseCategory.trim()) {
+      newErrors.expenseCategory = 'Expense category is required';
+      setShowCategoryError(true);
+    }
+    
     setErrors(newErrors);
     
     if (Object.keys(newErrors).length === 0) {
-      onComplete(parseFloat(finalCost), notes.trim() || undefined);
+      onComplete(parseFloat(finalCost), expenseCategory, notes.trim() || undefined);
     }
   };
 
@@ -49,8 +59,10 @@ const TicketCompletionModal: React.FC<TicketCompletionModalProps> = ({
     if (!isSubmitting) {
       // Reset form
       setFinalCost(estimatedCost ? estimatedCost.toString() : '');
+      setExpenseCategory(currentExpenseCategory || '');
       setNotes('');
       setErrors({});
+      setShowCategoryError(false);
       onClose();
     }
   };
@@ -144,43 +156,65 @@ const TicketCompletionModal: React.FC<TicketCompletionModalProps> = ({
           </div>
         )}
 
-        {/* Final Cost Input */}
-        <div>
-          <label htmlFor="finalCost" className="block text-sm font-medium text-gray-700 mb-2">
-            Final Cost <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <DollarSign className="h-4 w-4 text-gray-400" />
-            </div>
-            <input
-              id="finalCost"
-              type="number"
-              step="0.01"
-              min="0"
-              value={finalCost}
-              onChange={(e) => {
-                setFinalCost(e.target.value);
-                // Clear error when user types
-                if (errors.finalCost) {
-                  setErrors(prev => ({ ...prev, finalCost: undefined }));
+        {/* Expense Category and Final Cost - Horizontal Layout */}
+        <div className="flex gap-4">
+          {/* Expense Category Input - 2/3 width */}
+          <div className="w-2/3">
+            <label htmlFor="expenseCategory" className="block text-sm font-medium text-gray-700 mb-2">
+              Expense Category <span className="text-red-500">*</span>
+            </label>
+            <ExpenseCategorySelector
+              value={expenseCategory}
+              onChange={(category) => {
+                setExpenseCategory(category);
+                setShowCategoryError(false);
+                if (errors.expenseCategory) {
+                  setErrors(prev => ({ ...prev, expenseCategory: undefined }));
                 }
               }}
+              required
+              showError={showCategoryError}
+              errorMessage="Please select an expense category to track this cost against your budget"
               disabled={isSubmitting}
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 transition-colors ${
-                errors.finalCost
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-              } disabled:bg-gray-50 disabled:cursor-not-allowed`}
-              placeholder="Enter final cost (e.g., 150.00)"
+              className="w-full"
             />
           </div>
-          {errors.finalCost && (
-            <p className="mt-1 text-sm text-red-600">{errors.finalCost}</p>
-          )}
-          <p className="mt-1 text-xs text-gray-500">
-            Enter the actual final cost for this work order
-          </p>
+
+          {/* Final Cost Input - 1/3 width */}
+          <div className="w-1/3">
+            <label htmlFor="finalCost" className="block text-sm font-medium text-gray-700 mb-2">
+              Final Cost <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <PoundSterling className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                id="finalCost"
+                type="number"
+                step="0.01"
+                min="0"
+                value={finalCost}
+                onChange={(e) => {
+                  setFinalCost(e.target.value);
+                  // Clear error when user types
+                  if (errors.finalCost) {
+                    setErrors(prev => ({ ...prev, finalCost: undefined }));
+                  }
+                }}
+                disabled={isSubmitting}
+                className={`w-full h-10 pl-10 pr-4 border rounded-lg focus:outline-none focus:ring-2 transition-colors text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  errors.finalCost
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                } disabled:bg-gray-50 disabled:cursor-not-allowed`}
+                placeholder="Enter final cost (e.g., 150.00)"
+              />
+            </div>
+            {errors.finalCost && (
+              <p className="mt-1 text-sm text-red-600">{errors.finalCost}</p>
+            )}
+          </div>
         </div>
 
         {/* Optional Notes */}

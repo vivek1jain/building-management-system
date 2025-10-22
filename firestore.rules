@@ -119,6 +119,20 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
+    // Budget Category Masters collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    match /budgetCategoryMasters/{categoryMasterId} {
+      // Anyone authenticated can read budget category masters
+      allow read: if isAuthenticated();
+      
+      // DEVELOPMENT: Allow any authenticated user to create and update category masters
+      allow create, update: if isAuthenticated();
+      
+      // Managers and admins can delete category masters
+      allow delete: if isManager() || (isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
     // Expenses collection - TEMPORARILY RELAXED FOR TESTING
     match /expenses/{expenseId} {
       // Anyone authenticated can read expenses

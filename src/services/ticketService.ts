@@ -709,9 +709,10 @@ export const ticketService = {
     ticketId: string, 
     userId: string, 
     finalCost: number,
+    expenseCategory: string,
     notes?: string
   ): Promise<void> {
-    console.log('🏁 completeTicket method called with:', { ticketId, userId, finalCost, notes });
+    console.log('🏁 completeTicket method called with:', { ticketId, userId, finalCost, expenseCategory, notes });
     try {
       console.log('📄 Creating document reference...');
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
@@ -876,7 +877,7 @@ export const ticketService = {
           supplierId || 'unknown-supplier', // Default if no supplier
           supplierName || 'Unknown Supplier', // Default if no supplier name
           ticket.title,
-          'reactive_maintenance', // Default category for ticket completion
+          expenseCategory, // Use the category selected during ticket completion
           userId
         )
         

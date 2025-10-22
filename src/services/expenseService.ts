@@ -50,13 +50,13 @@ export const expenseService = {
     vendorId: string,
     vendorName: string,
     description: string,
-    budgetCategoryId: string = 'reactive_maintenance', // Default category
+    budgetCategory: string = 'Maintenance & Repairs', // Default category - matches budget category master
     createdBy: string
   ): Promise<string> {
     const expenseData: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'> = {
       buildingId,
       budgetId: '', // Will need to be set based on building's current budget
-      categoryId: budgetCategoryId,
+      category: budgetCategory, // Use category field to match budget categories by name
       ticketId,
       amount,
       currency: 'GBP', // Default to GBP for UK market

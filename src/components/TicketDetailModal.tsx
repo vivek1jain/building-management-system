@@ -775,8 +775,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     }
   };
 
-  // Handle ticket completion with final cost and notes
-  const handleCompleteTicket = async (finalCost: number, notes?: string) => {
+  // Handle ticket completion with final cost, expense category, and notes
+  const handleCompleteTicket = async (finalCost: number, expenseCategory: string, notes?: string) => {
     if (!currentUser) {
       console.error('No current user found');
       return;
@@ -785,6 +785,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     console.log('🚀 Starting ticket completion:', {
       ticketId: ticket.id,
       finalCost,
+      expenseCategory,
       notes,
       currentUser: currentUser.id
     });
@@ -793,7 +794,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
     try {
       console.log('📞 Calling ticketService.completeTicket...');
       // Use the new completeTicket service method that handles final cost and expense forecast creation
-      await ticketService.completeTicket(ticket.id, currentUser.id, finalCost, notes);
+      await ticketService.completeTicket(ticket.id, currentUser.id, finalCost, expenseCategory, notes);
       console.log('✅ ticketService.completeTicket completed successfully');
       
       console.log('📅 Completing calendar event...');
