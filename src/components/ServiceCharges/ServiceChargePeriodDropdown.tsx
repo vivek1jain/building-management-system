@@ -11,6 +11,7 @@ interface ServiceChargePeriodDropdownProps {
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  buttonClassName?: string;
   existingDemands?: ServiceChargeDemand[]; // Add existing demands to show indicators
 }
 
@@ -20,6 +21,7 @@ export const ServiceChargePeriodDropdown: React.FC<ServiceChargePeriodDropdownPr
   placeholder = "Select period...",
   disabled = false,
   className = "",
+  buttonClassName = "",
   existingDemands = []
 }) => {
   const { selectedBuilding } = useBuilding();
@@ -156,6 +158,7 @@ export const ServiceChargePeriodDropdown: React.FC<ServiceChargePeriodDropdownPr
       variant="default"
       showSearch={dropdownOptions.length > 5}
       className={className}
+      buttonClassName={buttonClassName}
       dropdownClassName="w-full"
       maxHeight="max-h-80"
     />

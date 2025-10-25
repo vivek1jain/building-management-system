@@ -65,7 +65,10 @@ import {
   Search,
   Filter,
   BookOpen,
-  Info
+  Info,
+  Edit,
+  Settings,
+  Trash2
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption, PageLoading, SectionLoading, TabLoadingSkeleton, TableRowSkeleton, WidgetSkeleton } from '../components/UI'
 import { ServiceChargePeriodDropdown } from '../components/ServiceCharges/ServiceChargePeriodDropdown'
@@ -135,13 +138,11 @@ const Finances: React.FC = () => {
   const [showExpenseHelpModal, setShowExpenseHelpModal] = useState(false)
   const [expandedExpenses, setExpandedExpenses] = useState<Set<string>>(new Set())
   const [expandedServiceCharges, setExpandedServiceCharges] = useState<Set<string>>(new Set())
+  const [expandedModalCategories, setExpandedModalCategories] = useState<Set<string>>(new Set())
   const [activeStatusFilterTile, setActiveStatusFilterTile] = useState<'paid' | 'invoiced' | 'forecast' | null>(null)
   const [activeServiceChargeFilterTile, setActiveServiceChargeFilterTile] = useState<'paid' | 'outstanding' | 'overdue' | null>(null)
   
-  // Service Charge Issue Demands states
-  const [showPeriodDropdown, setShowPeriodDropdown] = useState(false)
-  const [showDemandsConfirmation, setShowDemandsConfirmation] = useState(false)
-  const [selectedPeriodForDemands, setSelectedPeriodForDemands] = useState('')
+  // Service Charge Issue Demands states (removed - now using direct flow)
   
   // Budget category management
   const [budgetCategoryMasters, setBudgetCategoryMasters] = useState<BudgetCategoryMaster[]>([])
@@ -165,12 +166,15 @@ const Finances: React.FC = () => {
   
   // Category management modal state
   const [showCategoryManagement, setShowCategoryManagement] = useState(false)
+  const [showEditCategoryModal, setShowEditCategoryModal] = useState(false)
   const [editingCategoryMaster, setEditingCategoryMaster] = useState<BudgetCategoryMaster | null>(null)
   const [categoryMasterForm, setCategoryMasterForm] = useState({ name: '', description: '' })
   const [mergingCategories, setMergingCategories] = useState<{ sourceId: string; targetId: string } | null>(null)
   const [categoryInputFocused, setCategoryInputFocused] = useState<string | null>(null)
   const [showQuickAddDropdown, setShowQuickAddDropdown] = useState(false)
   const [loadingCategoryMasters, setLoadingCategoryMasters] = useState(false)
+  const [showAddNewCategorySection, setShowAddNewCategorySection] = useState(false)
+  const [showMergeCategorySection, setShowMergeCategorySection] = useState(false)
   
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -190,6 +194,36 @@ const Finances: React.FC = () => {
       }
     }
   }, [selectedBuildingId])
+  
+  // Populate budgetForm when opening modal to edit existing budget
+  useEffect(() => {
+    if (showBudgetSetup && budget) {
+      setBudgetForm({
+        year: budget.year || new Date().getFullYear(),
+        financialYearStart: budget.financialYearStart ? new Date(budget.financialYearStart) : new Date('2024-04-01'),
+        status: budget.status || 'draft',
+        serviceChargeRate: budget.serviceChargeRate || 0,
+        totalBudgetAmount: budget.totalBudgetAmount || 0,
+        totalSqFt: budget.totalSqFt || 0,
+        ratePerSqFt: budget.ratePerSqFt || 0,
+        previousYearRatePerSqFt: budget.previousYearRatePerSqFt || 0,
+        categories: budget.categories || []
+      })
+    } else if (showBudgetSetup && !budget) {
+      // Reset form for creating new budget
+      setBudgetForm({
+        year: new Date().getFullYear(),
+        financialYearStart: new Date('2024-04-01'),
+        status: 'draft',
+        serviceChargeRate: 0,
+        totalBudgetAmount: 0,
+        totalSqFt: 0,
+        ratePerSqFt: 0,
+        previousYearRatePerSqFt: 0,
+        categories: []
+      })
+    }
+  }, [showBudgetSetup, budget])
 
   // Calculate dynamic financial summary based on real Firebase data
   const getFinancialSummary = () => {
@@ -246,64 +280,77 @@ const Finances: React.FC = () => {
 
   const financialSummary = getFinancialSummary()
   
-  // Generate period options for service charge demands
+  // Generate period options for service charge demands using financial year logic
   const generatePeriodOptions = () => {
-    const currentYear = new Date().getFullYear()
-    const quarters = ['Q1', 'Q2', 'Q3', 'Q4']
-    const options = []
-    
-    // Generate last year, current year, and next year quarters
-    for (let year = currentYear - 1; year <= currentYear + 1; year++) {
-      for (const quarter of quarters) {
-        const periodString = `${quarter} ${year}`
+    if (!selectedBuilding?.financialSettings) {
+      return []
+    }
+
+    try {
+      const financialInfo = getFinancialYearInfo(selectedBuilding.financialSettings, new Date())
+      const options = []
+      
+      // Add last period (for reference/context)
+      if (financialInfo.previousPeriod) {
+        const period = financialInfo.previousPeriod
+        const dateRange = `${period.startDate.toLocaleDateString('en-GB', { 
+          month: 'short', 
+          day: 'numeric' 
+        })} - ${period.endDate.toLocaleDateString('en-GB', { 
+          month: 'short', 
+          day: 'numeric', 
+          year: 'numeric' 
+        })}`
+        const dueDate = `Due: ${period.dueDate.toLocaleDateString('en-GB')}`
+        
         options.push({
-          value: periodString,
-          label: periodString,
-          description: `Service charges for ${quarter} ${year}`
+          value: period.id,
+          label: `${period.label} (Last Period)`,
+          description: `${dateRange} • ${dueDate}`,
+          disabled: true
         })
       }
+      
+      // Add available periods (current + next 3)
+      if (financialInfo.nextPeriods) {
+        financialInfo.nextPeriods.forEach(period => {
+          const dateRange = `${period.startDate.toLocaleDateString('en-GB', { 
+            month: 'short', 
+            day: 'numeric' 
+          })} - ${period.endDate.toLocaleDateString('en-GB', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+          })}`
+          const dueDate = `Due: ${period.dueDate.toLocaleDateString('en-GB')}`
+          
+          options.push({
+            value: period.id,
+            label: period.label,
+            description: `${dateRange} • ${dueDate}`,
+            disabled: false
+          })
+        })
+      }
+      
+      return options
+    } catch (error) {
+      console.error('Error generating period options:', error)
+      return []
     }
-    
-    return options.reverse() // Most recent first
   }
   
   const periodOptions = generatePeriodOptions()
   
-  // Handle opening period dropdown
+  // Handle issuing demands - directly call generate with selected period
   const handleIssueDemands = () => {
-    if (!selectedBuildingId) {
-      addNotification({
-        userId: currentUser?.id || '',
-        title: 'Error',
-        message: 'Please select a building first',
-        type: 'error'
-      })
-      return
+    if (!selectedBuildingId || !selectedPeriod) {
+      return // Button should be disabled, but just in case
     }
-    setShowPeriodDropdown(true)
+    handleGenerateDemands(selectedPeriod)
   }
   
-  // Handle period selection from dropdown
-  const handlePeriodSelection = (period: string) => {
-    setSelectedPeriodForDemands(period)
-    setShowPeriodDropdown(false)
-    setShowDemandsConfirmation(true)
-  }
-  
-  // Handle confirmation of demands generation
-  const handleConfirmGenerateDemands = async () => {
-    if (!selectedPeriodForDemands) return
-    
-    setShowDemandsConfirmation(false)
-    await handleGenerateDemands(selectedPeriodForDemands)
-    setSelectedPeriodForDemands('')
-  }
-  
-  // Cancel demands generation
-  const handleCancelGenerateDemands = () => {
-    setShowDemandsConfirmation(false)
-    setSelectedPeriodForDemands('')
-  }
+  // Period selection and confirmation handlers removed - now using direct flow with disabled button
 
   useEffect(() => {
     if (selectedBuildingId) {
@@ -555,6 +602,7 @@ const Finances: React.FC = () => {
       
       setEditingCategoryMaster(null)
       setCategoryMasterForm({ name: '', description: '' })
+      setShowEditCategoryModal(false)
       await loadBudgetCategoryMasters()
     } catch (error) {
       console.error('Error updating category:', error)
@@ -609,6 +657,9 @@ const Finances: React.FC = () => {
       })
       
       setMergingCategories(null)
+      setShowEditCategoryModal(false)
+      setEditingCategoryMaster(null)
+      setCategoryMasterForm({ name: '', description: '' })
       await loadBudgetCategoryMasters()
     } catch (error) {
       console.error('Error merging categories:', error)
@@ -624,6 +675,7 @@ const Finances: React.FC = () => {
   const startEditingCategory = (category: BudgetCategoryMaster) => {
     setEditingCategoryMaster(category)
     setCategoryMasterForm({ name: category.name, description: category.description || '' })
+    setShowEditCategoryModal(true)
   }
   
   // Get filtered category suggestions based on input
@@ -1737,7 +1789,7 @@ const Finances: React.FC = () => {
                     className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
                     title={budget ? 'Edit Budget' : 'Create Budget'}
                   >
-                    <Plus className="h-5 w-5" />
+                    {budget ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
                   </button>
                 </div>
               )}
@@ -1764,6 +1816,9 @@ const Finances: React.FC = () => {
                         </div>
                       </div>
 
+                      {/* Budget Categories Heading */}
+                      <h3 className="text-sm font-medium text-neutral-700 font-inter mb-2">Budget Categories</h3>
+                      
                       {/* Category Accordions */}
                       <div className="space-y-2">
                         {budget.categories && budget.categories.map((category, index) => {
@@ -1802,9 +1857,9 @@ const Finances: React.FC = () => {
                               {/* Main clickable area */}
                               <div 
                                 onClick={toggleExpanded}
-                                className="p-3 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                                className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
                               >
-                                <div className="flex-1">
+                                <div className="flex-1 pr-3">
                                   <h4 className="text-sm font-medium text-neutral-900 font-inter">
                                     {category.name}
                                   </h4>
@@ -1812,7 +1867,7 @@ const Finances: React.FC = () => {
                                     {percentage}% of budget
                                   </p>
                                 </div>
-                                <div className="flex items-center space-x-3">
+                                <div className="flex items-center space-x-3 flex-shrink-0">
                                   <div className="text-right">
                                     <div className="text-sm font-medium text-neutral-900 font-inter">
                                       £{(category.budgetAmount || 0).toLocaleString()}
@@ -1826,8 +1881,8 @@ const Finances: React.FC = () => {
                               
                               {/* Expandable Details */}
                               {isExpanded && (
-                                <div className="px-3 pb-3 pt-0 border-t border-neutral-100">
-                                  <div className="grid grid-cols-2 gap-3 mt-3">
+                                <div className="px-4 pb-4 pt-0 border-t border-neutral-100">
+                                  <div className="grid grid-cols-2 gap-4 mt-3">
                                     <div>
                                       <h5 className="text-xs font-medium text-gray-700 mb-1">Previous Year</h5>
                                       <p className="text-sm text-neutral-900 font-inter">
@@ -1944,6 +1999,9 @@ const Finances: React.FC = () => {
                 <h2 className="text-lg font-semibold text-neutral-900 font-inter">Service Charge Management</h2>
                 {!isMobile && (
                   <div className="flex items-center space-x-3">
+                    <h3 className="text-sm font-medium text-neutral-700 font-inter whitespace-nowrap">
+                      Issue Demands:
+                    </h3>
                     <ServiceChargePeriodDropdown
                       value={selectedPeriod}
                       onChange={(value) => setSelectedPeriod(value)}
@@ -1954,9 +2012,9 @@ const Finances: React.FC = () => {
                     <div className="relative">
                       <button
                         onClick={handleIssueDemands}
-                        disabled={loading || !selectedBuildingId}
+                        disabled={loading || !selectedBuildingId || !selectedPeriod}
                         className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
-                        title="Issue Demands"
+                        title={!selectedPeriod ? 'Select a period first' : 'Issue Demands'}
                       >
                         <Plus className="h-5 w-5" />
                       </button>
@@ -1971,15 +2029,16 @@ const Finances: React.FC = () => {
                   <ServiceChargePeriodDropdown
                     value={selectedPeriod}
                     onChange={(value) => setSelectedPeriod(value)}
-                    placeholder="Select period..."
+                    placeholder="Issue Demands"
                     className="flex-1"
+                    buttonClassName="!bg-primary-600 !text-white !border-primary-600 hover:!bg-primary-700 !min-h-[44px] !py-2.5 [&_span]:!text-white [&_svg]:!text-white [&_.lucide-chevron-down]:!hidden"
                     existingDemands={serviceCharges}
                   />
                   <button
                     onClick={handleIssueDemands}
-                    disabled={loading || !selectedBuildingId}
-                    className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
-                    title="Issue Demands"
+                    disabled={loading || !selectedBuildingId || !selectedPeriod}
+                    className="btn-primary flex items-center justify-center px-3 min-w-[44px] h-[44px]"
+                    title={!selectedPeriod ? 'Select a period first' : 'Issue Demands'}
                   >
                     <Plus className="h-5 w-5" />
                   </button>
@@ -3034,262 +3093,411 @@ const Finances: React.FC = () => {
 
                 {/* Previous Year Budget Section */}
                 <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-neutral-700 font-inter mb-3">Previous Year Budget</h3>
+                  {/* Header with Year */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-sm font-medium text-neutral-700 font-inter">Previous Budget</h3>
+                    <div className="text-sm font-semibold text-neutral-900 font-inter px-2 py-1 bg-white border border-neutral-200 rounded">
+                      {previousYearBudget ? previousYearBudget.year : budgetForm.year - 1}
+                    </div>
+                  </div>
+                  
+                  {/* Stacked fields */}
                   {previousYearBudget ? (
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
-                          Year
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-neutral-500 font-inter">
+                          Total Amount:
                         </label>
-                        <div className="text-base font-semibold text-neutral-900 font-inter">
-                          {previousYearBudget.year}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
-                          Total Amount
-                        </label>
-                        <div className="text-base font-semibold text-neutral-900 font-inter">
+                        <div className="text-sm font-semibold text-neutral-900 font-inter">
                           £{previousYearBudget.totalBudgetAmount?.toLocaleString() || '0'}
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
-                          Rate per Sq Ft
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-neutral-500 font-inter">
+                          Rate per Sq Ft:
                         </label>
-                        <div className="text-base font-semibold text-neutral-900 font-inter">
+                        <div className="text-sm font-semibold text-neutral-900 font-inter">
                           £{previousYearBudget.ratePerSqFt?.toFixed(2) || '0.00'}/sqft
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
-                          Year
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-neutral-500 font-inter">
+                          Total Amount:
                         </label>
-                        <div className="text-base font-semibold text-neutral-900 font-inter">
-                          {budgetForm.year - 1}
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
-                          Total Amount
-                        </label>
-                        <div className="text-base text-neutral-400 font-inter">
+                        <div className="text-sm text-neutral-400 font-inter">
                           No data
                         </div>
                       </div>
-                      <div>
-                        <label className="block text-xs font-medium text-neutral-500 mb-1 font-inter">
-                          Rate per Sq Ft
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-medium text-neutral-500 font-inter">
+                          Rate per Sq Ft:
                         </label>
-                        <div className="text-base text-neutral-400 font-inter">
+                        <div className="text-sm text-neutral-400 font-inter">
                           No data
                         </div>
                       </div>
+                      <p className="text-xs text-neutral-500 mt-2 font-inter italic">
+                        No budget was created for {budgetForm.year - 1}. Starting fresh this year.
+                      </p>
                     </div>
-                  )}
-                  {!previousYearBudget && (
-                    <p className="text-xs text-neutral-500 mt-2 font-inter italic">
-                      No budget was created for {budgetForm.year - 1}. Starting fresh this year.
-                    </p>
                   )}
                 </div>
 
                 {/* Annual Budget Section */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter mb-4">Annual Budget</h3>
-                  
-                  {/* Year, Amount, Rate in single row */}
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                        Budget Year
-                      </label>
-                      <Input
-                        type="number"
-                        value={budgetForm.year}
-                        onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
-                        required
-                        className="[&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                        Total Budget Amount (£)
-                      </label>
-                      <Input
-                        type="text"
-                        value={budgetForm.totalBudgetAmount.toLocaleString('en-GB')}
-                        disabled
-                        className="bg-neutral-50 text-neutral-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-neutral-700 mb-2 font-inter">
-                        Proposed Rate (£/sqft)
-                      </label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={budgetForm.ratePerSqFt}
-                        disabled
-                        className="bg-neutral-50 text-neutral-600 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
-                      />
-                    </div>
+                  {/* Header with Year */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <h3 className="text-sm font-medium text-neutral-700 font-inter">Annual Budget</h3>
+                    <Input
+                      type="number"
+                      value={budgetForm.year}
+                      onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
+                      required
+                      className="w-20 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                    />
                   </div>
                   
-                  {/* Budget Categories within the same tile */}
-                  <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-base font-medium text-neutral-900 font-inter">Budget Categories</h3>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setShowCategoryManagement(true)
-                            loadBudgetCategoryMasters() // Reload to ensure fresh data
-                          }}
-                        >
-                          Manage
-                        </Button>
-                        {budgetCategoryMasters.length > 0 && (
-                          <div className="relative">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowQuickAddDropdown(!showQuickAddDropdown)}
-                            >
-                              Quick Add ▾
-                            </Button>
-                            {showQuickAddDropdown && (
-                              <div className="absolute right-0 mt-1 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
-                                <div className="p-2">
-                                  <button
-                                    onClick={handleQuickAddAllCategories}
-                                    className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 rounded font-inter"
-                                  >
-                                    Add all category masters ({budgetCategoryMasters.filter(m => !budgetForm.categories.some(c => c.name.toLowerCase() === m.name.toLowerCase())).length})
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
+                  {/* Stacked fields */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-neutral-500 font-inter">
+                        Total Amount:
+                      </label>
+                      <div className="text-sm font-semibold text-neutral-900 font-inter">
+                        £{budgetForm.totalBudgetAmount.toLocaleString('en-GB')}
                       </div>
                     </div>
-                    
-                    {/* Categories Table */}
-                    {budgetForm.categories.length > 0 ? (
-                      <div className="overflow-x-auto">
-                        <table className="w-full border-collapse">
-                          <thead>
-                            <tr className="border-b border-neutral-300">
-                              <th className="text-left text-xs font-medium text-neutral-600 py-2 px-2 font-inter">Category Name</th>
-                              <th className="text-right text-xs font-medium text-neutral-600 py-2 px-2 font-inter w-32">Amount (£)</th>
-                              <th className="text-right text-xs font-medium text-neutral-600 py-2 px-2 font-inter w-20">%</th>
-                              <th className="w-12"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {budgetForm.categories.map((category, index) => {
-                              const suggestions = categoryInputFocused === category.id ? getCategorySuggestions(category.name) : []
-                              const percentage = budgetForm.totalBudgetAmount > 0 
-                                ? ((category.budgetAmount || 0) / budgetForm.totalBudgetAmount * 100).toFixed(1)
-                                : '0.0'
-                              return (
-                              <tr key={category.id} className="border-b border-neutral-200 last:border-0">
-                                <td className="py-1 px-2 relative">
-                                  <Input
-                                    type="text"
-                                    value={category.name}
-                                    onChange={(e) => updateBudgetCategory(category.id, { name: e.target.value })}
-                                    onFocus={() => setCategoryInputFocused(category.id)}
-                                    onBlur={() => setTimeout(() => setCategoryInputFocused(null), 200)}
-                                    placeholder="Enter category name"
-                                    className="text-sm border-0 bg-white shadow-none focus:ring-1 focus:ring-primary-500 focus:outline-none px-2 h-8 rounded"
-                                  />
-                                  {suggestions.length > 0 && (
-                                    <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
-                                      {suggestions.map(master => (
-                                        <button
-                                          key={master.id}
-                                          onClick={() => applyCategorySuggestion(category.id, master)}
-                                          className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 border-b border-neutral-100 last:border-0 font-inter"
-                                        >
-                                          <div className="font-medium">{master.name}</div>
-                                          {master.description && (
-                                            <div className="text-xs text-neutral-500 truncate">{master.description}</div>
-                                          )}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="py-1 px-2">
-                                  <Input
-                                    type="text"
-                                    value={category.budgetAmount ? category.budgetAmount.toLocaleString('en-GB') : ''}
-                                    onChange={(e) => {
-                                      const rawValue = e.target.value.replace(/,/g, '')
-                                      const numValue = parseFloat(rawValue) || 0
-                                      updateBudgetCategory(category.id, { budgetAmount: numValue })
-                                    }}
-                                    placeholder="0"
-                                    className="text-sm text-right border-0 bg-white shadow-none focus:ring-1 focus:ring-primary-500 focus:outline-none px-2 h-8 rounded w-full"
-                                  />
-                                </td>
-                                <td className="py-1 px-2 text-right text-sm text-neutral-600 bg-neutral-50">
-                                  {percentage}%
-                                </td>
-                                <td className="py-1 text-center">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => removeBudgetCategory(category.id)}
-                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8"
-                                  >
-                                    <X className="h-4 w-4" />
-                                  </Button>
-                                </td>
-                              </tr>
-                            )})}
-                          </tbody>
-                        </table>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-medium text-neutral-500 font-inter">
+                        Proposed Rate:
+                      </label>
+                      <div className="text-sm font-semibold text-neutral-900 font-inter">
+                        £{budgetForm.ratePerSqFt.toFixed(2)}/sqft
                       </div>
-                    ) : (
-                      <div className="text-center py-6 text-neutral-500">
-                        <p className="text-sm font-inter">No categories added yet.</p>
-                        <p className="text-xs font-inter mt-1">Click "Add Category" to get started.</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Form Actions */}
-                <div className="flex justify-between items-center pt-6 border-t border-neutral-200">
-                  <Button 
-                    variant="outline" 
-                    type="button" 
-                    onClick={handleSaveDraft}
-                    disabled={!selectedBuildingId}
-                  >
-                    Save Draft
-                  </Button>
-                  <div className="flex space-x-3">
-                    <Button variant="secondary" type="button" onClick={() => setShowBudgetSetup(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
-                      loading={loading}
-                    >
-                      {budget ? 'Update Budget' : 'Create Budget'}
-                    </Button>
+                {/* Budget Categories Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-medium text-neutral-700 font-inter">Budget Categories</h3>
+                    <div className="flex gap-2">
+                      {isMobile ? (
+                        // Mobile: Icon buttons
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowCategoryManagement(true)
+                              loadBudgetCategoryMasters()
+                            }}
+                            className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                            title="Manage Categories"
+                          >
+                            <Settings className="h-4 w-4 text-neutral-600" />
+                          </button>
+                          {budgetCategoryMasters.length > 0 && budgetForm.categories.length === 0 && (
+                            <div className="relative">
+                              <button
+                                type="button"
+                                onClick={() => setShowQuickAddDropdown(!showQuickAddDropdown)}
+                                className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
+                                title="Quick Add"
+                              >
+                                <Plus className="h-4 w-4 text-neutral-600" />
+                              </button>
+                              {showQuickAddDropdown && (
+                                <div className="absolute right-0 mt-1 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
+                                  <div className="p-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleQuickAddAllCategories}
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 rounded font-inter"
+                                    >
+                                      Add all category masters ({budgetCategoryMasters.filter(m => !budgetForm.categories.some(c => c.name.toLowerCase() === m.name.toLowerCase())).length})
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        // Desktop: Text buttons
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setShowCategoryManagement(true)
+                              loadBudgetCategoryMasters() // Reload to ensure fresh data
+                            }}
+                          >
+                            Manage
+                          </Button>
+                          {budgetCategoryMasters.length > 0 && budgetForm.categories.length === 0 && (
+                            <div className="relative">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setShowQuickAddDropdown(!showQuickAddDropdown)}
+                              >
+                                Quick Add ▾
+                              </Button>
+                              {showQuickAddDropdown && (
+                                <div className="absolute right-0 mt-1 w-64 bg-white border border-neutral-200 rounded-lg shadow-lg z-10">
+                                  <div className="p-2">
+                                    <button
+                                      type="button"
+                                      onClick={handleQuickAddAllCategories}
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 rounded font-inter"
+                                    >
+                                      Add all category masters ({budgetCategoryMasters.filter(m => !budgetForm.categories.some(c => c.name.toLowerCase() === m.name.toLowerCase())).length})
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
+                  
+                  {/* Categories - Desktop Table / Mobile Accordion */}
+                    {budgetForm.categories.length > 0 ? (
+                      isMobile ? (
+                        // Mobile: Accordion Style
+                        <div className="space-y-2">
+                          {budgetForm.categories.map((category, index) => {
+                            const isExpanded = expandedModalCategories.has(category.id)
+                            
+                            return (
+                              <div key={category.id} className="bg-white rounded-lg border border-neutral-200">
+                                <div className="p-2.5 flex items-center justify-between gap-2">
+                                  <div
+                                    onClick={() => {
+                                      const newExpanded = new Set(expandedModalCategories)
+                                      if (newExpanded.has(category.id)) {
+                                        newExpanded.delete(category.id)
+                                      } else {
+                                        newExpanded.add(category.id)
+                                      }
+                                      setExpandedModalCategories(newExpanded)
+                                    }}
+                                    className="flex-1 min-w-0 cursor-pointer"
+                                  >
+                                    <h4 className="text-sm font-medium text-neutral-900 font-inter truncate">
+                                      {category.name}
+                                    </h4>
+                                    <div className="text-xs text-neutral-600 font-inter mt-0.5">
+                                      £{(category.budgetAmount || 0).toLocaleString()}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1 flex-shrink-0">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        removeBudgetCategory(category.id)
+                                      }}
+                                      className="p-1 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                      title="Delete category"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const newExpanded = new Set(expandedModalCategories)
+                                        if (newExpanded.has(category.id)) {
+                                          newExpanded.delete(category.id)
+                                        } else {
+                                          newExpanded.add(category.id)
+                                        }
+                                        setExpandedModalCategories(newExpanded)
+                                      }}
+                                      className="p-1"
+                                    >
+                                      <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${
+                                        isExpanded ? 'rotate-180' : ''
+                                      }`} />
+                                    </button>
+                                  </div>
+                                </div>
+                                
+                                {isExpanded && (
+                                  <div className="px-3 pb-3 pt-0 border-t border-neutral-100">
+                                    <div className="space-y-3 mt-3">
+                                      <div>
+                                        <label className="block text-xs font-medium text-neutral-500 mb-1">
+                                          Category Name
+                                        </label>
+                                        <div className="text-sm text-neutral-900 font-inter p-2 bg-neutral-50 rounded border border-neutral-200">
+                                          {category.name}
+                                        </div>
+                                        <p className="text-xs text-neutral-500 mt-1 italic">
+                                          To change the category name, use the Settings icon above
+                                        </p>
+                                      </div>
+                                      <div>
+                                        <label className="block text-xs font-medium text-neutral-500 mb-1">
+                                          Budget Amount (£)
+                                        </label>
+                                        <Input
+                                          type="text"
+                                          value={category.budgetAmount ? category.budgetAmount.toLocaleString('en-GB') : ''}
+                                          onChange={(e) => {
+                                            const rawValue = e.target.value.replace(/,/g, '')
+                                            const numValue = parseFloat(rawValue) || 0
+                                            updateBudgetCategory(category.id, { budgetAmount: numValue })
+                                          }}
+                                          placeholder="0"
+                                          className="text-sm"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        // Desktop: Table
+                        <div className="overflow-x-auto">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b border-neutral-300">
+                                <th className="text-left text-xs font-medium text-neutral-600 py-2 px-2 font-inter">Category Name</th>
+                                <th className="text-right text-xs font-medium text-neutral-600 py-2 px-2 font-inter w-32">Amount (£)</th>
+                                <th className="text-right text-xs font-medium text-neutral-600 py-2 px-2 font-inter w-20">%</th>
+                                <th className="w-12"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {budgetForm.categories.map((category, index) => {
+                                const percentage = budgetForm.totalBudgetAmount > 0
+                                  ? ((category.budgetAmount || 0) / budgetForm.totalBudgetAmount * 100).toFixed(1)
+                                  : '0.0'
+                                return (
+                                <tr key={category.id} className="border-b border-neutral-200 last:border-0">
+                                  <td className="py-1 px-2">
+                                    <div className="text-sm text-neutral-900 font-inter px-2 h-8 flex items-center bg-neutral-50 rounded">
+                                      {category.name}
+                                    </div>
+                                  </td>
+                                  <td className="py-1 px-2">
+                                    <Input
+                                      type="text"
+                                      value={category.budgetAmount ? category.budgetAmount.toLocaleString('en-GB') : ''}
+                                      onChange={(e) => {
+                                        const rawValue = e.target.value.replace(/,/g, '')
+                                        const numValue = parseFloat(rawValue) || 0
+                                        updateBudgetCategory(category.id, { budgetAmount: numValue })
+                                      }}
+                                      placeholder="0"
+                                      className="text-sm text-right border-0 bg-white shadow-none focus:ring-1 focus:ring-primary-500 focus:outline-none px-2 h-8 rounded w-full"
+                                    />
+                                  </td>
+                                  <td className="py-1 px-2 text-right text-sm text-neutral-600 bg-neutral-50">
+                                    {percentage}%
+                                  </td>
+                                  <td className="py-1 text-center">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => removeBudgetCategory(category.id)}
+                                      className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1 h-8 w-8"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              )})}
+                            </tbody>
+                          </table>
+                        </div>
+                      )
+                    ) : (
+                      <div className="text-center py-6 text-neutral-500">
+                        <p className="text-sm font-inter">No categories added yet.</p>
+                        <p className="text-xs font-inter mt-1">Click "Quick Add" to get started.</p>
+                      </div>
+                    )}
+                </div>
+
+                {/* Form Actions */}
+                <div className={`flex items-center pt-6 border-t border-neutral-200 ${
+                  isMobile ? 'flex-col gap-2 w-full' : 'justify-between'
+                }`}>
+                  {isMobile ? (
+                    // Mobile: Horizontally aligned buttons
+                    <>
+                      <Button 
+                        variant="secondary" 
+                        type="button" 
+                        onClick={() => setShowBudgetSetup(false)}
+                        className="w-full min-h-[44px]"
+                      >
+                        Cancel
+                      </Button>
+                      <div className="flex gap-2 w-full">
+                        <Button 
+                          variant="outline" 
+                          type="button" 
+                          onClick={handleSaveDraft}
+                          disabled={!selectedBuildingId}
+                          className="flex-1 min-h-[44px]"
+                        >
+                          Save Draft
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
+                          loading={loading}
+                          className="flex-1 min-h-[44px]"
+                        >
+                          {budget ? 'Update' : 'Create'}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    // Desktop: Original layout
+                    <>
+                      <Button 
+                        variant="secondary" 
+                        type="button" 
+                        onClick={() => setShowBudgetSetup(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <div className="flex space-x-3">
+                        <Button 
+                          variant="outline" 
+                          type="button" 
+                          onClick={handleSaveDraft}
+                          disabled={!selectedBuildingId}
+                        >
+                          Save Draft
+                        </Button>
+                        <Button 
+                          type="submit" 
+                          disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
+                          loading={loading}
+                        >
+                          {budget ? 'Update' : 'Create Budget'}
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </form>
             </div>
@@ -3313,17 +3521,242 @@ const Finances: React.FC = () => {
                 <h2 className="text-xl font-semibold text-neutral-900 font-inter">
                   Manage Budget Categories
                 </h2>
-                <Button variant="ghost" size="sm" onClick={() => setShowCategoryManagement(false)} aria-label="Close">
+                                <Button type="button" variant="ghost" size="sm" onClick={() => setShowCategoryManagement(false)} aria-label="Close">
+                                  <X className="h-6 w-6" />
+                                </Button>
+              </div>
+
+              {/* Add New and Merge - Side by Side */}
+              <div className="mb-4">
+                {/* Headers Side by Side */}
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {/* Add New Category Header */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddNewCategorySection(!showAddNewCategorySection);
+                      if (!showAddNewCategorySection) setShowMergeCategorySection(false);
+                    }}
+                    className="flex items-center justify-between p-3 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 transition-colors"
+                  >
+                    <h3 className="text-xs font-medium text-neutral-900 font-inter">
+                      Add New
+                    </h3>
+                    <ChevronDown className={`h-4 w-4 text-neutral-500 transition-transform duration-200 ${
+                      showAddNewCategorySection ? 'rotate-180' : ''
+                    }`} />
+                  </button>
+
+                  {/* Merge Categories Header */}
+                  {budgetCategoryMasters.length >= 2 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowMergeCategorySection(!showMergeCategorySection);
+                        if (!showMergeCategorySection) setShowAddNewCategorySection(false);
+                      }}
+                      className="flex items-center justify-between p-3 bg-neutral-50 hover:bg-neutral-100 rounded-lg border border-neutral-200 transition-colors"
+                    >
+                      <h3 className="text-xs font-medium text-neutral-900 font-inter">
+                        Merge
+                      </h3>
+                      <ChevronDown className={`h-4 w-4 text-neutral-500 transition-transform duration-200 ${
+                        showMergeCategorySection ? 'rotate-180' : ''
+                      }`} />
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-center p-3 bg-neutral-100 rounded-lg border border-neutral-200 opacity-50">
+                      <h3 className="text-xs font-medium text-neutral-500 font-inter">
+                        Merge
+                      </h3>
+                    </div>
+                  )}
+                </div>
+
+                {/* Expanded Content - Full Width */}
+                {showAddNewCategorySection && (
+                  <div className="p-4 bg-white rounded-lg border border-neutral-200">
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                          Category Name *
+                        </label>
+                        <Input
+                          type="text"
+                          value={categoryMasterForm.name}
+                          onChange={(e) => setCategoryMasterForm({ ...categoryMasterForm, name: e.target.value })}
+                          placeholder="Enter category name"
+                          className="text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                          Description
+                        </label>
+                        <Input
+                          type="text"
+                          value={categoryMasterForm.description}
+                          onChange={(e) => setCategoryMasterForm({ ...categoryMasterForm, description: e.target.value })}
+                          placeholder="Optional description"
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-3">
+                      <Button type="button" size="sm" onClick={handleCreateCategoryMaster} disabled={!categoryMasterForm.name.trim()}>
+                        Create Category
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {showMergeCategorySection && budgetCategoryMasters.length >= 2 && (
+                  <div className="p-4 bg-white rounded-lg border border-neutral-200">
+                    <p className="text-xs text-neutral-600 font-inter mb-3">
+                      Merge two categories into one to preserve data integrity.
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                          Source (to merge)
+                        </label>
+                        <Dropdown
+                          options={budgetCategoryMasters.map(cat => ({
+                            value: cat.id,
+                            label: cat.name
+                          }))}
+                          value={mergingCategories?.sourceId || ''}
+                          onChange={(value) => setMergingCategories(prev => ({ ...prev, sourceId: value, targetId: prev?.targetId || '' }))}
+                          placeholder="Select source..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                          Target (to keep)
+                        </label>
+                        <Dropdown
+                          options={budgetCategoryMasters
+                            .filter(cat => cat.id !== mergingCategories?.sourceId)
+                            .map(cat => ({
+                              value: cat.id,
+                              label: cat.name
+                            }))}
+                          value={mergingCategories?.targetId || ''}
+                          onChange={(value) => setMergingCategories(prev => ({ sourceId: prev?.sourceId || '', targetId: value }))}
+                          placeholder="Select target..."
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end mt-3">
+                      <Button 
+                        type="button"
+                        size="sm" 
+                        onClick={handleMergeCategoryMasters} 
+                        disabled={!mergingCategories?.sourceId || !mergingCategories?.targetId}
+                      >
+                        Merge
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Existing Categories */}
+              <div>
+                <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
+                  Existing Categories
+                </h3>
+                {loadingCategoryMasters ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                    <p className="text-sm text-neutral-500 font-inter mt-2">Loading categories...</p>
+                  </div>
+                ) : budgetCategoryMasters.length > 0 ? (
+                  <div className="space-y-2">
+                    {budgetCategoryMasters.map((category) => (
+                      <div key={category.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm text-neutral-900 font-inter">{category.name}</div>
+                          {category.description && (
+                            <div className="text-xs text-neutral-500 font-inter mt-1">{category.description}</div>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditingCategory(category)}
+                            className="text-primary-600 hover:text-primary-700"
+                          >
+                            Edit
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-neutral-500 font-inter text-center py-4">
+                    No categories created yet. Add your first category above.
+                  </p>
+                )}
+              </div>
+
+
+              {/* Close Button */}
+              <div className="flex justify-end mt-6">
+                <Button type="button" onClick={() => setShowCategoryManagement(false)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Category Modal */}
+      {showEditCategoryModal && editingCategoryMaster && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal" 
+          style={{ zIndex: 1600 }}
+          onClick={() => {
+            setShowEditCategoryModal(false)
+            setEditingCategoryMaster(null)
+            setCategoryMasterForm({ name: '', description: '' })
+            setMergingCategories(null)
+          }}
+        >
+          <div 
+            className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-neutral-900 font-inter">
+                  Edit Category: {editingCategoryMaster.name}
+                </h2>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => {
+                    setShowEditCategoryModal(false)
+                    setEditingCategoryMaster(null)
+                    setCategoryMasterForm({ name: '', description: '' })
+                    setMergingCategories(null)
+                  }} 
+                  aria-label="Close"
+                >
                   <X className="h-6 w-6" />
                 </Button>
               </div>
 
-              {/* Add/Edit Category Form */}
+              {/* Edit Category Form */}
               <div className="mb-6 p-4 bg-neutral-50 rounded-lg">
                 <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
-                  {editingCategoryMaster ? 'Edit Category' : 'Add New Category'}
+                  Category Details
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
                       Category Name *
@@ -3350,129 +3783,62 @@ const Finances: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-3">
-                  {editingCategoryMaster ? (
-                    <>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        onClick={() => {
-                          setEditingCategoryMaster(null)
-                          setCategoryMasterForm({ name: '', description: '' })
-                        }}
-                      >
-                        Cancel
-                      </Button>
-                      <Button size="sm" onClick={handleUpdateCategoryMaster} disabled={!categoryMasterForm.name.trim()}>
-                        Update Category
-                      </Button>
-                    </>
-                  ) : (
-                    <Button size="sm" onClick={handleCreateCategoryMaster} disabled={!categoryMasterForm.name.trim()}>
-                      Create Category
-                    </Button>
-                  )}
+                  <Button 
+                    type="button"
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={() => {
+                      setShowEditCategoryModal(false)
+                      setEditingCategoryMaster(null)
+                      setCategoryMasterForm({ name: '', description: '' })
+                      setMergingCategories(null)
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleUpdateCategoryMaster} disabled={!categoryMasterForm.name.trim()}>
+                    Update Category
+                  </Button>
                 </div>
               </div>
 
-              {/* Existing Categories */}
-              <div>
-                <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
-                  Existing Categories
-                </h3>
-                {loadingCategoryMasters ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
-                    <p className="text-sm text-neutral-500 font-inter mt-2">Loading categories...</p>
-                  </div>
-                ) : budgetCategoryMasters.length > 0 ? (
-                  <div className="space-y-2">
-                    {budgetCategoryMasters.map((category) => (
-                      <div key={category.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                        <div className="flex-1">
-                          <div className="font-medium text-sm text-neutral-900 font-inter">{category.name}</div>
-                          {category.description && (
-                            <div className="text-xs text-neutral-500 font-inter mt-1">{category.description}</div>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEditingCategory(category)}
-                            className="text-primary-600 hover:text-primary-700"
-                          >
-                            Edit
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-neutral-500 font-inter text-center py-4">
-                    No categories created yet. Add your first category above.
-                  </p>
-                )}
-              </div>
-
-              {/* Merge Categories Section */}
+              {/* Merge Section */}
               {budgetCategoryMasters.length >= 2 && (
-                <div className="mt-6 p-4 bg-neutral-50 rounded-lg">
+                <div className="p-4 bg-neutral-50 rounded-lg">
                   <h3 className="text-sm font-medium text-neutral-900 font-inter mb-3">
-                    Merge Categories
+                    Merge This Category
                   </h3>
                   <p className="text-xs text-neutral-600 font-inter mb-3">
-                    Merge two categories into one to preserve data integrity. The source category will be deactivated and all references will point to the target category.
+                    Merge this category into another to preserve data integrity. This category will be deactivated and all references will point to the target category.
                   </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
-                        Source Category (to be merged)
-                      </label>
-                      <Dropdown
-                        options={budgetCategoryMasters.map(cat => ({
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
+                      Merge into (Target Category)
+                    </label>
+                    <Dropdown
+                      options={budgetCategoryMasters
+                        .filter(cat => cat.id !== editingCategoryMaster.id)
+                        .map(cat => ({
                           value: cat.id,
                           label: cat.name
                         }))}
-                        value={mergingCategories?.sourceId || ''}
-                        onChange={(value) => setMergingCategories(prev => ({ ...prev, sourceId: value, targetId: prev?.targetId || '' }))}
-                        placeholder="Select source..."
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">
-                        Target Category (to keep)
-                      </label>
-                      <Dropdown
-                        options={budgetCategoryMasters
-                          .filter(cat => cat.id !== mergingCategories?.sourceId)
-                          .map(cat => ({
-                            value: cat.id,
-                            label: cat.name
-                          }))}
-                        value={mergingCategories?.targetId || ''}
-                        onChange={(value) => setMergingCategories(prev => ({ sourceId: prev?.sourceId || '', targetId: value }))}
-                        placeholder="Select target..."
-                      />
-                    </div>
+                      value={mergingCategories?.targetId || ''}
+                      onChange={(value) => setMergingCategories({ sourceId: editingCategoryMaster.id, targetId: value })}
+                      placeholder="Select target category..."
+                    />
                   </div>
                   <div className="flex justify-end mt-3">
                     <Button 
+                      type="button"
                       size="sm" 
                       onClick={handleMergeCategoryMasters} 
-                      disabled={!mergingCategories?.sourceId || !mergingCategories?.targetId}
+                      disabled={!mergingCategories?.targetId}
                     >
                       Merge Categories
                     </Button>
                   </div>
                 </div>
               )}
-
-              {/* Close Button */}
-              <div className="flex justify-end mt-6">
-                <Button onClick={() => setShowCategoryManagement(false)}>
-                  Done
-                </Button>
-              </div>
             </div>
           </div>
         </div>
@@ -3715,84 +4081,7 @@ const Finances: React.FC = () => {
         />
       )}
 
-      {/* Period Selection Dropdown */}
-      {showPeriodDropdown && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1500 }}>
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Select Period for Service Charges</h3>
-              <p className="text-sm text-gray-600 mb-4 font-inter">
-                Choose the quarter and year for which you want to issue service charge demands.
-              </p>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {periodOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => handlePeriodSelection(option.value)}
-                    className="w-full text-left px-3 py-2 rounded-md border border-neutral-200 hover:bg-neutral-50 transition-colors"
-                  >
-                    <div className="font-medium text-neutral-900 font-inter">{option.label}</div>
-                    <div className="text-sm text-gray-500 font-inter">{option.description}</div>
-                  </button>
-                ))}
-              </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowPeriodDropdown(false)}
-                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200 font-inter"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Confirmation Modal for Issue Demands */}
-      {showDemandsConfirmation && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-modal" style={{ zIndex: 1500 }}>
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <h3 className="text-lg font-medium text-neutral-900 mb-4 font-inter">Confirm Issue Service Charges</h3>
-              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                <h4 className="text-sm font-medium text-blue-900 font-inter mb-2">Period Selected:</h4>
-                <p className="text-lg font-semibold text-blue-700 font-inter">{selectedPeriodForDemands}</p>
-              </div>
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <div className="flex items-start space-x-2">
-                  <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-medium text-yellow-800 font-inter mb-1">Important:</h4>
-                    <p className="text-sm text-yellow-700 font-inter">
-                      This will generate service charge demands for all flats in the selected building for {selectedPeriodForDemands}. 
-                      Make sure this is the correct period before proceeding.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <p className="text-sm text-gray-600 mb-6 font-inter">
-                Are you sure you want to issue service charge demands for <strong>{selectedPeriodForDemands}</strong>?
-              </p>
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={handleCancelGenerateDemands}
-                  className="px-4 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-md hover:bg-neutral-200 font-inter"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmGenerateDemands}
-                  disabled={loading}
-                  className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700 disabled:opacity-50 font-inter"
-                >
-                  {loading ? 'Issuing...' : 'Yes, Issue Demands'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Period selection and confirmation modals removed - now using direct flow with disabled button */}
 
       {/* Expense Help Modal */}
       {showExpenseHelpModal && (
