@@ -16,7 +16,7 @@ const Sidebar = () => {
     { name: 'Ticketing', href: '/tickets', icon: Wrench },
     { name: 'Events', href: '/events', icon: Calendar },
     { name: 'Finances', href: '/finances', icon: PoundSterling },
-    { name: 'Building Data', href: '/building-data', icon: Building },
+    { name: 'Building', href: '/building-data', icon: Building },
     { name: 'Reports', href: '/reports', icon: BarChart3 },
     { name: 'Settings', href: '/settings', icon: Settings },
     { name: 'Admin', href: '/admin', icon: Shield },

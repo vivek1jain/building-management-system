@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { 
   Shield,
-  TestTube
+  TestTube,
+  Share2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { SecuritySettings } from '../components/Settings/SecuritySettings';
 import { TestingSettings } from '../components/Settings/TestingSettings';
+import { SharingSettings } from '../components/Settings/SharingSettings';
 import { Button, Card, CardContent, TabLoadingSkeleton } from '../components/UI';
 
 const Admin: React.FC = () => {
@@ -14,7 +16,7 @@ const Admin: React.FC = () => {
   const { addNotification } = useNotifications();
   
   // State for active tab and loading
-  const [activeTab, setActiveTab] = useState<'security' | 'testing'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'testing' | 'sharing'>('security');
   const [loading, setLoading] = useState(false);
   
   const handleTabChange = async (tab: typeof activeTab) => {
@@ -72,6 +74,17 @@ const Admin: React.FC = () => {
                 <TestTube className="w-4 h-4" />
                 Testing
               </button>
+              <button
+                onClick={() => handleTabChange('sharing')}
+                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === 'sharing'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                <Share2 className="w-4 h-4" />
+                Sharing
+              </button>
             </nav>
           </div>
         </div>
@@ -95,6 +108,14 @@ const Admin: React.FC = () => {
               {/* Testing Tab */}
               {activeTab === 'testing' && (
                 <TestingSettings 
+                  addNotification={addNotification}
+                  currentUser={currentUser}
+                />
+              )}
+
+              {/* Sharing Tab */}
+              {activeTab === 'sharing' && (
+                <SharingSettings 
                   addNotification={addNotification}
                   currentUser={currentUser}
                 />

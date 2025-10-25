@@ -3,11 +3,8 @@ import { Search, Plus, Star, Edit, Trash2, Eye, Building as BuildingIcon, Chevro
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
-import { getAllBuildings } from '../../services/buildingService'
 import { supplierService } from '../../services/supplierService'
 import { Supplier, Building } from '../../types'
-import BuildingSelector from './BuildingSelector'
-import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 
@@ -23,6 +20,8 @@ const SuppliersDataTable: React.FC = () => {
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('all')
+  const [expandedDesktopSuppliers, setExpandedDesktopSuppliers] = useState<Set<string>>(new Set())
+  const [expandedMobileSuppliers, setExpandedMobileSuppliers] = useState<Set<string>>(new Set())
 
   // Supplier specialty dropdown options
   const specialtyOptions: DropdownOption[] = [
@@ -33,6 +32,19 @@ const SuppliersDataTable: React.FC = () => {
     { value: 'cleaning', label: 'Cleaning', description: 'Cleaning and janitorial services' },
     { value: 'security', label: 'Security', description: 'Security systems and services' },
     { value: 'landscaping', label: 'Landscaping', description: 'Landscaping and gardening' }
+  ];
+
+  // Rating dropdown options
+  const ratingOptions: DropdownOption[] = [
+    { value: '5', label: '5', description: 'Excellent' },
+    { value: '4.5', label: '4.5', description: 'Very good' },
+    { value: '4', label: '4', description: 'Good' },
+    { value: '3.5', label: '3.5', description: 'Above average' },
+    { value: '3', label: '3', description: 'Average' },
+    { value: '2.5', label: '2.5', description: 'Below average' },
+    { value: '2', label: '2', description: 'Poor' },
+    { value: '1.5', label: '1.5', description: 'Very poor' },
+    { value: '1', label: '1', description: 'Terrible' }
   ];
 
   // Form states
@@ -391,89 +403,26 @@ const SuppliersDataTable: React.FC = () => {
     })
   }, [suppliers, selectedBuildingId, searchTerm, selectedSpecialty])
 
-  // Define table columns
-  const columns: Column<Supplier & { buildingId: string }>[] = useMemo(() => [
-    {
-      key: 'supplierInfo',
-      title: 'Supplier',
-      dataIndex: 'name',
-      sortable: true,
-      render: (value, supplier) => (
-        <div>
-          <div className="text-sm font-medium text-neutral-900 font-inter">{supplier.companyName || 'Unknown Supplier'}</div>
-          {supplier.companyName && (
-            <div className="text-xs text-neutral-500 font-inter mt-1">{supplier.companyName}</div>
-          )}
-        </div>
-      )
-    },
-    {
-      key: 'phone',
-      title: 'Phone',
-      dataIndex: 'phone',
-      sortable: true,
-      render: (value, supplier) => (
-        <div className="text-sm text-neutral-900 font-inter">{supplier.phone || 'N/A'}</div>
-      )
-    },
-    {
-      key: 'email',
-      title: 'Email',
-      dataIndex: 'email',
-      sortable: true,
-      render: (value, supplier) => (
-        <div className="text-sm text-neutral-900 font-inter">{supplier.email}</div>
-      )
-    },
-    {
-      key: 'specialty',
-      title: 'Specialty',
-      dataIndex: 'specialties',
-      sortable: false,
-      render: (value, supplier) => (
-        <div className="flex flex-wrap gap-1">
-          {(supplier.specialties || []).map((specialty, index) => (
-            <span key={index} className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
-              {specialty}
-            </span>
-          ))}
-        </div>
-      )
-    },
-    {
-      key: 'rating',
-      title: 'Rating',
-      dataIndex: 'rating',
-      sortable: true,
-      render: (value, supplier) => (
-        <div className="text-sm text-neutral-900">
-          {supplier.rating ? renderStars(supplier.rating) : 'No rating'}
-        </div>
-      )
+  // Toggle functions for accordion
+  const toggleDesktopExpanded = (supplierId: string) => {
+    const newExpanded = new Set(expandedDesktopSuppliers)
+    if (newExpanded.has(supplierId)) {
+      newExpanded.delete(supplierId)
+    } else {
+      newExpanded.add(supplierId)
     }
-  ], [])
+    setExpandedDesktopSuppliers(newExpanded)
+  }
 
-  // Define row actions
-  const rowActions: TableAction<Supplier & { buildingId: string }>[] = useMemo(() => [
-    {
-      key: 'view',
-      label: 'View',
-      onClick: handleViewSupplier,
-      variant: 'outline'
-    },
-    {
-      key: 'edit',
-      label: 'Edit',
-      onClick: handleEditSupplier,
-      variant: 'outline'
-    },
-    {
-      key: 'delete',
-      label: 'Delete',
-      onClick: (supplier) => handleDeleteSupplier(supplier.id),
-      variant: 'outline'
+  const toggleMobileExpanded = (supplierId: string) => {
+    const newExpanded = new Set(expandedMobileSuppliers)
+    if (newExpanded.has(supplierId)) {
+      newExpanded.delete(supplierId)
+    } else {
+      newExpanded.add(supplierId)
     }
-  ], [])
+    setExpandedMobileSuppliers(newExpanded)
+  }
 
   if (loading) {
     return (
@@ -484,9 +433,9 @@ const SuppliersDataTable: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Desktop Controls - Search/Filter/Add aligned horizontally under tabs */}
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="hidden md:flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4 flex-1">
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
@@ -518,14 +467,248 @@ const SuppliersDataTable: React.FC = () => {
         </button>
       </div>
 
-      {/* Suppliers Table */}
-      <DataTable
-        data={filteredSuppliers}
-        columns={columns}
-        actions={rowActions}
-        searchable={false}
-        emptyMessage="No suppliers found. Get started by adding your first supplier."
-      />
+      {/* Desktop: Accordion View */}
+      <div className="hidden md:block">
+        {filteredSuppliers.length === 0 ? (
+          <div className="bg-white rounded-lg p-8 text-center border border-neutral-200">
+            <Truck className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 font-inter">No Suppliers Found</h3>
+            <p className="text-gray-600 font-inter mt-2">Get started by adding your first supplier.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            {/* Header Row */}
+            <div className="bg-neutral-50 px-4 py-3 border-b border-neutral-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="min-w-[180px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Company</span>
+                  </div>
+                  <div className="min-w-[140px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Contact</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Email</span>
+                  </div>
+                </div>
+                <div className="min-w-[180px] text-center">
+                  <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Actions</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Data Rows */}
+            {filteredSuppliers.map((supplier, index) => {
+              const isExpanded = expandedDesktopSuppliers.has(supplier.id)
+              const isLastRow = index === filteredSuppliers.length - 1
+              
+              return (
+                <div key={supplier.id} className={`bg-white ${!isLastRow ? 'border-b border-neutral-200' : ''}`}>
+                  {/* Collapsed View - Main Info */}
+                  <div 
+                    onClick={() => toggleDesktopExpanded(supplier.id)}
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-6 flex-1">
+                      {/* Company Name */}
+                      <div className="min-w-[180px]">
+                        <h4 className="text-sm font-medium text-neutral-900 font-inter">
+                          {supplier.companyName || 'Unknown Supplier'}
+                        </h4>
+                      </div>
+                      
+                      {/* Contact Name */}
+                      <div className="min-w-[140px]">
+                        <span className="text-sm text-neutral-900 font-inter">
+                          {supplier.name || 'N/A'}
+                        </span>
+                      </div>
+                      
+                      {/* Email */}
+                      <div className="flex-1">
+                        <span className="text-sm text-neutral-900 font-inter">
+                          {supplier.email || 'No email'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-6">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditSupplier(supplier)
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors font-inter flex items-center gap-1.5"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteSupplier(supplier.id)
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-inter flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                      
+                      {/* Expand/Collapse Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleDesktopExpanded(supplier.id)
+                        }}
+                        className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
+                        title={isExpanded ? 'Show less' : 'Show more'}
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded View - Detailed Info */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 bg-neutral-50">
+                      <div className="grid grid-cols-3 gap-6 mt-2">
+                        {/* Phone */}
+                        <div>
+                          <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Phone</h5>
+                          <p className="text-sm text-neutral-900 font-inter">{supplier.phone || 'No phone'}</p>
+                        </div>
+                        
+                        {/* Specialties */}
+                        <div>
+                          <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Specialties</h5>
+                          <div className="flex flex-wrap gap-1">
+                            {(supplier.specialties || []).map((specialty, idx) => (
+                              <span key={idx} className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+                                {specialty}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* Rating */}
+                        <div>
+                          <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Rating</h5>
+                          <p className="text-sm text-neutral-900 font-inter">{supplier.rating ? supplier.rating.toFixed(1) : 'No rating'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile: Accordion View */}
+      <div className="md:hidden space-y-2">
+        {filteredSuppliers.length === 0 ? (
+          <div className="bg-white rounded-lg p-6 text-center">
+            <Truck className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 font-inter">No Suppliers Found</h3>
+            <p className="text-gray-600 font-inter">Get started by adding your first supplier.</p>
+          </div>
+        ) : (
+          filteredSuppliers.map((supplier) => {
+            const isExpanded = expandedMobileSuppliers.has(supplier.id)
+            
+            return (
+              <div key={supplier.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+                {/* Collapsed View - Company and Email */}
+                <div 
+                  onClick={() => toggleMobileExpanded(supplier.id)}
+                  className="p-3 cursor-pointer hover:bg-neutral-50 transition-colors"
+                >
+                  {/* Full width supplier name */}
+                  <div className="w-full mb-2">
+                    <h4 className="text-sm font-medium text-neutral-900 font-inter overflow-hidden whitespace-nowrap text-ellipsis">
+                      {supplier.companyName || 'Unknown Supplier'}
+                    </h4>
+                  </div>
+                  
+                  {/* Contact name, email, and chevron */}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-neutral-500 font-inter overflow-hidden whitespace-nowrap text-ellipsis flex-shrink min-w-0">
+                      {supplier.name || 'No contact name'}
+                    </p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <p className="text-xs text-neutral-600 font-inter overflow-hidden whitespace-nowrap text-ellipsis max-w-[140px]">
+                        {supplier.email || 'No email'}
+                      </p>
+                      <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 flex-shrink-0 ${
+                        isExpanded ? 'rotate-180' : ''
+                      }`} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Expanded View - All Details */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-0 border-t border-neutral-100">
+                    <div className="space-y-2 mt-3">
+                      {/* Phone and Rating on same line */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Phone: </span>
+                          <span className="text-xs text-neutral-900 font-inter">{supplier.phone || 'No phone'}</span>
+                        </div>
+                        {supplier.rating && (
+                          <div className="text-right">
+                            <span className="text-xs font-medium text-neutral-500 font-inter">Rating: </span>
+                            <span className="text-xs text-neutral-900 font-inter">{supplier.rating.toFixed(1)}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Specialties */}
+                      <div className="flex items-start justify-between">
+                        <span className="text-xs font-medium text-neutral-500 font-inter">Specialties:</span>
+                        <div className="flex flex-wrap gap-1 justify-end">
+                          {(supplier.specialties || []).map((specialty, idx) => (
+                            <span key={idx} className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${getSpecialtyColor(specialty)}`}>
+                              {specialty}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditSupplier(supplier)
+                          }}
+                          className="flex-1 px-4 py-3 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors font-inter flex items-center justify-center min-h-[44px]"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteSupplier(supplier.id)
+                          }}
+                          className="flex-1 px-4 py-3 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-inter flex items-center justify-center min-h-[44px]"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
+      </div>
 
       {/* Create Supplier Modal */}
 {showCreateSupplier && (
@@ -535,85 +718,79 @@ const SuppliersDataTable: React.FC = () => {
           title="Add New Supplier"
           size="lg"
         >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name</label>
-              <input
-                type="text"
-                value={supplierForm.name}
-                onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Company Name</label>
-              <input
-                type="text"
-                value={supplierForm.companyName}
-                onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Contact Name</label>
+                <input
+                  type="text"
+                  value={supplierForm.name}
+                  onChange={(e) => setSupplierForm({...supplierForm, name: e.target.value})}
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Company Name *</label>
+                <input
+                  type="text"
+                  value={supplierForm.companyName}
+                  onChange={(e) => setSupplierForm({...supplierForm, companyName: e.target.value})}
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Email *</label>
                 <input
                   type="email"
                   value={supplierForm.email}
                   onChange={(e) => setSupplierForm({...supplierForm, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                 <input
                   type="tel"
                   value={supplierForm.phone}
                   onChange={(e) => setSupplierForm({...supplierForm, phone: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Specialty</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Specialty *</label>
                 <Dropdown
                   options={specialtyOptions.filter(opt => opt.value !== 'all')}
                   value={supplierForm.specialty}
                   onChange={(value) => setSupplierForm({...supplierForm, specialty: value})}
                   placeholder="Select Specialty"
+                  size="sm"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Rating</label>
-                <select
-                  value={supplierForm.rating}
-                  onChange={(e) => setSupplierForm({...supplierForm, rating: parseFloat(e.target.value)})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value={5}>5 Stars</option>
-                  <option value={4.5}>4.5 Stars</option>
-                  <option value={4}>4 Stars</option>
-                  <option value={3.5}>3.5 Stars</option>
-                  <option value={3}>3 Stars</option>
-                  <option value={2.5}>2.5 Stars</option>
-                  <option value={2}>2 Stars</option>
-                  <option value={1.5}>1.5 Stars</option>
-                  <option value={1}>1 Star</option>
-                </select>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Rating</label>
+                <Dropdown
+                  options={ratingOptions}
+                  value={supplierForm.rating.toString()}
+                  onChange={(value) => setSupplierForm({...supplierForm, rating: parseFloat(value)})}
+                  placeholder="Select Rating"
+                  size="sm"
+                />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Notes</label>
               <textarea
                 value={supplierForm.notes}
                 onChange={(e) => setSupplierForm({...supplierForm, notes: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter resize-none"
               />
             </div>
 

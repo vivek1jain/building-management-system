@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown } from 'lucide-react'
+import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Info } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
 import { Person, Building, PersonStatus } from '../../types'
-import BulkImportExport from './BulkImportExport'
-import { exportPeopleToCSV } from '../../utils/csvExport'
-import { importPeopleFromCSV, ImportValidationResult } from '../../utils/csvImport'
-import { getAllBuildings } from '../../services/buildingService'
 import { getPeopleByBuilding, createPerson, updatePerson } from '../../services/peopleService'
-import DataTable, { Column, TableAction } from '../UI/DataTable'
-import { MobileDataTable, MobileCardConfig, FilterConfig, Badge } from '../UI'
+import { Badge } from '../UI'
 import Button from '../UI/Button'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 import { tokens } from '../../styles/tokens'
@@ -29,6 +24,7 @@ const PeopleDataTable: React.FC = () => {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [expandedPeople, setExpandedPeople] = useState<Set<string>>(new Set())
 
   // Person status dropdown options
   const statusOptions: DropdownOption[] = [
@@ -279,43 +275,6 @@ const PeopleDataTable: React.FC = () => {
     }
   }
 
-  // Export/Import handlers
-  const handleExportPeople = (buildingId: string, buildingName?: string) => {
-    const buildingPeople = people.filter(person => person.buildingId === buildingId)
-    exportPeopleToCSV(buildingPeople, buildingName)
-  }
-
-  const handleImportPeople = (csvText: string, buildingId: string): ImportValidationResult<Person & { isActive: boolean }> => {
-    return importPeopleFromCSV(csvText, buildingId)
-  }
-
-  const handleImportConfirm = async (validPeople: (Person & { isActive: boolean })[]) => {
-    if (!currentUser) return
-    
-    try {
-      // Add imported people to the current list
-      setPeople(prev => {
-        const existingIds = new Set(prev.map(p => p.id))
-        const newPeople = validPeople.filter(p => !existingIds.has(p.id))
-        return [...prev, ...newPeople]
-      })
-      
-      addNotification({
-        title: 'Success',
-        message: `${validPeople.length} people imported successfully`,
-        type: 'success',
-        userId: currentUser.id
-      })
-    } catch (error) {
-      console.error('Error importing people:', error)
-      addNotification({
-        title: 'Error',
-        message: 'Failed to import people',
-        type: 'error',
-        userId: currentUser.id
-      })
-    }
-  }
 
   const getStatusBadge = (status: PersonStatus) => {
     const variant = getStatusColors(status)
@@ -344,167 +303,29 @@ const PeopleDataTable: React.FC = () => {
     })
   }, [people, selectedBuildingId, filterStatus])
 
-  // Column definitions for DataTable
-  const columns: Column<Person & { isActive: boolean }>[] = useMemo(() => [
-    {
-      key: 'person',
-      title: 'Person',
-      dataIndex: 'name',
-      sortable: true,
-      render: (value, record) => (
-        <div>
-          <div className="text-sm font-medium text-neutral-900 font-inter">{record.name}</div>
-          {record.isPrimaryContact && (
-            <div className="text-xs text-success-600 font-inter">Primary Contact</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'contact',
-      title: 'Contact',
-      dataIndex: 'email',
-      render: (value, record) => (
-        <div className="space-y-1">
-          {record.email && (
-            <div className="text-xs text-neutral-900 font-inter">{record.email}</div>
-          )}
-          {record.phone && (
-            <div className="text-xs text-neutral-500 font-inter">{record.phone}</div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'flat',
-      title: 'Flat',
-      dataIndex: 'flatNumber',
-      sortable: true,
-      render: (value, record) => (
-        <span className="text-sm text-neutral-900 font-inter">{record.flatNumber || 'N/A'}</span>
-      ),
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      sortable: true,
-      render: (value, record) => (
-        <span 
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusBadge(record.status)}`}
-        >
-          {record.status}
-        </span>
-      ),
-    },
-    {
-      key: 'moveInDate',
-      title: 'Move In',
-      dataIndex: 'moveInDate',
-      sortable: true,
-      render: (value, record) => (
-        <span className="text-sm text-neutral-900 font-inter">{formatDate(record.moveInDate)}</span>
-      ),
-    },
-  ], [getStatusBadge, formatDate])
+  // Desktop accordion state
+  const [expandedDesktopPeople, setExpandedDesktopPeople] = useState<Set<string>>(new Set())
 
-  // Action definitions for DataTable
-  const actions: TableAction<Person & { isActive: boolean }>[] = useMemo(() => [
-    {
-      key: 'view',
-      label: 'View',
-      variant: 'outline',
-      onClick: handleViewPerson,
-    },
-    {
-      key: 'edit',
-      label: 'Edit',
-      variant: 'outline',
-      onClick: handleEditPerson,
-    },
-    {
-      key: 'delete',
-      label: 'Delete',
-      variant: 'outline',
-      onClick: (record) => handleDeletePerson(record.id),
-    },
-  ], [handleViewPerson, handleEditPerson, handleDeletePerson])
-
-  // Mobile card configuration
-  const mobileConfig: MobileCardConfig<Person & { isActive: boolean }> = {
-    getTitle: (person) => person.name,
-    getSubtitle: (person) => person.isPrimaryContact ? 'Primary Contact' : undefined,
-    getPrimaryFields: (person) => [
-      {
-        key: 'status',
-        label: 'Role',
-        value: <Badge variant={getStatusColors(person.status) as any}>{person.status}</Badge>
-      },
-      {
-        key: 'flat',
-        label: 'Flat/Unit',
-        value: person.flatNumber || 'N/A'
-      },
-      {
-        key: 'phone',
-        label: 'Phone',
-        value: person.phone || 'N/A'
-      },
-      {
-        key: 'email',
-        label: 'Email', 
-        value: person.email || 'N/A'
-      }
-    ],
-    getSecondaryFields: (person) => [
-      {
-        key: 'moveInDate',
-        label: 'Move In Date',
-        value: formatDate(person.moveInDate)
-      },
-      {
-        key: 'moveOutDate',
-        label: 'Move Out Date', 
-        value: formatDate(person.moveOutDate)
-      },
-      {
-        key: 'notes',
-        label: 'Notes',
-        value: person.notes || 'No notes'
-      }
-    ],
-    getActions: (person) => [
-      {
-        key: 'view',
-        label: 'View',
-        onClick: () => handleViewPerson(person),
-        variant: 'outline'
-      },
-      {
-        key: 'edit',
-        label: 'Edit',
-        onClick: () => handleEditPerson(person),
-        variant: 'outline'
-      },
-      {
-        key: 'delete',
-        label: 'Delete',
-        onClick: () => handleDeletePerson(person.id),
-        variant: 'outline'
-      }
-    ]
+  const toggleDesktopExpanded = (personId: string) => {
+    const newExpanded = new Set(expandedDesktopPeople)
+    if (newExpanded.has(personId)) {
+      newExpanded.delete(personId)
+    } else {
+      newExpanded.add(personId)
+    }
+    setExpandedDesktopPeople(newExpanded)
   }
 
-  // Filter configuration for mobile
-  const filterConfig: FilterConfig[] = [
-    {
-      label: 'Status',
-      placeholder: 'Filter by status',
-      value: filterStatus,
-      onChange: setFilterStatus,
-      options: statusOptions
+
+  const toggleExpanded = (personId: string) => {
+    const newExpanded = new Set(expandedPeople)
+    if (newExpanded.has(personId)) {
+      newExpanded.delete(personId)
+    } else {
+      newExpanded.add(personId)
     }
-  ]
+    setExpandedPeople(newExpanded)
+  }
 
   if (loading) {
     return (
@@ -515,27 +336,17 @@ const PeopleDataTable: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Mobile header - only visible on mobile */}
-      <div className="md:hidden flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-lg font-semibold text-neutral-900">People</h2>
-          <p className="text-sm text-neutral-600">
-            {selectedBuilding?.name || 'No building selected'}
-          </p>
-        </div>
-        
-        {/* Mobile controls */}
-        <div className="flex items-center gap-4">
-          <BulkImportExport
-            dataType="people"
-            buildings={[]}
-            selectedBuildingId={selectedBuildingId}
-            onExport={handleExportPeople}
-            onImport={handleImportPeople}
-            onImportConfirm={handleImportConfirm}
-          />
-          <Button onClick={() => setShowCreatePerson(true)}>Add Person</Button>
+    <div className="space-y-3">
+      {/* Mobile header with tooltip */}
+      <div className="md:hidden mb-3">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-neutral-900 font-inter">People</h2>
+          <div className="group relative">
+            <Info className="h-4 w-4 text-neutral-400 cursor-help" />
+            <div className="absolute left-0 top-full mt-1 hidden group-hover:block z-10 w-64 p-2 bg-neutral-900 text-white text-xs rounded-lg shadow-lg font-inter">
+              <strong className="text-success-300">P</strong> indicates Primary Contact - the main person responsible for this flat
+            </div>
+          </div>
         </div>
       </div>
 
@@ -572,31 +383,279 @@ const PeopleDataTable: React.FC = () => {
         </button>
       </div>
 
-      {/* Responsive Data Table - Desktop table + Mobile cards */}
-      <MobileDataTable
-        data={filteredPeople}
-        columns={columns}
-        actions={actions}
-        mobileConfig={mobileConfig}
-        search={{
-          value: searchTerm,
-          onChange: setSearchTerm,
-          placeholder: 'Search people by name, email, phone, or flat...'
-        }}
-        filters={filterConfig}
-        emptyMessage="No people found. Get started by adding your first person."
-      />
+      {/* Desktop: Accordion View */}
+      <div className="hidden md:block">
+        {filteredPeople.length === 0 ? (
+          <div className="bg-white rounded-lg p-8 text-center border border-neutral-200">
+            <Users className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 font-inter">No People Found</h3>
+            <p className="text-gray-600 font-inter mt-2">Get started by adding your first person.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            {/* Header Row */}
+            <div className="bg-neutral-50 px-4 py-3 border-b border-neutral-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="min-w-[200px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Name</span>
+                  </div>
+                  <div className="min-w-[80px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Flat</span>
+                  </div>
+                  <div className="min-w-[120px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Status</span>
+                  </div>
+                  <div className="min-w-[140px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Phone</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Email</span>
+                  </div>
+                </div>
+                <div className="min-w-[180px] text-center">
+                  <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Actions</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Data Rows */}
+            {filteredPeople.map((person, index) => {
+              const isExpanded = expandedDesktopPeople.has(person.id)
+              const isLastRow = index === filteredPeople.length - 1
+              
+              return (
+                <div key={person.id} className={`bg-white ${!isLastRow ? 'border-b border-neutral-200' : ''}`}>
+                  {/* Collapsed View - Main Info */}
+                  <div 
+                    onClick={() => toggleDesktopExpanded(person.id)}
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-6 flex-1">
+                      {/* Name & Primary Contact Badge */}
+                      <div className="flex items-center gap-2 min-w-[200px]">
+                        <h4 className="text-sm font-medium text-neutral-900 font-inter">
+                          {person.name}
+                        </h4>
+                        {person.isPrimaryContact && (
+                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-success-100 text-success-700 text-xs font-bold font-inter flex-shrink-0">
+                            P
+                          </span>
+                        )}
+                      </div>
+                      
+                      {/* Flat Number */}
+                      <div className="min-w-[80px]">
+                        <span className="text-sm text-neutral-600 font-inter">
+                          {person.flatNumber || 'No flat'}
+                        </span>
+                      </div>
+                      
+                      {/* Status Badge */}
+                      <div className="min-w-[120px]">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusBadge(person.status)}`}>
+                          {person.status}
+                        </span>
+                      </div>
+                      
+                      {/* Phone */}
+                      <div className="min-w-[140px]">
+                        <span className="text-sm text-neutral-900 font-inter">
+                          {person.phone || 'No phone'}
+                        </span>
+                      </div>
+                      
+                      {/* Email */}
+                      <div className="flex-1">
+                        <span className="text-sm text-neutral-900 font-inter truncate">
+                          {person.email || 'No email'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-6">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditPerson(person)
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors font-inter flex items-center gap-1.5"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeletePerson(person.id)
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-inter flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                      
+                      {/* Expand/Collapse Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleDesktopExpanded(person.id)
+                        }}
+                        className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
+                        title={isExpanded ? 'Show less' : 'Show more'}
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded View - Detailed Info */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 bg-neutral-50">
+                      <div className="grid grid-cols-2 gap-6 mt-2">
+                        {/* Move In Date */}
+                        {person.moveInDate && (
+                          <div>
+                            <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Move In Date</h5>
+                            <p className="text-sm text-neutral-900 font-inter">{formatDate(person.moveInDate)}</p>
+                          </div>
+                        )}
+                        
+                        {/* Move Out Date */}
+                        {person.moveOutDate && (
+                          <div>
+                            <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Move Out Date</h5>
+                            <p className="text-sm text-neutral-900 font-inter">{formatDate(person.moveOutDate)}</p>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Notes */}
+                      {person.notes && (
+                        <div className="mt-3">
+                          <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Notes</h5>
+                          <p className="text-sm text-neutral-700 font-inter">{person.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* Desktop Import/Export buttons under table */}
-      <div className="hidden md:flex justify-end mt-4">
-        <BulkImportExport
-          dataType="people"
-          buildings={[]}
-          selectedBuildingId={selectedBuildingId}
-          onExport={handleExportPeople}
-          onImport={handleImportPeople}
-          onImportConfirm={handleImportConfirm}
-        />
+      {/* Mobile: Accordion View */}
+      <div className="md:hidden space-y-2">
+        {filteredPeople.length === 0 ? (
+          <div className="bg-white rounded-lg p-6 text-center">
+            <Users className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 font-inter">No People Found</h3>
+            <p className="text-gray-600 font-inter">Get started by adding your first person.</p>
+          </div>
+        ) : (
+          filteredPeople.map((person) => {
+            const isExpanded = expandedPeople.has(person.id)
+            
+            return (
+              <div key={person.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+                {/* Collapsed View - Name, Phone, and Flat */}
+                <div 
+                  onClick={() => toggleExpanded(person.id)}
+                  className="p-3 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                >
+                  <div className="flex-1 pr-3 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-medium text-neutral-900 font-inter truncate">
+                        {person.name}
+                      </h4>
+                      {person.isPrimaryContact && (
+                        <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-success-100 text-success-700 text-xs font-bold font-inter flex-shrink-0">
+                          P
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-neutral-500 font-inter mt-0.5 truncate">
+                      {person.phone || 'No phone'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-neutral-600 font-inter">
+                      {person.flatNumber || 'No flat'}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${
+                      isExpanded ? 'rotate-180' : ''
+                    }`} />
+                  </div>
+                </div>
+                
+                {/* Expanded View - All Details */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-0 border-t border-neutral-100">
+                    <div className="space-y-3 mt-3">
+                      {/* Status Badge */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-neutral-500 font-inter">Status:</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusBadge(person.status)}`}>
+                          {person.status}
+                        </span>
+                      </div>
+                      
+                      {/* Contact Details */}
+                      {person.email && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Email:</span>
+                          <span className="text-sm text-neutral-900 font-inter">{person.email}</span>
+                        </div>
+                      )}
+                      
+                      {person.phone && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Phone:</span>
+                          <span className="text-sm text-neutral-900 font-inter">{person.phone}</span>
+                        </div>
+                      )}
+                      
+                      {/* Move In Date */}
+                      {person.moveInDate && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Move In:</span>
+                          <span className="text-sm text-neutral-900 font-inter">{formatDate(person.moveInDate)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditPerson(person)
+                          }}
+                          className="flex-1 px-4 py-3 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors font-inter flex items-center justify-center min-h-[44px]"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeletePerson(person.id)
+                          }}
+                          className="flex-1 px-4 py-3 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-inter flex items-center justify-center min-h-[44px]"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Create Person Modal */}
@@ -607,98 +666,87 @@ const PeopleDataTable: React.FC = () => {
           title="Add New Person"
           size="lg"
         >
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Building</label>
-              <div className="px-3 py-2 border border-neutral-200 bg-neutral-50 rounded-lg text-sm font-medium text-neutral-700">
-                {selectedBuilding?.name || 'No building selected'}
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Name *</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Name *</label>
                 <input
                   type="text"
                   value={personForm.name}
                   onChange={(e) => setPersonForm({...personForm, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Email *</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Email *</label>
                 <input
                   type="email"
                   value={personForm.email}
                   onChange={(e) => setPersonForm({...personForm, email: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Phone</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Phone</label>
                 <input
                   type="tel"
                   value={personForm.phone}
                   onChange={(e) => setPersonForm({...personForm, phone: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                <select
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <Dropdown
+                  options={statusOptions.filter(opt => opt.value !== 'all')}
                   value={personForm.status}
-                  onChange={(e) => setPersonForm({...personForm, status: e.target.value as PersonStatus})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value={PersonStatus.RESIDENT}>Resident</option>
-                  <option value={PersonStatus.OWNER}>Owner</option>
-                  <option value={PersonStatus.TENANT}>Tenant</option>
-                  <option value={PersonStatus.MANAGER}>Manager</option>
-                </select>
+                  onChange={(value) => setPersonForm({...personForm, status: value as PersonStatus})}
+                  placeholder="Select Status"
+                  size="sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Flat Number</label>
+                <input
+                  type="text"
+                  value={personForm.flatId}
+                  onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat ID</label>
-              <input
-                type="text"
-                value={personForm.flatId}
-                onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Move In Date</label>
                 <input
                   type="date"
                   value={personForm.moveInDate}
                   onChange={(e) => setPersonForm({...personForm, moveInDate: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Move Out Date</label>
                 <input
                   type="date"
                   value={personForm.moveOutDate}
                   onChange={(e) => setPersonForm({...personForm, moveOutDate: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Notes</label>
               <textarea
                 value={personForm.notes}
                 onChange={(e) => setPersonForm({...personForm, notes: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter resize-none"
               />
             </div>
 

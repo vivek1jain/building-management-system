@@ -1,15 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { Building as BuildingIcon, ChevronDown } from 'lucide-react'
+import { Building as BuildingIcon, ChevronDown, Edit, Trash2, Home, Search } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
 import { Flat, Building } from '../../types'
-import BulkImportExport from './BulkImportExport'
-import { exportFlatsToCSV } from '../../utils/csvExport'
-import { ImportValidationResult } from '../../utils/csvImport'
-import { getAllBuildings } from '../../services/buildingService'
 import { getFlatsByBuilding, createFlat, updateFlat, deleteFlat } from '../../services/flatService'
-import DataTable, { Column, TableAction } from '../UI/DataTable'
 import Button from '../UI/Button'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 
@@ -25,6 +20,8 @@ const FlatsDataTableFixed: React.FC = () => {
   const [selectedFlat, setSelectedFlat] = useState<Flat | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [expandedDesktopFlats, setExpandedDesktopFlats] = useState<Set<string>>(new Set())
+  const [expandedMobileFlats, setExpandedMobileFlats] = useState<Set<string>>(new Set())
 
   // Flat status dropdown options
   const statusOptions: DropdownOption[] = [
@@ -276,23 +273,25 @@ const FlatsDataTableFixed: React.FC = () => {
     }
   }
 
-  // Bulk import/export handlers
-  const handleExportFlats = (buildingId: string, buildingName?: string) => {
-    const buildingFlats = flats.filter(f => f.buildingId === buildingId && f.isActive)
-    exportFlatsToCSV(buildingFlats, buildingName)
-  }
-
-  const handleImportFlats = (csvText: string, buildingId: string): ImportValidationResult<any> => {
-    // For now, return empty result - would implement CSV parsing for flats
-    return {
-      valid: [],
-      errors: [{ row: 0, field: 'general', message: 'Flats CSV import not yet implemented', data: {} }],
-      warnings: []
+  // Toggle functions for accordion
+  const toggleDesktopExpanded = (flatId: string) => {
+    const newExpanded = new Set(expandedDesktopFlats)
+    if (newExpanded.has(flatId)) {
+      newExpanded.delete(flatId)
+    } else {
+      newExpanded.add(flatId)
     }
+    setExpandedDesktopFlats(newExpanded)
   }
 
-  const handleImportConfirm = (validFlats: (Flat & { isActive: boolean })[]) => {
-    setFlats(prev => [...prev, ...validFlats])
+  const toggleMobileExpanded = (flatId: string) => {
+    const newExpanded = new Set(expandedMobileFlats)
+    if (newExpanded.has(flatId)) {
+      newExpanded.delete(flatId)
+    } else {
+      newExpanded.add(flatId)
+    }
+    setExpandedMobileFlats(newExpanded)
   }
 
   const getStatusColor = (status: string) => {
@@ -325,82 +324,6 @@ const FlatsDataTableFixed: React.FC = () => {
     })
   }, [flats, selectedBuildingId, searchTerm, filterStatus])
 
-  // Define table columns - NO ICONS
-  const columns: Column<Flat & { isActive: boolean }>[] = useMemo(() => [
-    {
-      key: 'flatInfo',
-      title: 'Flat',
-      dataIndex: 'flatNumber',
-      sortable: true,
-      render: (value, flat) => (
-        <div>
-          <div className="text-sm font-medium text-neutral-900 font-inter">{flat.flatNumber}</div>
-          <div className="text-xs text-neutral-500 font-inter">Floor {flat.floor}</div>
-        </div>
-      )
-    },
-    {
-      key: 'details',
-      title: 'Details',
-      dataIndex: 'areaSqFt',
-      sortable: false,
-      render: (value, flat) => (
-        <div className="space-y-1">
-          <div className="text-sm text-neutral-900 font-inter">{flat.areaSqFt || 0} sq ft</div>
-          <div className="text-xs text-neutral-500">
-            {flat.bedrooms || 0} bed, {flat.bathrooms || 0} bath
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'rent',
-      title: 'Rent',
-      dataIndex: 'currentRent',
-      sortable: true,
-      render: (value, flat) => (
-        <div className="space-y-1">
-          <div className="text-sm font-medium text-neutral-900 font-inter">{formatCurrency(flat.currentRent || 0)}</div>
-          <div className="text-xs text-neutral-500 font-inter">
-            Ground: {formatCurrency(flat.groundRent || 0)}
-          </div>
-        </div>
-      )
-    },
-    {
-      key: 'status',
-      title: 'Status',
-      dataIndex: 'status',
-      sortable: true,
-      render: (value, flat) => (
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusColor(flat.status || 'unknown')}`}>
-          {flat.status || 'Unknown'}
-        </span>
-      )
-    }
-  ], [])
-
-  // Define row actions - text only for now
-  const rowActions: TableAction<Flat & { isActive: boolean }>[] = useMemo(() => [
-    {
-      key: 'view',
-      label: 'View',
-      onClick: handleViewFlat,
-      variant: 'outline'
-    },
-    {
-      key: 'edit',
-      label: 'Edit',
-      onClick: handleEditFlat,
-      variant: 'outline'
-    },
-    {
-      key: 'delete',
-      label: 'Delete',
-      onClick: (flat) => handleDeleteFlat(flat.id),
-      variant: 'outline'
-    }
-  ], [])
 
   if (loading) {
     return (
@@ -411,17 +334,20 @@ const FlatsDataTableFixed: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {/* Desktop Controls - Search/Filter/Add aligned horizontally under tabs */}
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="hidden md:flex items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4 flex-1">
-          <input
-            type="text"
-            placeholder="Search flats..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-96 px-3 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 font-inter text-sm"
-          />
+          <div className="relative w-96">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-neutral-400" />
+            <input
+              type="text"
+              placeholder="Search flats..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-1.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter text-sm"
+            />
+          </div>
           <Dropdown
             options={statusOptions}
             value={filterStatus}
@@ -442,25 +368,274 @@ const FlatsDataTableFixed: React.FC = () => {
         </button>
       </div>
 
-      {/* Flats Table */}
-      <DataTable
-        data={filteredFlats}
-        columns={columns}
-        actions={rowActions}
-        searchable={false}
-        emptyMessage="No flats found. Get started by adding your first flat."
-      />
+      {/* Desktop: Accordion View */}
+      <div className="hidden md:block">
+        {filteredFlats.length === 0 ? (
+          <div className="bg-white rounded-lg p-8 text-center border border-neutral-200">
+            <Home className="h-16 w-16 text-neutral-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 font-inter">No Flats Found</h3>
+            <p className="text-gray-600 font-inter mt-2">Get started by adding your first flat.</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+            {/* Header Row */}
+            <div className="bg-neutral-50 px-4 py-3 border-b border-neutral-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6 flex-1">
+                  <div className="min-w-[150px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Flat Number</span>
+                  </div>
+                  <div className="min-w-[80px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Floor</span>
+                  </div>
+                  <div className="min-w-[120px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Area</span>
+                  </div>
+                  <div className="min-w-[120px]">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Status</span>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Ground Rent</span>
+                  </div>
+                </div>
+                <div className="min-w-[180px] text-center">
+                  <span className="text-xs font-semibold text-neutral-600 uppercase tracking-wider font-inter">Actions</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Data Rows */}
+            {filteredFlats.map((flat, index) => {
+              const isExpanded = expandedDesktopFlats.has(flat.id)
+              const isLastRow = index === filteredFlats.length - 1
+              
+              return (
+                <div key={flat.id} className={`bg-white ${!isLastRow ? 'border-b border-neutral-200' : ''}`}>
+                  {/* Collapsed View - Main Info */}
+                  <div 
+                    onClick={() => toggleDesktopExpanded(flat.id)}
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-6 flex-1">
+                      {/* Flat Number */}
+                      <div className="min-w-[150px]">
+                        <h4 className="text-sm font-medium text-neutral-900 font-inter">
+                          {flat.flatNumber}
+                        </h4>
+                      </div>
+                      
+                      {/* Floor */}
+                      <div className="min-w-[80px]">
+                        <span className="text-sm text-neutral-600 font-inter">
+                          Floor {flat.floor || 'N/A'}
+                        </span>
+                      </div>
+                      
+                      {/* Area */}
+                      <div className="min-w-[120px]">
+                        <span className="text-sm text-neutral-900 font-inter">
+                          {flat.areaSqFt || 0} sq ft
+                        </span>
+                      </div>
+                      
+                      {/* Status Badge */}
+                      <div className="min-w-[120px]">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium font-inter ${getStatusColor(flat.status || 'unknown')}`}>
+                          {flat.status || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      {/* Ground Rent */}
+                      <div className="flex-1">
+                        <span className="text-sm text-neutral-900 font-inter">
+                          {formatCurrency(flat.groundRent || 0)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    {/* Actions */}
+                    <div className="flex items-center gap-2 ml-6">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleEditFlat(flat)
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors font-inter flex items-center gap-1.5"
+                      >
+                        <Edit className="h-3.5 w-3.5" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteFlat(flat.id)
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-inter flex items-center gap-1.5"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        Delete
+                      </button>
+                      
+                      {/* Expand/Collapse Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleDesktopExpanded(flat.id)
+                        }}
+                        className="p-1.5 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
+                        title={isExpanded ? 'Show less' : 'Show more'}
+                      >
+                        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Expanded View - Detailed Info */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-2 bg-neutral-50">
+                      <div className="flex items-start gap-6 mt-2">
+                        {/* Bedrooms - aligned with Flat Number column */}
+                        <div className="min-w-[150px]">
+                          <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Bedrooms</h5>
+                          <p className="text-sm text-neutral-900 font-inter">{flat.bedrooms || 0}</p>
+                        </div>
+                        
+                        {/* Bathrooms - aligned with Floor column */}
+                        <div className="min-w-[80px]">
+                          <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Bathrooms</h5>
+                          <p className="text-sm text-neutral-900 font-inter">{flat.bathrooms || 0}</p>
+                        </div>
+                        
+                        {/* Notes - aligned with Area column and beyond */}
+                        {flat.notes ? (
+                          <div className="flex-1">
+                            <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Notes</h5>
+                            <p className="text-sm text-neutral-700 font-inter">{flat.notes}</p>
+                          </div>
+                        ) : flat.currentRent ? (
+                          <div className="min-w-[120px]">
+                            <h5 className="text-xs font-medium text-neutral-500 mb-1 font-inter">Current Rent</h5>
+                            <p className="text-sm text-neutral-900 font-inter">{formatCurrency(flat.currentRent)}</p>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* Import/Export buttons under table */}
-      <div className="flex justify-end mt-4">
-        <BulkImportExport
-          dataType="flats"
-          buildings={[]}
-          selectedBuildingId={selectedBuildingId}
-          onExport={handleExportFlats}
-          onImport={handleImportFlats}
-          onImportConfirm={handleImportConfirm}
-        />
+      {/* Mobile: Accordion View */}
+      <div className="md:hidden space-y-2">
+        {filteredFlats.length === 0 ? (
+          <div className="bg-white rounded-lg p-6 text-center">
+            <Home className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-neutral-900 font-inter">No Flats Found</h3>
+            <p className="text-gray-600 font-inter">Get started by adding your first flat.</p>
+          </div>
+        ) : (
+          filteredFlats.map((flat) => {
+            const isExpanded = expandedMobileFlats.has(flat.id)
+            
+            return (
+              <div key={flat.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+                {/* Collapsed View - Flat Number with Floor and Area on right */}
+                <div 
+                  onClick={() => toggleMobileExpanded(flat.id)}
+                  className="p-3 flex items-center justify-between cursor-pointer hover:bg-neutral-50 transition-colors"
+                >
+                  <div className="flex flex-col justify-center flex-1 pr-3 min-w-0">
+                    <h4 className="text-sm font-medium text-neutral-900 font-inter truncate">
+                      {flat.flatNumber}
+                    </h4>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium font-inter mt-1 ${getStatusColor(flat.status || 'unknown')}`}>
+                      {flat.status}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="text-right mr-2">
+                      <p className="text-xs text-neutral-600 font-inter">
+                        Floor {flat.floor || 'N/A'}
+                      </p>
+                      <p className="text-xs text-neutral-500 font-inter">
+                        {flat.areaSqFt || 0} sq ft
+                      </p>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 ${
+                      isExpanded ? 'rotate-180' : ''
+                    }`} />
+                  </div>
+                </div>
+                
+                {/* Expanded View - All Details */}
+                {isExpanded && (
+                  <div className="px-3 pb-3 pt-0 border-t border-neutral-100">
+                    <div className="space-y-2 mt-3">
+                      {/* Bedrooms and Bathrooms on same line */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Bedrooms: </span>
+                          <span className="text-xs text-neutral-900 font-inter">{flat.bedrooms || 0}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Bathrooms: </span>
+                          <span className="text-xs text-neutral-900 font-inter">{flat.bathrooms || 0}</span>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <span className="text-xs font-medium text-neutral-500 font-inter">Ground Rent: </span>
+                        <span className="text-xs text-neutral-900 font-inter">{formatCurrency(flat.groundRent || 0)}</span>
+                      </div>
+                      
+                      {flat.currentRent && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-neutral-500 font-inter">Current Rent:</span>
+                          <span className="text-xs text-neutral-900 font-inter">{formatCurrency(flat.currentRent)}</span>
+                        </div>
+                      )}
+                      
+                      {/* Notes */}
+                      {flat.notes && (
+                        <div className="pt-2">
+                          <span className="text-xs font-medium text-neutral-500 font-inter block mb-1">Notes:</span>
+                          <p className="text-xs text-neutral-700 font-inter">{flat.notes}</p>
+                        </div>
+                      )}
+                      
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEditFlat(flat)
+                          }}
+                          className="flex-1 px-4 py-3 text-sm font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors font-inter flex items-center justify-center min-h-[44px]"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleDeleteFlat(flat.id)
+                          }}
+                          className="flex-1 px-4 py-3 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors font-inter flex items-center justify-center min-h-[44px]"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
 
       {/* Create Flat Modal */}
@@ -471,92 +646,85 @@ const FlatsDataTableFixed: React.FC = () => {
           title="Add New Flat"
           size="lg"
         >
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-3">
+            <div className="grid grid-cols-4 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat Number *</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Flat Number *</label>
                 <input
                   type="text"
                   value={flatForm.flatNumber}
                   onChange={(e) => setFlatForm({...flatForm, flatNumber: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Floor *</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Floor *</label>
                 <input
                   type="number"
                   value={flatForm.floor}
                   onChange={(e) => setFlatForm({...flatForm, floor: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Area (sq ft) *</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Area (sq ft) *</label>
                 <input
                   type="number"
                   value={flatForm.areaSqFt}
                   onChange={(e) => setFlatForm({...flatForm, areaSqFt: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Status</label>
-                <select
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Status</label>
+                <Dropdown
+                  options={statusOptions.filter(opt => opt.value !== 'all')}
                   value={flatForm.status}
-                  onChange={(e) => setFlatForm({...flatForm, status: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                >
-                  <option value="vacant">Vacant</option>
-                  <option value="occupied">Occupied</option>
-                  <option value="maintenance">Maintenance</option>
-                  <option value="reserved">Reserved</option>
-                </select>
+                  onChange={(value) => setFlatForm({...flatForm, status: value})}
+                  placeholder="Select Status"
+                  size="sm"
+                />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bedrooms</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Bedrooms</label>
                 <input
                   type="number"
                   value={flatForm.bedrooms}
                   onChange={(e) => setFlatForm({...flatForm, bedrooms: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Bathrooms</label>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Bathrooms</label>
                 <input
                   type="number"
                   value={flatForm.bathrooms}
                   onChange={(e) => setFlatForm({...flatForm, bathrooms: e.target.value})}
-                  className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Ground Rent (£)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={flatForm.groundRent}
+                  onChange={(e) => setFlatForm({...flatForm, groundRent: e.target.value})}
+                  className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Ground Rent (£)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={flatForm.groundRent}
-                onChange={(e) => setFlatForm({...flatForm, groundRent: e.target.value})}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Notes</label>
+              <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Notes</label>
               <textarea
                 value={flatForm.notes}
                 onChange={(e) => setFlatForm({...flatForm, notes: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter resize-none"
               />
             </div>
 
