@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { 
   Trash2, 
   Database, 
@@ -11,10 +11,10 @@ import {
   Ticket,
   TrendingUp
 } from 'lucide-react';
-import { Button, Card, CardContent } from '../UI';
+import React, { useState, useEffect } from 'react';
 import { db } from '../../firebase/config';
-import { collection, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, Notification } from '../../types';
+import { Button, Card, CardContent } from '../UI';
 
 interface DataCleanupProps {
   currentUser: User | null;

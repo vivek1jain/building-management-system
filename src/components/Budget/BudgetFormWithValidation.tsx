@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { BudgetCategoryItem, BudgetValidationResult } from '../../types';
-import { budgetValidationService } from '../../services/budgetValidationService';
-import { calculatePercentage, calculateAmountFromPercentage, autoAdjustPercentages } from '../../utils/budgetValidation';
-import { BudgetValidationPanel } from './BudgetValidationPanel';
-import { BudgetHealthDashboard } from './BudgetHealthDashboard';
 import { Plus, Trash2, Calculator, CheckCircle, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { budgetValidationService } from '../../services/budgetValidationService';
+import { BudgetCategoryItem, BudgetValidationResult } from '../../types';
+import { calculatePercentage, calculateAmountFromPercentage, autoAdjustPercentages } from '../../utils/budgetValidation';
 import { Button } from '../UI';
+import { BudgetHealthDashboard } from './BudgetHealthDashboard';
+import { BudgetValidationPanel } from './BudgetValidationPanel';
 
 interface BudgetFormWithValidationProps {
   buildingId: string;

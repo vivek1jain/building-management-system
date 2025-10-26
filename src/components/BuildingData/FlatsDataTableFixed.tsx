@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react'
 import { Building as BuildingIcon, ChevronDown, Edit, Trash2, Home, Search } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
-import { Flat, Building } from '../../types'
+import { useNotifications } from '../../contexts/NotificationContext'
 import { getFlatsByBuilding, createFlat, updateFlat, deleteFlat } from '../../services/flatService'
-import Button from '../UI/Button'
+import { Flat, Building } from '../../types'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
+import Button from '../UI/Button'
 
 const FlatsDataTableFixed: React.FC = () => {
   const { currentUser } = useAuth()

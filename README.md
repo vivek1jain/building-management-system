@@ -69,7 +69,7 @@ The Building Management System is a comprehensive web application designed to st
    # Deploy security rules
    npm run deploy:rules
    ```
-   > 📖 **Detailed setup**: See [Firebase Setup Guide](FIREBASE_SETUP.md)
+> 📖 **Detailed setup**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-firebase-setup)
 
 3. **Start Development**
    ```bash
@@ -109,7 +109,7 @@ The Building Management System is a comprehensive web application designed to st
 - **Development**: Test-Driven Development (TDD) workflow
 - **Code Quality**: ESLint + Prettier + TypeScript strict mode
 
-> 🏛️ **Detailed Architecture**: See [Technical Documentation](WARP.md)
+> 🏛️ **Detailed Architecture**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-architecture--tech-stack)
 
 ---
 
@@ -150,7 +150,7 @@ The Building Management System is a comprehensive web application designed to st
 - Asset health monitoring
 - Upcoming events and reminders
 
-> 📋 **Complete Feature List**: See [Product Requirements Document](PRD.md)
+> 📋 **Complete Feature List**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-features--capabilities)
 
 ---
 
@@ -220,7 +220,7 @@ docs/                       # Documentation
 - `firestore.rules` - Database security rules
 - `vite.config.ts` - Build configuration with code splitting
 
-> 🔧 **Development Guide**: See [WARP.md](WARP.md) for comprehensive development instructions
+> 🔧 **Development Guide**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-development-guide) for comprehensive development instructions
 
 ---
 
@@ -253,7 +253,7 @@ This project follows TDD principles with a comprehensive test suite:
 ✅ Automated deployment on success
 ```
 
-> 🧪 **Complete Testing Guide**: See [TDD Workflow](TDD_WORKFLOW.md)
+> 🧪 **Complete Testing Guide**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-testing-strategy)
 
 ---
 
@@ -279,7 +279,7 @@ This project follows TDD principles with a comprehensive test suite:
 - **Colors**: Semantic color system (primary, success, warning, danger)
 - **Accessibility**: Keyboard navigation, screen reader support
 
-> 🎨 **Complete Design Guide**: See [Design System](DESIGN_SYSTEM_COMPLETE.md)
+> 🎨 **Complete Design Guide**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-design-system)
 
 ---
 
@@ -338,7 +338,7 @@ VITE_FIREBASE_PROJECT_ID=your-dev-project
 - **Access Controls** - User data isolation
 - **Input Validation** - XSS and injection prevention
 
-> 🔒 **Security Details**: See [Security Documentation](SECURITY.md)
+> 🔒 **Security Details**: See [Complete Project Manual](COMPLETE_PROJECT_MANUAL.md#-security--compliance)
 
 ---
 
@@ -401,18 +401,27 @@ npm run test:regression  # In terminal 2
 
 ## 📚 **Documentation**
 
-### **Core Documentation**
-- 📘 [**WARP.md**](WARP.md) - Complete development guide
-- 📋 [**PRD.md**](PRD.md) - Product requirements document
-- 🎨 [**DESIGN_SYSTEM_COMPLETE.md**](DESIGN_SYSTEM_COMPLETE.md) - UI/UX standards
-- 🧪 [**TDD_WORKFLOW.md**](TDD_WORKFLOW.md) - Testing methodology
-- 🔥 [**FIREBASE_SETUP.md**](FIREBASE_SETUP.md) - Backend configuration
+### **📖 Complete Project Manual (Start Here!)**
+- 🎯 [**COMPLETE_PROJECT_MANUAL.md**](COMPLETE_PROJECT_MANUAL.md) - **Everything you need in one place!**
+  - Quick 5-minute setup guide
+  - Complete architecture & tech stack
+  - All features & capabilities explained
+  - Development workflows & best practices
+  - Testing strategy (TDD)
+  - Design system reference
+  - Data models & service layer
+  - Security & compliance
+  - Troubleshooting guide
+  - Project history & decisions
 
-### **Specialized Guides**
-- 🔒 [**SECURITY.md**](SECURITY.md) - Security implementation
-- 📊 [**MIGRATION_TEST_REPORT.md**](MIGRATION_TEST_REPORT.md) - Migration testing
-- 🏢 [**Building.md**](Building.md) - Building management specifics
-- 📧 [**EMAIL_FUNCTIONALITY.md**](EMAIL_FUNCTIONALITY.md) - Email system setup
+### **Specialized Guides (Advanced Topics)**
+- 🔧 [**UTILITY_FUNCTIONS_GUIDE.md**](docs/UTILITY_FUNCTIONS_GUIDE.md) - Service utilities deep-dive
+- 📊 [**CONSOLIDATION_OPPORTUNITIES.md**](docs/CONSOLIDATION_OPPORTUNITIES.md) - Code quality roadmap
+- 🏢 [**Building.md**](docs/Building.md) - Building management specifics
+- 📧 [**EMAIL_FUNCTIONALITY.md**](docs/EMAIL_FUNCTIONALITY.md) - Email system setup
+- 🔥 [**FIREBASE_SETUP.md**](docs/FIREBASE_SETUP.md) - Firebase configuration details
+- 🔒 [**SECURITY.md**](docs/SECURITY.md) - Security implementation
+- 📋 [**WARP.md**](docs/WARP.md) - Warp-specific development rules
 
 ### **Quick Reference**
 - 🚀 [**Quick Start**](#-quick-start) - Get running in 5 minutes

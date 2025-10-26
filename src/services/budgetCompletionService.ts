@@ -21,9 +21,11 @@ import {
   BudgetCompletionSummary,
   BudgetSetupProgress
 } from '../types'
-import { budgetWizardService } from './budgetWizardService'
-import { budgetService } from './budgetService'
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 import { budgetReviewService } from './budgetReviewService'
+import { budgetService } from './budgetService'
+import { budgetWizardService } from './budgetWizardService'
 
 // ===== BUDGET SETUP COMPLETION =====
 
@@ -140,7 +142,7 @@ export const completeBudgetSetup = async (
     
     return summary
   } catch (error) {
-    console.error('Error completing budget setup:', error)
+    handleServiceError('Error completing budget setup:', error)
     throw error
   }
 }
@@ -208,7 +210,7 @@ export const generateCompletionSummary = async (
         : undefined
     }
   } catch (error) {
-    console.error('Error generating completion summary:', error)
+    handleServiceError('Error generating completion summary:', error)
     throw error
   }
 }
@@ -268,7 +270,7 @@ export const getCompletionStatus = async (wizardId: string): Promise<{
       createdBudgets
     }
   } catch (error) {
-    console.error('Error getting completion status:', error)
+    handleServiceError('Error getting completion status:', error)
     throw error
   }
 }
@@ -324,7 +326,7 @@ export const rollbackCompletedWizard = async (
 
     await batch.commit()
   } catch (error) {
-    console.error('Error rolling back completed wizard:', error)
+    handleServiceError('Error rolling back completed wizard:', error)
     throw error
   }
 }
@@ -350,7 +352,7 @@ export const getCompletedWizards = async (
       ...doc.data()
     })) as BudgetSetupWizard[]
   } catch (error) {
-    console.error('Error fetching completed wizards:', error)
+    handleServiceError('Error fetching completed wizards:', error)
     throw error
   }
 }
@@ -390,7 +392,7 @@ export const archiveOldWizards = async (
 
     return snapshot.docs.length
   } catch (error) {
-    console.error('Error archiving old wizards:', error)
+    handleServiceError('Error archiving old wizards:', error)
     throw error
   }
 }

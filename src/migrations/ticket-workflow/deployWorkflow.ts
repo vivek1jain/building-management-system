@@ -10,8 +10,8 @@
  * 4. Simulates the auto-close function (since we can't deploy Cloud Functions)
  */
 
-import { runMigrationWithConfirmation, validateMigration } from './migrateTicketWorkflow';
 import { ticketService } from '../../services/ticketService';
+import { runMigrationWithConfirmation, validateMigration } from './migrateTicketWorkflow';
 
 async function simulateAutoCloseFunction() {
   console.log('\n🤖 Simulating auto-close function...');

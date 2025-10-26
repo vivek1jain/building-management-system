@@ -1,8 +1,3 @@
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { useNotifications } from '../contexts/NotificationContext'
-import { useBuilding } from '../contexts/BuildingContext'
 import { 
   Calendar, 
   Clock, 
@@ -18,15 +13,20 @@ import {
   Edit,
   Trash2
 } from 'lucide-react'
-import { BuildingEvent, Ticket } from '../types'
-import { eventService } from '../services/eventService'
-import { ticketService } from '../services/ticketService'
-import Modal, { ModalFooter } from '../components/UI/Modal'
-import Button from '../components/UI/Button'
-import { Dropdown, DropdownOption } from '../components/UI'
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { EventDetailModal } from '../components/EventDetailModal'
 import EventTable from '../components/EventTable'
 import { TicketDetailModal } from '../components/TicketDetailModal'
-import { EventDetailModal } from '../components/EventDetailModal'
+import { Dropdown, DropdownOption } from '../components/UI'
+import Button from '../components/UI/Button'
+import Modal, { ModalFooter } from '../components/UI/Modal'
+import { useAuth } from '../contexts/AuthContext'
+import { useBuilding } from '../contexts/BuildingContext'
+import { useNotifications } from '../contexts/NotificationContext'
+import { eventService } from '../services/eventService'
+import { ticketService } from '../services/ticketService'
+import { BuildingEvent, Ticket } from '../types'
 
 // Debug utility - remove in production
 if (process.env.NODE_ENV === 'development') {
@@ -818,6 +818,7 @@ const Events = () => {
               type="submit"
               form="create-event-form"
               disabled={loading || !newEvent.title || !newEvent.description || !eventDate || !startTime || !endTime}
+              data-testid="save-event"
             >
               {loading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -840,6 +841,7 @@ const Events = () => {
               className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter event title"
               required
+              data-testid="event-title"
             />
           </div>
 
@@ -854,6 +856,7 @@ const Events = () => {
               rows={3}
               placeholder="Enter event description"
               required
+              data-testid="event-description"
             />
           </div>
 
@@ -869,6 +872,7 @@ const Events = () => {
               className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               placeholder="Enter event location"
               required
+              data-testid="event-location"
             />
           </div>
 
@@ -885,6 +889,7 @@ const Events = () => {
               min={new Date().toISOString().split('T')[0]}
               className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               required
+              data-testid="event-date"
             />
           </div>
 
@@ -901,6 +906,7 @@ const Events = () => {
                 onChange={(e) => setStartTime(e.target.value)}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 required
+                data-testid="event-time"
               />
             </div>
             <div>

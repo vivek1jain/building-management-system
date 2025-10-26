@@ -1,7 +1,7 @@
-import React from 'react'
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
-import { useNotifications } from '../../contexts/NotificationContext'
 import { formatDistanceToNow } from 'date-fns'
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react'
+import React from 'react'
+import { useNotifications } from '../../contexts/NotificationContext'
 
 const NotificationDropdown = () => {
   const { notifications, removeNotification, markAsRead, clearAll } = useNotifications()

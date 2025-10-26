@@ -1453,7 +1453,7 @@ export interface BudgetReviewSummary {
   generatedAt: Date;
 }
 
-export interface BudgetValidationResult {
+export interface BudgetWizardValidationResult {
   wizardId: string;
   isValid: boolean;
   hasWarnings: boolean;

@@ -1,8 +1,3 @@
-import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { useNotifications } from '../contexts/NotificationContext'
-import { useBuilding } from '../contexts/BuildingContext'
 import {
   Building,
   Users,
@@ -25,17 +20,24 @@ import {
   FileText,
   Receipt
 } from 'lucide-react'
-import { getAllBuildings } from '../services/buildingService'
-import { ticketService } from '../services/ticketService'
+import React, { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
+import { Button, Card, CardHeader, CardTitle, CardContent, PageLoading, WidgetSkeleton, SectionLoading, ListItemSkeleton } from '../components/UI'
+import { useAuth } from '../contexts/AuthContext'
+import { useBuilding } from '../contexts/BuildingContext'
+import { useNotifications } from '../contexts/NotificationContext'
 import { budgetService } from '../services/budgetService'
-import { getServiceChargeDemands } from '../services/serviceChargeService'
-import { getInvoicesByBuilding } from '../services/invoiceService'
+import { getAllBuildings } from '../services/buildingService'
+import { eventService } from '../services/eventService'
 import { expenseService } from '../services/expenseService'
 import { financialIntegrationService } from '../services/financialIntegrationService'
-import { eventService } from '../services/eventService'
+import { getFlatsByBuilding } from '../services/flatService'
+import { getInvoicesByBuilding } from '../services/invoiceService'
+import { getPeopleByBuilding } from '../services/peopleService'
+import { getServiceChargeDemands } from '../services/serviceChargeService'
+import { ticketService } from '../services/ticketService'
 import { getWorkOrdersByBuilding } from '../services/workOrderService'
 import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel, Budget, ServiceChargeDemand, Invoice, InvoiceStatus, BuildingEvent, WorkOrder } from '../types'
-import { Button, Card, CardHeader, CardTitle, CardContent, PageLoading, WidgetSkeleton, SectionLoading, ListItemSkeleton } from '../components/UI'
 
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
@@ -60,6 +62,11 @@ const Dashboard: React.FC = () => {
   // Work Orders data state
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [workOrdersLoading, setWorkOrdersLoading] = useState(false)
+  
+  // Flats and People data state
+  const [flats, setFlats] = useState<any[]>([])
+  const [people, setPeople] = useState<any[]>([])
+  const [buildingDataLoading, setBuildingDataLoading] = useState(false)
 
   // Load tickets, financial data, events, and work orders when selected building changes
   useEffect(() => {
@@ -68,6 +75,7 @@ const Dashboard: React.FC = () => {
       loadFinancialData()
       loadEvents()
       loadWorkOrders()
+      loadBuildingData()
     }
   }, [selectedBuildingId])
 
@@ -171,6 +179,25 @@ const Dashboard: React.FC = () => {
     }
   }
   
+  const loadBuildingData = async () => {
+    if (!selectedBuildingId) return
+    
+    try {
+      setBuildingDataLoading(true)
+      const [flatsData, peopleData] = await Promise.all([
+        getFlatsByBuilding(selectedBuildingId),
+        getPeopleByBuilding(selectedBuildingId)
+      ])
+      
+      setFlats(flatsData)
+      setPeople(peopleData)
+    } catch (error) {
+      console.error('Error loading building data for dashboard:', error)
+    } finally {
+      setBuildingDataLoading(false)
+    }
+  }
+  
   // Calculate financial summary
   const getFinancialSummary = () => {
     if (!selectedBuildingId) {
@@ -251,12 +278,14 @@ const Dashboard: React.FC = () => {
       wo.status === 'Triage' || wo.status === 'Quoting' || wo.status === 'Scheduled'
     ).length
 
-    // Mock data for metrics we don't have services for yet
-    const totalFlats = 24
-    const totalResidents = 56
-    const occupancyRate = 87
-    const monthlyRevenue = 45000
-    const monthlyExpenses = 32000
+    // Calculate from real data loaded from Firebase
+    const totalFlats = flats.length
+    const totalResidents = people.length // Count all people associated with building
+    const occupancyRate = totalFlats > 0 ? Math.round((flats.filter(f => f.residentUid).length / totalFlats) * 100) : 0
+    
+    // Calculate actual revenue and expenses from Firebase data
+    const monthlyRevenue = serviceCharges.reduce((sum, sc) => sum + (sc.amountPaid || 0), 0)
+    const monthlyExpenses = expenses.reduce((sum, exp) => sum + (exp.amount || 0), 0)
     
     // Calculate events metrics from real Firebase data
     const now = new Date()
@@ -398,12 +427,12 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50" data-testid="dashboard">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2">Welcome back, {currentUser.name}</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 mb-2" data-testid="page-title">Welcome back, {currentUser.name}</h1>
           </div>
         </div>
 
@@ -413,7 +442,7 @@ const Dashboard: React.FC = () => {
           <div className="flex-1 w-2/3">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Tickets Panel */}
-              <Card className="flex flex-col h-80">
+              <Card className="flex flex-col h-80" data-testid="ticket-statistics">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
                     <AlertTriangle className="h-5 w-5 mr-2 text-red-600" />
@@ -426,7 +455,7 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-center justify-between h-full">
                         <div className="flex-1">
                           <p className="text-xs text-gray-500">Critical Tickets</p>
-                          <p className="text-lg font-bold text-black">{metrics.urgentTickets}</p>
+                          <p className="text-lg font-bold text-black" data-testid="total-tickets">{metrics.urgentTickets}</p>
                         </div>
                         <AlertTriangle className="h-4 w-4 text-red-600 ml-2" />
                       </div>
@@ -483,7 +512,7 @@ const Dashboard: React.FC = () => {
               </Card>
 
               {/* Finances Panel */}
-              <Card className="flex flex-col h-80">
+              <Card className="flex flex-col h-80" data-testid="financial-overview">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
                     <DollarSign className="h-5 w-5 mr-2 text-green-600" />
@@ -556,7 +585,7 @@ const Dashboard: React.FC = () => {
               </Card>
 
               {/* Reports Panel */}
-              <Card className="flex flex-col h-80">
+              <Card className="flex flex-col h-80" data-testid="budget-overview">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
                     <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
@@ -593,7 +622,7 @@ const Dashboard: React.FC = () => {
               </Card>
 
               {/* Events Panel */}
-              <Card className="flex flex-col h-80">
+              <Card className="flex flex-col h-80" data-testid="upcoming-events">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
                     <Calendar className="h-5 w-5 mr-2 text-indigo-600" />
@@ -633,7 +662,7 @@ const Dashboard: React.FC = () => {
 
           {/* Recent Activity Panel - 1/3 width, full height */}
           <div className="w-1/3">
-            <Card className="h-full">
+            <Card className="h-full" data-testid="recent-activity">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">

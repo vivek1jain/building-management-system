@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { 
   Settings, 
   Code,
@@ -14,8 +13,9 @@ import {
   WifiOff,
   RefreshCw
 } from 'lucide-react';
-import { Button, Card, CardContent } from '../UI';
+import React, { useState } from 'react';
 import { User, Notification } from '../../types';
+import { Button, Card, CardContent } from '../UI';
 
 interface TestingUtilitiesProps {
   currentUser: User | null;

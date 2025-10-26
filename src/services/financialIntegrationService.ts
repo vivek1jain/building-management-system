@@ -6,8 +6,8 @@ import {
 } from '../types'
 import { budgetService } from './budgetService'
 import { expenseService } from './expenseService'
-import { getServiceChargeDemands } from './serviceChargeService'
 import { getInvoicesByBuilding } from './invoiceService'
+import { getServiceChargeDemands } from './serviceChargeService'
 
 /**
  * Service to integrate financial data across all tabs

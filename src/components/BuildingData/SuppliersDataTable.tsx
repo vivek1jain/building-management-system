@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Plus, Star, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Truck } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
+import { useNotifications } from '../../contexts/NotificationContext'
 import { supplierService } from '../../services/supplierService'
 import { Supplier, Building } from '../../types'
-import Button from '../UI/Button'
 import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
+import Button from '../UI/Button'
 
 const SuppliersDataTable: React.FC = () => {
   const { currentUser } = useAuth()

@@ -1,4 +1,3 @@
-import React, { useState } from 'react'
 import { 
   Calendar, 
   Clock, 
@@ -9,13 +8,14 @@ import {
   Building,
   DollarSign
 } from 'lucide-react'
+import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import { BuildingEvent, Ticket, Supplier } from '../../types'
-import Modal, { ModalFooter } from '../UI/Modal'
-import Button from '../UI/Button'
-import { Dropdown, DropdownOption } from '../UI'
 import { getUserDisplayName, getFirstName } from '../../services/userLookupService'
+import { BuildingEvent, Ticket, Supplier } from '../../types'
+import { Dropdown, DropdownOption } from '../UI'
+import Button from '../UI/Button'
+import Modal, { ModalFooter } from '../UI/Modal'
 
 
 interface ScheduleModalProps {
@@ -191,7 +191,7 @@ const ScheduleModal = ({
   const formatDateForDisplay = (dateString: string): string => {
     if (!dateString) return ''
     try {
-      const date = new Date(dateString + 'T00:00:00') // Ensure consistent parsing
+      const date = new Date(`${dateString  }T00:00:00`) // Ensure consistent parsing
       return date.toLocaleDateString('en-GB', {
         day: 'numeric',
         month: 'short',

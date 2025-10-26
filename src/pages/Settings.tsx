@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import { 
   Settings as SettingsIcon, 
   Building as BuildingIcon, 
@@ -6,13 +5,14 @@ import {
   Calendar, 
   Palette
 } from 'lucide-react';
+import React, { useState } from 'react';
+import { AppearanceSettings } from '../components/Settings/AppearanceSettings';
+import { BuildingManagement } from '../components/Settings/BuildingManagement';
+import { FinancialSetup } from '../components/Settings/FinancialSetup';
+import { UserManagement } from '../components/Settings/UserManagement';
+import { Button, Card, CardContent, TabLoadingSkeleton } from '../components/UI';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { BuildingManagement } from '../components/Settings/BuildingManagement';
-import { UserManagement } from '../components/Settings/UserManagement';
-import { FinancialSetup } from '../components/Settings/FinancialSetup';
-import { AppearanceSettings } from '../components/Settings/AppearanceSettings';
-import { Button, Card, CardContent, TabLoadingSkeleton } from '../components/UI';
 
 // Settings-specific interfaces
 interface SettingsBuilding {

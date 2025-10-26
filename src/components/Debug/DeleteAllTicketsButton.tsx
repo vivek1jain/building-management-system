@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
 import { Trash2, AlertTriangle } from 'lucide-react'
+import React, { useState } from 'react'
 
 interface DeleteAllTicketsButtonProps {
   onTicketsDeleted?: () => void

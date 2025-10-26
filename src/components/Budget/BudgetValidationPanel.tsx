@@ -1,6 +1,6 @@
+import { AlertTriangle, CheckCircle, Info, Lightbulb, X } from 'lucide-react';
 import React from 'react';
 import { BudgetValidationResult } from '../../types';
-import { AlertTriangle, CheckCircle, Info, Lightbulb, X } from 'lucide-react';
 
 interface BudgetValidationPanelProps {
   validation: BudgetValidationResult | null;

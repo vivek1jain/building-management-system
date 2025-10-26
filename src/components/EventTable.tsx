@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react'
 import { MapPin, Clock, Users, Calendar, CheckCircle, AlertTriangle, X, Ticket, ArrowUp, ArrowDown } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { getUserDisplayNames } from '../services/userLookupService'
 import { BuildingEvent } from '../types'
 import Button from './UI/Button'
-import { getUserDisplayNames } from '../services/userLookupService'
 
 type SortField = 'title' | 'status' | 'location' | 'startDate' | 'assigned' | 'priority'
 type SortDirection = 'asc' | 'desc'
@@ -147,7 +147,7 @@ const EventTable: React.FC<EventTableProps> = ({
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text
-    return text.substring(0, maxLength) + '...'
+    return `${text.substring(0, maxLength)  }...`
   }
 
   // Convert Firebase Timestamp to Date

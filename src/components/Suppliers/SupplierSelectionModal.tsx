@@ -1,19 +1,19 @@
-import { useState, useEffect, useMemo } from 'react'
 import { 
   User, 
   Star, 
   Search,
   ChevronDown
 } from 'lucide-react'
-import { Supplier } from '../../types'
-import { supplierService } from '../../services/supplierService'
-import { ticketService } from '../../services/ticketService'
+import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import Modal, { ModalFooter } from '../UI/Modal'
+import { supplierService } from '../../services/supplierService'
+import { ticketService } from '../../services/ticketService'
+import { Supplier } from '../../types'
+import { Dropdown, DropdownOption } from '../UI'
 import Button from '../UI/Button'
 import DataTable, { Column } from '../UI/DataTable'
-import { Dropdown, DropdownOption } from '../UI'
+import Modal, { ModalFooter } from '../UI/Modal'
 
 interface SupplierSelectionModalProps {
   isOpen: boolean

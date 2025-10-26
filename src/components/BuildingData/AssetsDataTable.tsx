@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react'
 import { Plus, Wrench, Edit, Trash2, Eye, Building as BuildingIcon, Package, ChevronDown, Search } from 'lucide-react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
+import { useNotifications } from '../../contexts/NotificationContext'
+import { getAssetsByBuilding, createAsset, updateAsset, deleteAsset, getAllBuildings } from '../../services/buildingService'
 import { Asset, Building, AssetStatus, AssetCategory } from '../../types'
-import { getAssetsByBuilding, createAsset, updateAsset, deleteAsset } from '../../services/buildingService'
 import { Button, Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 
 const AssetsDataTable: React.FC = () => {
@@ -375,7 +375,7 @@ const AssetsDataTable: React.FC = () => {
 
   // Filter assets for status filter
   const filteredAssets = useMemo(() => {
-    let result = assets.filter(asset => {
+    const result = assets.filter(asset => {
       // Only show active assets (soft delete implementation)
       const isActive = asset.isActive
       

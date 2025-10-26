@@ -1,5 +1,5 @@
-import { UserBuildingService } from '../services/userBuildingService';
 import { TicketCommentService } from '../services/ticketCommentService';
+import { UserBuildingService } from '../services/userBuildingService';
 import { User } from '../types';
 
 // Test users to simulate different permission scenarios
@@ -85,7 +85,7 @@ export async function testPermissionSystem() {
       console.log(`     ✅ Can comment: ${canComment ? 'YES' : 'NO'}`);
     });
     
-    console.log('\n' + '-'.repeat(40));
+    console.log(`\n${  '-'.repeat(40)}`);
   });
 
   console.log('\n📊 SUMMARY OF EXPECTED BEHAVIOR:');

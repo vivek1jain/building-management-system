@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
-import { Mail, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore'
+import { Mail, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
 import { db } from '../firebase/config'
 
 interface EmailLog {

@@ -123,7 +123,6 @@ export const authService = {
   // Create demo users (for development)
   async createDemoUsers(): Promise<void> {
     try {
-      console.log('Starting demo user creation...')
       const demoUsers = [
         {
           email: 'manager@building.com',
@@ -151,13 +150,10 @@ export const authService = {
 
       for (const user of demoUsers) {
         try {
-          console.log(`Attempting to create demo user: ${user.email}`)
           await this.register(user.email, user.password, user.name, user.role)
           createdCount++
-          console.log(`Successfully created demo user: ${user.email}`)
         } catch (error: any) {
           if (error.message.includes('already in use') || error.message.includes('already exists')) {
-            console.log(`Demo user already exists: ${user.email}`)
             existingCount++
           } else {
             console.error(`Error creating demo user ${user.email}:`, error)
@@ -166,7 +162,6 @@ export const authService = {
         }
       }
 
-      console.log(`Demo user creation completed: ${createdCount} created, ${existingCount} existing, ${errorCount} errors`)
       
       if (errorCount > 0) {
         throw new Error(`Failed to create ${errorCount} demo users. Check console for details.`)

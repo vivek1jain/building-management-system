@@ -1,4 +1,3 @@
-import { db, storage } from '../firebase/config'
 import { 
   collection, 
   addDoc, 
@@ -18,7 +17,10 @@ import {
   uploadBytes, 
   getDownloadURL 
 } from 'firebase/storage'
+import { db, storage } from '../firebase/config'
 import { Ticket, TicketStatus, UrgencyLevel, ActivityLogEntry, CreateTicketForm } from '../types'
+import { handleServiceError } from '../utils/errorHandling';
+import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 const TICKETS_COLLECTION = 'tickets'
 
@@ -53,7 +55,6 @@ export const ticketService = {
       }
 
       // Create ticket document
-      console.log('Creating ticket with data:', ticketData)
       const ticketDoc = {
         ...ticketData,
         attachments: uploadedUrls,
@@ -71,11 +72,9 @@ export const ticketService = {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       }
-      console.log('Final ticket document before Firebase save:', ticketDoc)
 
       try {
         const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketDoc)
-        console.log('Ticket created successfully in Firebase:', docRef.id)
         return docRef.id
       } catch (firestoreError: any) {
         console.error('🚨 FIREBASE WRITE FAILED:', {
@@ -133,7 +132,6 @@ export const ticketService = {
         })) || []
       })) as Ticket[]
       
-      console.log('Returning Firebase tickets:', firebaseTickets.length)
       return firebaseTickets
       
     } catch (error) {
@@ -145,13 +143,11 @@ export const ticketService = {
   // Get ticket by ID
   async getTicketById(id: string): Promise<Ticket | null> {
     try {
-      console.log('📥 getTicketById called for:', id)
       const docRef = doc(db, TICKETS_COLLECTION, id)
       const docSnap = await getDoc(docRef)
       
       if (docSnap.exists()) {
         const data = docSnap.data()
-        console.log('📋 Raw Firebase data for ticket:', { id, quoteRequests: data.quoteRequests?.length || 0, quotes: data.quotes?.length || 0 })
         
         const ticket = {
           id: docSnap.id,
@@ -177,10 +173,8 @@ export const ticketService = {
           })) || []
         } as Ticket
         
-        console.log('✅ Processed ticket data:', { id: ticket.id, quoteRequests: ticket.quoteRequests?.length || 0, quotes: ticket.quotes?.length || 0 })
         return ticket
       }
-      console.log('❌ Ticket not found in Firebase:', id)
       return null
     } catch (error) {
       console.error('Error getting ticket:', error)
@@ -332,12 +326,10 @@ export const ticketService = {
   // Request quotes from selected suppliers
   async requestQuotesFromSuppliers(ticketId: string, supplierIds: string[], userId: string): Promise<void> {
     try {
-      console.log('🔄 requestQuotesFromSuppliers called with:', { ticketId, supplierIds, userId })
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
       const ticket = await this.getTicketById(ticketId)
       
       if (!ticket) throw new Error('Ticket not found')
-      console.log('✅ Ticket found:', { id: ticket.id, currentQuoteRequests: ticket.quoteRequests?.length || 0 })
 
       // Get supplier details
       const { supplierService } = await import('./supplierService')
@@ -364,11 +356,7 @@ export const ticketService = {
         }
       })
       
-      console.log('📝 Created quote requests:', quoteRequests)
-      console.log('📊 Existing quote requests:', ticket.quoteRequests?.length || 0)
-      
       const finalQuoteRequests = [...(ticket.quoteRequests || []), ...quoteRequests]
-      console.log('🔗 Final quote requests array:', finalQuoteRequests.length)
 
       // Update ticket status to Quoting and store quote requests
       const activityLogEntry = {
@@ -380,29 +368,12 @@ export const ticketService = {
         metadata: { supplierIds, quoteRequestCount: supplierIds.length }
       }
 
-      console.log('💾 About to update Firebase with:', {
-        status: 'Quoting',
-        quoteRequestsCount: finalQuoteRequests.length,
-        activityLogCount: [...ticket.activityLog, activityLogEntry].length
-      })
-
       try {
         await updateDoc(docRef, {
           status: 'Quoting' as TicketStatus,
           quoteRequests: finalQuoteRequests,
           activityLog: [...ticket.activityLog, activityLogEntry],
           updatedAt: serverTimestamp()
-        })
-        
-        console.log('✅ Firebase update completed successfully')
-        
-        // Verify the update by fetching the ticket again
-        const updatedTicket = await this.getTicketById(ticketId)
-        console.log('🔍 Post-update verification:', {
-          ticketId,
-          status: updatedTicket?.status,
-          quoteRequestsLength: updatedTicket?.quoteRequests?.length || 0,
-          activityLogLength: updatedTicket?.activityLog?.length || 0
         })
       } catch (updateError) {
         console.error('❌ Firebase update failed:', updateError)
@@ -712,47 +683,29 @@ export const ticketService = {
     expenseCategory: string,
     notes?: string
   ): Promise<void> {
-    console.log('🏁 completeTicket method called with:', { ticketId, userId, finalCost, expenseCategory, notes });
     try {
-      console.log('📄 Creating document reference...');
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
-      console.log('✅ Document reference created');
-      
-      console.log('📥 Fetching ticket data...');
       const ticket = await this.getTicketById(ticketId)
-      console.log('📋 Ticket data received:', { 
-        id: ticket?.id, 
-        status: ticket?.status, 
-        buildingId: ticket?.buildingId 
-      });
       
-      console.log('🔍 Validating inputs...');
       if (!ticket) throw new Error('Ticket not found')
       if (!finalCost || finalCost <= 0) throw new Error('Final cost is required and must be greater than 0')
-      console.log('✅ Input validation passed');
 
       // Find supplier information from accepted quote, direct assignment, or activity log
       let supplierId: string | undefined
       let supplierName: string | undefined
       
-      console.log('🔍 Checking ticket.quoteRequests:', { hasQuoteRequests: !!ticket.quoteRequests, quoteRequestsType: typeof ticket.quoteRequests, quoteRequestsValue: ticket.quoteRequests });
-      
       // 1. Check for accepted quote (quoting workflow)
       if (ticket.quoteRequests) {
-        console.log('🔍 Finding accepted quote in quoteRequests...');
         const acceptedQuote = ticket.quoteRequests.find(req => req.status === 'Accepted' || req.isWinner)
-        console.log('🔍 Accepted quote search result:', acceptedQuote);
         
         if (acceptedQuote) {
           supplierId = acceptedQuote.supplierId
           supplierName = acceptedQuote.supplierName
-          console.log('✅ Found supplier from accepted quote:', { supplierId, supplierName });
         }
       }
       
       // 2. Check activity log for direct scheduling supplier assignment
       if (!supplierId && ticket.activityLog) {
-        console.log('🔍 Searching activity log for supplier assignment...');
         const supplierActivity = ticket.activityLog
           .slice() // Create copy to avoid mutating original
           .reverse() // Start from most recent
@@ -762,13 +715,10 @@ export const ticketService = {
             log.metadata.supplierName
           );
         
-        console.log('🔍 Supplier activity search result:', supplierActivity);
-        
         if (supplierActivity && supplierActivity.metadata) {
           // For direct scheduling, we may not have a real supplierId, so use a generated one
           supplierId = `scheduled-${supplierActivity.metadata.supplierName.toLowerCase().replace(/\s+/g, '-')}`
           supplierName = supplierActivity.metadata.supplierName
-          console.log('✅ Found supplier from activity log (direct scheduling):', { supplierId, supplierName });
         }
       }
       
@@ -791,8 +741,6 @@ export const ticketService = {
         console.warn('💡 This suggests the ticket workflow was not followed correctly.');
       }
 
-      console.log('📝 Creating activity log entry...');
-      
       // Create metadata object, filtering out undefined values to prevent Firebase errors
       const baseMetadata: any = {
         previousStatus: ticket.status,
@@ -813,21 +761,10 @@ export const ticketService = {
         timestamp: new Date(),
         metadata: baseMetadata
       }
-      console.log('✅ Activity log entry created:', { action: activityLogEntry.action, description: activityLogEntry.description, metadataKeys: Object.keys(baseMetadata) });
 
       // Update ticket with completion data
-      console.log('📝 Updating ticket document with completion data...');
-      console.log('📊 Update payload:', {
-        status: 'Complete',
-        completedDateType: typeof serverTimestamp(),
-        activityLogLength: [...ticket.activityLog, activityLogEntry].length,
-        finalCost,
-        finalCostCurrency: 'GBP'
-      });
-      
       try {
-        console.log('🔄 Calling updateDoc...');
-        const updateResult = await updateDoc(docRef, {
+        await updateDoc(docRef, {
           status: 'Complete',
           completedDate: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -836,8 +773,6 @@ export const ticketService = {
           finalCost,
           finalCostCurrency: 'GBP'
         })
-        console.log('✅ updateDoc completed, result:', updateResult);
-        console.log('✅ Ticket document updated successfully');
       } catch (updateError: any) {
         console.error('❌ Error updating ticket document:', updateError);
         console.error('❌ Error code:', updateError?.code);
@@ -857,17 +792,8 @@ export const ticketService = {
       }
 
       // Create expense forecast record - always create for completed tickets with final costs
-      console.log('📊 Checking expense forecast creation for completed ticket:', { 
-        hasSupplierId: !!supplierId, 
-        hasSupplierName: !!supplierName,
-        finalCost,
-        ticketId 
-      });
-      
       try {
-        console.log('📊 Importing expense service...');
         const { expenseService } = await import('./expenseService')
-        console.log('📊 Creating expense from ticket...');
         
         // Use supplier info if available, otherwise use defaults
         const expenseId = await expenseService.createExpenseFromTicket(
@@ -880,11 +806,6 @@ export const ticketService = {
           expenseCategory, // Use the category selected during ticket completion
           userId
         )
-        
-        console.log(`✅ Created forecast expense ${expenseId} for completed ticket ${ticketId}`);
-        if (!supplierId || !supplierName) {
-          console.log('📝 Note: Expense created with default supplier info - can be updated later');
-        }
       } catch (expenseError) {
         console.error('❌ Failed to create expense forecast:', expenseError)
         console.error('❌ Expense creation error details:', {
@@ -972,7 +893,6 @@ export const ticketService = {
       return onSnapshot(q, async (querySnapshot) => {
         const tickets = querySnapshot.docs.map(doc => {
           const data = doc.data()
-          console.log('Firebase ticket data:', { id: doc.id, buildingId: data.buildingId, title: data.title })
           return {
             id: doc.id,
             ...data,
@@ -998,7 +918,6 @@ export const ticketService = {
           }
         }) as Ticket[]
         
-        console.log('All Firebase tickets:', tickets.map(t => ({ id: t.id, buildingId: t.buildingId, title: t.title })))
         callback(tickets)
       }, (error) => {
         // Handle Firebase errors (including permission-denied)

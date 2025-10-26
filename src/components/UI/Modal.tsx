@@ -1,6 +1,6 @@
+import { X } from 'lucide-react'
 import React, { ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import Button from './Button'
 

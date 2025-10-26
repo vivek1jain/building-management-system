@@ -1,5 +1,5 @@
-import React from 'react'
 import { X } from 'lucide-react'
+import React from 'react'
 import { useNotifications } from '../../contexts/NotificationContext'
 
 const NotificationList: React.FC = () => {
@@ -28,7 +28,7 @@ const NotificationList: React.FC = () => {
               ? 'border-yellow-500'
               : 'border-blue-500'
           }`}
-          data-testid="notification-item"
+          data-testid={n.type === 'success' ? 'success-message' : n.type === 'error' ? 'error-message' : 'notification-item'}
         >
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-neutral-900 truncate">{n.title}</div>

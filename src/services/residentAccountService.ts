@@ -22,11 +22,16 @@ import {
   PaymentAllocation,
   EnhancedPaymentRecord
 } from '../types'
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 
 // ===== RESIDENT ACCOUNT MANAGEMENT =====
+// NOTE: This service is being phased out in favor of flatLedgerService
+// for better separation of concerns and clearer data models.
 
 /**
  * Get or create a resident account ledger for a flat
+ * @deprecated This service will be migrated to flatLedgerService. Use flatLedgerService for new code.
  */
 export const getOrCreateResidentAccount = async (
   flatId: string,
@@ -104,13 +109,14 @@ export const getOrCreateResidentAccount = async (
     }
     
   } catch (error) {
-    console.error('Error getting/creating resident account:', error)
+    handleServiceError('Error getting/creating resident account:', error)
     throw error
   }
 }
 
 /**
  * Get resident account by flat ID
+ * @deprecated This service will be migrated to flatLedgerService. Use flatLedgerService for new code.
  */
 export const getResidentAccountByFlatId = async (flatId: string): Promise<ResidentAccountLedger | null> => {
   try {
@@ -140,13 +146,14 @@ export const getResidentAccountByFlatId = async (flatId: string): Promise<Reside
     } as ResidentAccountLedger
     
   } catch (error) {
-    console.error('Error getting resident account by flat ID:', error)
+    handleServiceError('Error getting resident account by flat ID:', error)
     throw error
   }
 }
 
 /**
  * Get all resident accounts for a building
+ * @deprecated This service will be migrated to flatLedgerService. Use flatLedgerService for new code.
  */
 export const getResidentAccountsByBuilding = async (buildingId: string): Promise<ResidentAccountLedger[]> => {
   try {
@@ -213,7 +220,7 @@ export const getResidentAccountsByBuilding = async (buildingId: string): Promise
     return accounts
     
   } catch (error) {
-    console.error('Error getting resident accounts by building:', error)
+    handleServiceError('Error getting resident accounts by building:', error)
     // Return empty array instead of throwing to prevent UI crash
     return []
   }
@@ -233,7 +240,7 @@ export const updateResidentAccount = async (
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error updating resident account:', error)
+    handleServiceError('Error updating resident account:', error)
     throw error
   }
 }
@@ -306,7 +313,7 @@ export const addAccountTransaction = async (
     return transactionRef.id
     
   } catch (error) {
-    console.error('Error adding account transaction:', error)
+    handleServiceError('Error adding account transaction:', error)
     throw error
   }
 }
@@ -343,7 +350,7 @@ export const getAccountTransactionHistory = async (
     return transactions
     
   } catch (error) {
-    console.error('Error getting account transaction history:', error)
+    handleServiceError('Error getting account transaction history:', error)
     throw error
   }
 }
@@ -451,7 +458,7 @@ export const processPaymentWithCredits = async (
     }
     
   } catch (error) {
-    console.error('Error processing payment with credits:', error)
+    handleServiceError('Error processing payment with credits:', error)
     throw error
   }
 }
@@ -478,7 +485,7 @@ export const updateAccountCreditBalance = async (
     })
     
   } catch (error) {
-    console.error('Error updating account credit balance:', error)
+    handleServiceError('Error updating account credit balance:', error)
     throw error
   }
 }
@@ -498,7 +505,7 @@ export const addCreditHistoryEntry = async (
     return docRef.id
     
   } catch (error) {
-    console.error('Error adding credit history entry:', error)
+    handleServiceError('Error adding credit history entry:', error)
     throw error
   }
 }
@@ -531,7 +538,7 @@ export const getAccountsWithCredits = async (buildingId: string): Promise<Reside
     return accounts
     
   } catch (error) {
-    console.error('Error getting accounts with credits:', error)
+    handleServiceError('Error getting accounts with credits:', error)
     throw error
   }
 }
@@ -571,7 +578,7 @@ export const generateAccountSummaryStats = async (buildingId: string) => {
     }
     
   } catch (error) {
-    console.error('Error generating account summary stats:', error)
+    handleServiceError('Error generating account summary stats:', error)
     throw error
   }
 }
@@ -581,7 +588,7 @@ export const residentAccountService = {
   // Account management
   getOrCreateResidentAccount,
   getResidentAccountByFlatId,
-  getResidentAccountsByBuilding: getResidentAccountsByBuilding,
+  getResidentAccountsByBuilding,
   getResidentLedgersByBuilding: getResidentAccountsByBuilding, // Alias for UI consistency
   updateResidentAccount,
   

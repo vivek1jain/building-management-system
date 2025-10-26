@@ -25,6 +25,8 @@ import {
   ServiceChargeDemand,
   AccountTransaction
 } from '../types'
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 
 // ===== FLAT LEDGER MANAGEMENT =====
 
@@ -48,7 +50,7 @@ export const createLedgerTransaction = async (
       updatedAt: new Date()
     }
   } catch (error) {
-    console.error('Error creating ledger transaction:', error)
+    handleServiceError('Error creating ledger transaction:', error)
     throw error
   }
 }
@@ -133,7 +135,7 @@ export const getFlatLedgerTransactions = async (
 
     return filteredTransactions
   } catch (error) {
-    console.error('Error getting flat ledger transactions:', error)
+    handleServiceError('Error getting flat ledger transactions:', error)
     throw error
   }
 }
@@ -306,7 +308,7 @@ export const generateFlatLedgerSummary = async (
       lastUpdated: now
     }
   } catch (error) {
-    console.error('Error generating flat ledger summary:', error)
+    handleServiceError('Error generating flat ledger summary:', error)
     throw error
   }
 }
@@ -364,7 +366,7 @@ export const syncServiceChargeDemandToLedger = async (
       })
     }
   } catch (error) {
-    console.error('Error syncing service charge demand to ledger:', error)
+    handleServiceError('Error syncing service charge demand to ledger:', error)
     throw error
   }
 }
@@ -379,7 +381,7 @@ export const syncPaymentToLedger = async (
 ): Promise<void> => {
   try {
     await createLedgerTransaction({
-      flatId: flatId,
+      flatId,
       buildingId: payment.buildingId,
       flatNumber: payment.flatNumber || 'Unknown',
       residentName: payment.residentName || 'Unknown',
@@ -398,7 +400,7 @@ export const syncPaymentToLedger = async (
       paymentId: payment.id
     })
   } catch (error) {
-    console.error('Error syncing payment to ledger:', error)
+    handleServiceError('Error syncing payment to ledger:', error)
     throw error
   }
 }
@@ -430,7 +432,7 @@ export const recalculateRunningBalances = async (flatId: string): Promise<void> 
 
     await batch.commit()
   } catch (error) {
-    console.error('Error recalculating running balances:', error)
+    handleServiceError('Error recalculating running balances:', error)
     throw error
   }
 }
@@ -570,7 +572,7 @@ export const generateFlatLedgerReport = async (
       reportId: `${flatId}-${Date.now()}`
     }
   } catch (error) {
-    console.error('Error generating flat ledger report:', error)
+    handleServiceError('Error generating flat ledger report:', error)
     throw error
   }
 }

@@ -1,7 +1,7 @@
+import { doc, updateDoc, arrayUnion, getDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase/config';
 import { TicketComment } from '../types';
 import { ticketService } from './ticketService';
-import { db } from '../firebase/config';
-import { doc, updateDoc, arrayUnion, getDoc, serverTimestamp } from 'firebase/firestore';
 
 const TICKETS_COLLECTION = 'tickets';
 
@@ -29,8 +29,6 @@ export class TicketCommentService {
         createdAt: new Date()
       };
 
-      console.log('💾 Adding comment to Firebase:', { ticketId, commentId: newComment.id });
-
       // Add comment to Firebase ticket
       const ticketRef = doc(db, TICKETS_COLLECTION, ticketId);
       await updateDoc(ticketRef, {
@@ -38,7 +36,6 @@ export class TicketCommentService {
         updatedAt: serverTimestamp()
       });
 
-      console.log('✅ Comment added successfully to Firebase');
       return newComment;
     } catch (error) {
       console.error('❌ Failed to add comment to Firebase:', error);
@@ -49,8 +46,6 @@ export class TicketCommentService {
   // Get comments for a specific ticket (Firebase only)
   static async getComments(ticketId: string): Promise<TicketComment[]> {
     try {
-      console.log('📖 Loading comments from Firebase for ticket:', ticketId);
-      
       const ticketRef = doc(db, TICKETS_COLLECTION, ticketId);
       const ticketDoc = await getDoc(ticketRef);
       
@@ -58,15 +53,12 @@ export class TicketCommentService {
         const ticketData = ticketDoc.data();
         const comments = ticketData.comments || [];
         
-        console.log(`📖 Loaded ${comments.length} comments from Firebase`);
-        
         // Convert Firebase timestamps to Date objects
         return comments.map((comment: any) => ({
           ...comment,
           createdAt: comment.createdAt?.toDate ? comment.createdAt.toDate() : new Date(comment.createdAt)
         }));
       } else {
-        console.log('⚠️ Ticket not found in Firebase:', ticketId);
         return [];
       }
     } catch (error) {
@@ -86,41 +78,25 @@ export class TicketCommentService {
       // Get ticket from Firebase
       const ticket = await ticketService.getTicketById(ticketId);
       if (!ticket) {
-        console.log('❌ Ticket not found in Firebase:', ticketId);
         return false;
       }
-
-      console.log('🎯 Permission check details:', {
-        ticketId,
-        ticketBuildingId: ticket.buildingId,
-        ticketRequestedBy: ticket.requestedBy,
-        userId,
-        userRole,
-        userBuildingIds
-      });
 
       // Managers can comment on tickets for buildings they manage
       if (userRole === 'manager') {
         // Check for wildcard access (development mode)
         if (userBuildingIds.includes('*')) {
-          console.log(`👔 Manager permission: GRANTED - Universal access (development mode)`);
           return true;
         }
         
         // Check specific building access
-        const hasAccess = userBuildingIds.includes(ticket.buildingId);
-        console.log(`👔 Manager permission: ${hasAccess ? 'GRANTED' : 'DENIED'} - Building access check`);
-        return hasAccess;
+        return userBuildingIds.includes(ticket.buildingId);
       }
 
       // Residents can comment on their own tickets
       if (userRole === 'resident' || userRole === 'requester') {
-        const isOwnTicket = ticket.requestedBy === userId;
-        console.log(`🏠 Resident permission: ${isOwnTicket ? 'GRANTED' : 'DENIED'} - Own ticket check`);
-        return isOwnTicket;
+        return ticket.requestedBy === userId;
       }
 
-      console.log('❌ No permission granted - unknown role or condition');
       return false;
     } catch (error) {
       console.error('❌ Error checking comment permissions:', error);
@@ -128,25 +104,97 @@ export class TicketCommentService {
     }
   }
 
-  // Update a comment (Firebase - for future implementation)
+  // Update a comment
   static async updateComment(
+    ticketId: string,
     commentId: string,
     content: string,
     userId: string
   ): Promise<TicketComment | null> {
-    // TODO: Implement Firebase comment updating
-    console.log('⚠️ Comment updating not yet implemented for Firebase');
-    return null;
+    try {
+      const ticketRef = doc(db, TICKETS_COLLECTION, ticketId);
+      const ticketDoc = await getDoc(ticketRef);
+      
+      if (!ticketDoc.exists()) {
+        throw new Error('Ticket not found');
+      }
+      
+      const ticketData = ticketDoc.data();
+      const comments = ticketData.comments || [];
+      
+      // Find the comment and verify ownership
+      const commentIndex = comments.findIndex((c: TicketComment) => c.id === commentId);
+      if (commentIndex === -1) {
+        throw new Error('Comment not found');
+      }
+      
+      if (comments[commentIndex].authorId !== userId) {
+        throw new Error('Unauthorized: You can only edit your own comments');
+      }
+      
+      // Update the comment
+      comments[commentIndex] = {
+        ...comments[commentIndex],
+        content,
+        updatedAt: new Date()
+      };
+      
+      // Update the ticket document
+      await updateDoc(ticketRef, {
+        comments,
+        updatedAt: serverTimestamp()
+      });
+      
+      return comments[commentIndex];
+    } catch (error) {
+      console.error('❌ Failed to update comment:', error);
+      throw error;
+    }
   }
 
-  // Delete a comment (Firebase - for future implementation)
+  // Delete a comment
   static async deleteComment(
+    ticketId: string,
     commentId: string,
     userId: string,
     userRole: 'resident' | 'manager'
   ): Promise<boolean> {
-    // TODO: Implement Firebase comment deletion
-    console.log('⚠️ Comment deletion not yet implemented for Firebase');
-    return false;
+    try {
+      const ticketRef = doc(db, TICKETS_COLLECTION, ticketId);
+      const ticketDoc = await getDoc(ticketRef);
+      
+      if (!ticketDoc.exists()) {
+        throw new Error('Ticket not found');
+      }
+      
+      const ticketData = ticketDoc.data();
+      const comments = ticketData.comments || [];
+      
+      // Find the comment
+      const commentIndex = comments.findIndex((c: TicketComment) => c.id === commentId);
+      if (commentIndex === -1) {
+        throw new Error('Comment not found');
+      }
+      
+      // Check permissions: managers can delete any comment, users can only delete their own
+      const canDelete = userRole === 'manager' || comments[commentIndex].authorId === userId;
+      if (!canDelete) {
+        throw new Error('Unauthorized: You can only delete your own comments');
+      }
+      
+      // Remove the comment
+      comments.splice(commentIndex, 1);
+      
+      // Update the ticket document
+      await updateDoc(ticketRef, {
+        comments,
+        updatedAt: serverTimestamp()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to delete comment:', error);
+      throw error;
+    }
   }
 }

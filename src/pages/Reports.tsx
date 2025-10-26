@@ -1,35 +1,26 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
-import { useBuilding } from '../contexts/BuildingContext';
-import { useLocation } from 'react-router-dom';
-import { 
-  ResidentAccountLedger,
-  AccountTransaction,
-  Flat
-} from '../types';
-import { residentAccountService } from '../services/residentAccountService';
-import { getFlatsByBuilding } from '../services/flatService';
 import { 
   FileText, 
   Download, 
   Search, 
-  Filter,
-  Calendar,
   Users,
   Eye,
-  Mail,
-  Printer,
   ChevronDown,
   ChevronRight,
   TrendingUp,
   TrendingDown,
-  Clock,
   DollarSign
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent, Button, Input, Modal, ModalHeader, ModalFooter, PageLoading, Dropdown, DropdownOption } from '../components/UI';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+import { Card, CardContent, Button, Input, Modal, ModalFooter, PageLoading, Dropdown, DropdownOption } from '../components/UI';
+import { useAuth } from '../contexts/AuthContext';
+import { useBuilding } from '../contexts/BuildingContext';
+import { useNotifications } from '../contexts/NotificationContext';
+import { getFlatsByBuilding } from '../services/flatService';
+import { 
+  Flat
+} from '../types';
 
-type ReportType = 'account_statements' | 'financial_summary' | 'payment_history' | 'credit_analysis';
 type BalanceFilter = 'all' | 'positive' | 'negative' | 'zero';
 type DateRange = '30d' | '90d' | '6m' | '1y' | 'custom';
 
@@ -40,7 +31,6 @@ interface StatementFilters {
   customStartDate?: Date;
   customEndDate?: Date;
   includeTransactions: boolean;
-  includeSummary: boolean;
 }
 
 const Reports: React.FC = () => {
@@ -51,11 +41,11 @@ const Reports: React.FC = () => {
 
   // Core state
   const [loading, setLoading] = useState(false);
-  const [activeReportType, setActiveReportType] = useState<ReportType>('account_statements');
   
   // Data state
-  const [residentLedgers, setResidentLedgers] = useState<ResidentAccountLedger[]>([]);
   const [flats, setFlats] = useState<Flat[]>([]);
+  const [flatBalances, setFlatBalances] = useState<Map<string, number>>(new Map());
+  const [flatTransactions, setFlatTransactions] = useState<Map<string, any[]>>(new Map());
   
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,13 +55,12 @@ const Reports: React.FC = () => {
     dateRange: '1y',
     customStartDate: undefined,
     customEndDate: undefined,
-    includeTransactions: true,
-    includeSummary: true
+    includeTransactions: true
   });
   
   // UI state
   const [showStatementModal, setShowStatementModal] = useState(false);
-  const [selectedLedger, setSelectedLedger] = useState<ResidentAccountLedger | null>(null);
+  const [selectedFlat, setSelectedFlat] = useState<Flat | null>(null);
   const [expandedLedgers, setExpandedLedgers] = useState<Set<string>>(new Set());
 
   // Dropdown options for balance filter
@@ -102,11 +91,6 @@ const Reports: React.FC = () => {
   useEffect(() => {
     const navigationState = location.state as any;
     if (navigationState) {
-      // Set active tab if specified
-      if (navigationState.activeTab) {
-        setActiveReportType(navigationState.activeTab);
-      }
-      
       // Set search query if specified
       if (navigationState.searchQuery) {
         setSearchQuery(navigationState.searchQuery);
@@ -130,28 +114,59 @@ const Reports: React.FC = () => {
     
     try {
       setLoading(true);
-      console.log('Loading reports data for building:', selectedBuildingId);
       
-      const [ledgersResult, flatsResult] = await Promise.allSettled([
-        residentAccountService.getResidentLedgersByBuilding(selectedBuildingId),
-        getFlatsByBuilding(selectedBuildingId)
+      const [flatsResult, flatBalancesResult] = await Promise.allSettled([
+        getFlatsByBuilding(selectedBuildingId),
+        // Fetch current balances from FlatLedger
+        (async () => {
+          const { getFlatBalancesForBuilding } = await import('../services/flatLedgerSyncService')
+          return getFlatBalancesForBuilding(selectedBuildingId!)
+        })()
       ]);
       
-      // Process ledgers
-      if (ledgersResult.status === 'fulfilled') {
-        setResidentLedgers(ledgersResult.value);
-        console.log('✅ Resident ledgers loaded:', ledgersResult.value.length, 'ledgers');
-      } else {
-        console.error('❌ Resident ledgers loading failed:', ledgersResult.reason);
-        setResidentLedgers([]);
+      // Get flat balances map
+      const flatBalancesMap = flatBalancesResult.status === 'fulfilled' 
+        ? flatBalancesResult.value 
+        : new Map<string, number>()
+      
+      if (flatBalancesResult.status === 'rejected') {
+        console.error('Failed to fetch flat balances:', flatBalancesResult.reason)
+      }
+      
+      setFlatBalances(flatBalancesMap);
+      
+      // Fetch recent transactions for each flat from FlatLedger
+      if (flatsResult.status === 'fulfilled') {
+        const transactionsMap = new Map<string, any[]>()
+        const { dateFrom } = getDateRangeFromFilters()
+        
+        for (const flat of flatsResult.value) {
+          try {
+            const { getFlatLedgerTransactions } = await import('../services/flatLedgerService')
+            const transactions = await getFlatLedgerTransactions(
+              flat.id,
+              {
+                dateFrom,
+                dateTo: new Date(),
+                includeReversed: false
+              },
+              50 // Get last 50 transactions
+            )
+            transactionsMap.set(flat.id, transactions)
+          } catch (error) {
+            console.error('Failed to fetch transactions for flat:', flat.id, error)
+            transactionsMap.set(flat.id, [])
+          }
+        }
+        
+        setFlatTransactions(transactionsMap)
       }
       
       // Process flats
       if (flatsResult.status === 'fulfilled') {
         setFlats(flatsResult.value);
-        console.log('✅ Flats loaded:', flatsResult.value.length, 'flats');
       } else {
-        console.error('❌ Flats loading failed:', flatsResult.reason);
+        console.error('Flats loading failed:', flatsResult.reason);
         setFlats([]);
       }
       
@@ -174,156 +189,198 @@ const Reports: React.FC = () => {
       currency: 'GBP'
     }).format(amount);
   };
+  
+  const getDateRangeFromFilters = (): { dateFrom: Date; dateTo: Date } => {
+    const now = new Date()
+    let dateFrom: Date
+    const dateTo = new Date()
+    
+    if (filters.dateRange === 'custom' && filters.customStartDate && filters.customEndDate) {
+      return {
+        dateFrom: filters.customStartDate,
+        dateTo: filters.customEndDate
+      }
+    }
+    
+    switch (filters.dateRange) {
+      case '30d':
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        break
+      case '90d':
+        dateFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000)
+        break
+      case '6m':
+        dateFrom = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000)
+        break
+      case '1y':
+      default:
+        dateFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+        break
+    }
+    
+    return { dateFrom, dateTo }
+  }
 
   // Filter and search logic
   const filteredLedgers = useMemo(() => {
-    return residentLedgers.filter(ledger => {
+    return flats.filter(flat => {
+      const balance = flatBalances.get(flat.id) || 0;
+      const residentName = flat.currentResidentName || 'Unknown Resident';
+      
       // Search filter
       const matchesSearch = searchQuery === '' || 
-        ledger.flatNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        ledger.residentName?.toLowerCase().includes(searchQuery.toLowerCase());
+        flat.flatNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        residentName?.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Balance filter
       const matchesBalance = filters.balanceType === 'all' ||
-        (filters.balanceType === 'positive' && ledger.currentBalance > 0) ||
-        (filters.balanceType === 'negative' && ledger.currentBalance < 0) ||
-        (filters.balanceType === 'zero' && ledger.currentBalance === 0);
+        (filters.balanceType === 'positive' && balance > 0) ||
+        (filters.balanceType === 'negative' && balance < 0) ||
+        (filters.balanceType === 'zero' && balance === 0);
       
       // Resident selection filter (empty means all selected)
       const matchesResident = filters.residents.length === 0 || 
-        filters.residents.includes(ledger.id);
+        filters.residents.includes(flat.id);
       
       return matchesSearch && matchesBalance && matchesResident;
     });
-  }, [residentLedgers, searchQuery, filters]);
+  }, [flats, flatBalances, searchQuery, filters]);
 
   // Calculate summary statistics
   const summaryStats = useMemo(() => {
     return {
       totalResidents: filteredLedgers.length,
       totalCreditBalance: filteredLedgers
-        .filter(l => l.currentBalance > 0)
-        .reduce((sum, l) => sum + l.currentBalance, 0),
+        .map(flat => flatBalances.get(flat.id) || 0)
+        .filter(balance => balance > 0)
+        .reduce((sum, balance) => sum + balance, 0),
       totalDebitBalance: Math.abs(filteredLedgers
-        .filter(l => l.currentBalance < 0)
-        .reduce((sum, l) => sum + l.currentBalance, 0)),
-      creditsAppliedTotal: filteredLedgers.reduce((sum, l) => 
-        sum + (l.transactions || []).reduce((tSum, t) => 
-          t.type === 'credit' ? tSum + Math.abs(t.amount) : tSum, 0
-        ), 0
-      )
+        .map(flat => flatBalances.get(flat.id) || 0)
+        .filter(balance => balance < 0)
+        .reduce((sum, balance) => sum + balance, 0)),
+      creditsAppliedTotal: filteredLedgers.reduce((sum, flat) => {
+        const transactions = flatTransactions.get(flat.id) || [];
+        const credits = transactions
+          .filter(t => t.type === 'CREDIT_APPLICATION')
+          .reduce((tSum, t) => tSum + t.creditAmount, 0);
+        return sum + credits;
+      }, 0)
     };
-  }, [filteredLedgers]);
+  }, [filteredLedgers, flatBalances, flatTransactions]);
 
-  const handleGenerateStatement = async (ledger: ResidentAccountLedger) => {
+  const handleGenerateStatement = async (flat: Flat) => {
     try {
-      setLoading(true);
+      setLoading(true)
       
-      // TODO: Implement actual PDF generation
-      // This is a placeholder for the statement generation logic
+      // Derive date range from filters
+      const { dateFrom, dateTo } = getDateRangeFromFilters()
+      const residentName = flat.currentResidentName || 'Unknown Resident';
+      
+      // Fetch flat ledger data
+      const { getStatementDataForFlat } = await import('../services/flatLedgerSyncService')
+      const { summary, transactions } = await getStatementDataForFlat(
+        flat.id,
+        selectedBuildingId!,
+        flat.flatNumber,
+        residentName,
+        dateFrom,
+        dateTo
+      )
+      
+      // Build statement data from flat ledger
+      const statementData = {
+        buildingName: selectedBuilding?.name || 'Building',
+        flatNumber: flat.flatNumber,
+        residentName,
+        statementDate: new Date().toLocaleDateString('en-GB'),
+        currentBalance: summary.currentBalance,
+        summary: {
+          totalDemands: summary.totalDemands,
+          totalPayments: summary.totalPayments,
+          totalCredits: summary.totalCredits,
+          totalPenalties: summary.totalPenalties,
+          overdueAmount: summary.overdueAmount,
+          overdueCount: summary.overdueCount,
+          paymentReliabilityScore: summary.paymentReliabilityScore
+        },
+        transactions
+      }
       
       addNotification({
         userId: currentUser?.id || '',
         title: 'Statement Generated',
-        message: `Account statement for ${ledger.flatNumber} has been generated and is ready for download.`,
+        message: `Account statement for ${flat.flatNumber} has been generated and is ready for download.`,
         type: 'success'
-      });
+      })
       
-      // Simulate download
-      const statementData = generateStatementData(ledger);
-      downloadStatement(statementData, ledger);
+      downloadStatement(statementData, flat)
       
     } catch (error) {
-      console.error('Error generating statement:', error);
+      console.error('Error generating statement:', error)
       addNotification({
         userId: currentUser?.id || '',
         title: 'Error',
-        message: 'Failed to generate account statement',
+        message: `Failed to generate account statement: ${error instanceof Error ? error.message : 'Unknown error'}`,
         type: 'error'
-      });
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  const generateStatementData = (ledger: ResidentAccountLedger) => {
-    // Generate statement data structure
-    const transactionsInRange = getTransactionsInDateRange(ledger.transactions || []);
+  const downloadStatement = (statementData: any, flat: Flat) => {
+    const balanceStatus = statementData.currentBalance >= 0 ? 'CREDIT (In your favour)' : 'DEBIT (Amount owed)'
     
-    return {
-      buildingName: selectedBuilding?.name || 'Building',
-      flatNumber: ledger.flatNumber,
-      residentName: ledger.residentName || 'Unknown Resident',
-      statementDate: new Date().toLocaleDateString('en-GB'),
-      currentBalance: ledger.currentBalance,
-      transactions: transactionsInRange,
-      summary: {
-        totalCredits: transactionsInRange
-          .filter(t => t.amount > 0)
-          .reduce((sum, t) => sum + t.amount, 0),
-        totalDebits: Math.abs(transactionsInRange
-          .filter(t => t.amount < 0)
-          .reduce((sum, t) => sum + t.amount, 0)),
-        creditsApplied: transactionsInRange
-          .filter(t => t.type === 'credit')
-          .reduce((sum, t) => sum + Math.abs(t.amount), 0)
-      }
-    };
-  };
-
-  const getTransactionsInDateRange = (transactions: AccountTransaction[]) => {
-    if (filters.dateRange === 'custom' && filters.customStartDate && filters.customEndDate) {
-      return transactions.filter(t => {
-        const transactionDate = new Date(t.createdAt);
-        return transactionDate >= filters.customStartDate! && transactionDate <= filters.customEndDate!;
-      });
-    }
-    
-    const now = new Date();
-    let startDate: Date;
-    
-    switch (filters.dateRange) {
-      case '30d':
-        startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '90d':
-        startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case '6m':
-        startDate = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000);
-        break;
-      case '1y':
-      default:
-        startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-    }
-    
-    return transactions.filter(t => new Date(t.createdAt) >= startDate);
-  };
-
-  const downloadStatement = (statementData: any, ledger: ResidentAccountLedger) => {
-    // Create a simple text-based statement for now
-    // TODO: Replace with proper PDF generation
     const statementText = `
-RESIDENT ACCOUNT STATEMENT
-${selectedBuilding?.name || 'Building Name'}
-Generated: ${new Date().toLocaleDateString('en-GB')}
+═══════════════════════════════════════════════════════════
+           RESIDENT ACCOUNT STATEMENT
+           ${selectedBuilding?.name || 'Building Name'}
+═══════════════════════════════════════════════════════════
 
-Flat: ${statementData.flatNumber}
+Statement Date: ${statementData.statementDate}
+Flat Number: ${statementData.flatNumber}
 Resident: ${statementData.residentName}
-Current Balance: ${formatCurrency(statementData.currentBalance)}
 
-TRANSACTION SUMMARY:
-Total Credits: ${formatCurrency(statementData.summary.totalCredits)}
-Total Debits: ${formatCurrency(statementData.summary.totalDebits)}
-Credits Applied: ${formatCurrency(statementData.summary.creditsApplied)}
+───────────────────────────────────────────────────────────
+CURRENT ACCOUNT BALANCE
+───────────────────────────────────────────────────────────
+Balance: ${formatCurrency(Math.abs(statementData.currentBalance))} ${balanceStatus}
 
-TRANSACTION HISTORY:
-${statementData.transactions.map((t: AccountTransaction) => 
-  `${new Date(t.createdAt).toLocaleDateString('en-GB')} - ${t.type.toUpperCase()} - ${formatCurrency(t.amount)} - ${t.description}`
-).join('\n')}
+───────────────────────────────────────────────────────────
+ACCOUNT SUMMARY
+───────────────────────────────────────────────────────────
+Total Service Charges: ${formatCurrency(statementData.summary.totalDemands)}
+Total Payments Made: ${formatCurrency(statementData.summary.totalPayments)}
+Total Credits Applied: ${formatCurrency(statementData.summary.totalCredits)}
+Total Penalties: ${formatCurrency(statementData.summary.totalPenalties)}
+${statementData.summary.overdueAmount > 0 ? `
+⚠️  Overdue Amount: ${formatCurrency(statementData.summary.overdueAmount)} (${statementData.summary.overdueCount} items)
+` : ''}
+Payment Reliability Score: ${statementData.summary.paymentReliabilityScore}%
 
-End of Statement
+───────────────────────────────────────────────────────────
+TRANSACTION HISTORY
+───────────────────────────────────────────────────────────
+${statementData.transactions.length === 0 ? 'No transactions in selected period.' : ''}
+${statementData.transactions.map((t: any) => {
+  const date = new Date(t.transactionDate).toLocaleDateString('en-GB')
+  const type = t.type.replace(/_/g, ' ').toUpperCase()
+  const debit = t.debitAmount > 0 ? formatCurrency(t.debitAmount) : '-'
+  const credit = t.creditAmount > 0 ? formatCurrency(t.creditAmount) : '-'
+  const balance = formatCurrency(t.runningBalance)
+  const quarter = t.quarter || ''
+  
+  return `${date.padEnd(12)} | ${type.padEnd(25)} | ${quarter.padEnd(10)} | DR: ${debit.padEnd(10)} | CR: ${credit.padEnd(10)} | Bal: ${balance}`
+}).join('\n')}
+
+═══════════════════════════════════════════════════════════
+END OF STATEMENT
+═══════════════════════════════════════════════════════════
+
+This statement is generated from the authoritative flat ledger system.
+All balances and transactions reflect the most current data available.
+
+For queries, please contact building management.
     `;
 
     const blob = new Blob([statementText], { type: 'text/plain' });
@@ -355,24 +412,35 @@ End of Statement
         return;
       }
       
-      // Generate statements for all selected residents
+      let successCount = 0;
+      let errorCount = 0;
+      
+      // Generate statements for all selected residents using FlatLedger
       for (const ledger of selectedLedgers) {
-        const statementData = generateStatementData(ledger);
-        downloadStatement(statementData, ledger);
-        
-        // Add small delay to prevent browser blocking multiple downloads
-        await new Promise(resolve => setTimeout(resolve, 500));
+        try {
+          const flat = ledger;
+          
+          // Use same logic as single statement generation
+          await handleGenerateStatement(flat);
+          successCount++;
+          
+          // Add small delay to prevent browser blocking multiple downloads
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error('Failed to generate statement for flat:', ledger.flatNumber, error);
+          errorCount++;
+        }
       }
       
       addNotification({
         userId: currentUser?.id || '',
         title: 'Bulk Generation Complete',
-        message: `Generated ${selectedLedgers.length} account statements`,
-        type: 'success'
+        message: `Generated ${successCount} statements successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+        type: successCount > 0 ? 'success' : 'warning'
       });
       
     } catch (error) {
-      console.error('Error generating bulk statements:', error);
+      console.error('Error in bulk generation:', error);
       addNotification({
         userId: currentUser?.id || '',
         title: 'Error',
@@ -395,7 +463,7 @@ End of Statement
   };
 
   // Show loading spinner while data is loading
-  if (loading && residentLedgers.length === 0) {
+  if (loading && flats.length === 0) {
     return <PageLoading message="Loading reports data..." />;
   }
 
@@ -419,34 +487,13 @@ End of Statement
           </div>
         </div>
 
-        {/* Report Type Tabs */}
-        <div className="border-b border-neutral-200">
+        {/* Header Actions */}
+        <div className="border-b border-neutral-200 pb-4">
           <div className="flex items-center justify-between">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
-              {[
-                { id: 'account_statements', name: 'Account Statements', icon: FileText }
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeReportType === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveReportType(tab.id as ReportType)}
-                    className={`${
-                      isActive
-                        ? 'border-blue-500 text-primary-600'
-                        : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                    } whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors font-inter`}
-                    aria-current={isActive ? 'page' : undefined}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {tab.name}
-                  </button>
-                );
-              })}
-            </nav>
-            
-            {/* Generate Selected Statements Button - Aligned with tab headers */}
+            <h2 className="text-xl font-semibold text-neutral-900 font-inter flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Account Statements
+            </h2>
             <Button
               onClick={handleBulkStatementGeneration}
               disabled={loading}
@@ -537,10 +584,8 @@ End of Statement
           </div>
         )}
 
-        {/* Tab Content */}
+        {/* Content */}
         <div className="space-y-6">
-          {activeReportType === 'account_statements' && (
-            <div className="space-y-6">
 
               {/* Summary Statistics */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -621,21 +666,26 @@ End of Statement
                     <FileText className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-neutral-900 font-inter">No Resident Accounts Found</h3>
                     <p className="text-gray-600 font-inter">
-                      {residentLedgers.length === 0 
-                        ? 'No resident account ledgers exist yet. Issue service charges to create resident accounts.'
+                      {flats.length === 0 
+                        ? 'No flats exist yet. Add flats to the building to create resident accounts.'
                         : 'No accounts match your current filters. Try adjusting the search or filter criteria.'
                       }
                     </p>
                   </div>
                 ) : (
                   <div className="divide-y divide-neutral-200">
-                    {filteredLedgers.map((ledger) => {
-                      const isExpanded = expandedLedgers.has(ledger.id);
-                      const isSelected = filters.residents.includes(ledger.id);
-                      const recentTransactions = (ledger.transactions || []).slice(-3);
+                    {filteredLedgers.map((flat) => {
+                      const balance = flatBalances.get(flat.id) || 0;
+                      const residentName = flat.currentResidentName || 'Unknown Resident';
+                      const isExpanded = expandedLedgers.has(flat.id);
+                      const isSelected = filters.residents.includes(flat.id);
+                      
+                      // Get transactions from FlatLedger
+                      const flatLedgerTxs = flatTransactions.get(flat.id) || [];
+                      const recentTransactions = flatLedgerTxs.slice(0, 3); // Get 3 most recent
                       
                       return (
-                        <div key={ledger.id} className="p-6">
+                        <div key={flat.id} className="p-6">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-4">
                               <input
@@ -645,19 +695,19 @@ End of Statement
                                   if (e.target.checked) {
                                     setFilters({ 
                                       ...filters, 
-                                      residents: [...filters.residents, ledger.id] 
+                                      residents: [...filters.residents, flat.id] 
                                     });
                                   } else {
                                     setFilters({ 
                                       ...filters, 
-                                      residents: filters.residents.filter(id => id !== ledger.id) 
+                                      residents: filters.residents.filter(id => id !== flat.id) 
                                     });
                                   }
                                 }}
                                 className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
                               />
                               <button
-                                onClick={() => toggleLedgerExpansion(ledger.id)}
+                                onClick={() => toggleLedgerExpansion(flat.id)}
                                 className="flex items-center space-x-2 text-left hover:bg-neutral-50 rounded p-2 transition-colors"
                               >
                                 {isExpanded ? (
@@ -667,14 +717,14 @@ End of Statement
                                 )}
                                 <div>
                                   <h4 className="font-medium text-neutral-900 font-inter">
-                                    {ledger.flatNumber} - {ledger.residentName || 'Unknown Resident'}
+                                    {flat.flatNumber} - {residentName}
                                   </h4>
                                   <p className="text-sm text-gray-500 font-inter">
                                     Balance: <span className={`font-medium ${
-                                      ledger.currentBalance > 0 ? 'text-success-600' :
-                                      ledger.currentBalance < 0 ? 'text-red-600' : 'text-neutral-600'
+                                      balance > 0 ? 'text-success-600' :
+                                      balance < 0 ? 'text-red-600' : 'text-neutral-600'
                                     }`}>
-                                      {formatCurrency(ledger.currentBalance)}
+                                      {formatCurrency(balance)}
                                     </span>
                                   </p>
                                 </div>
@@ -685,7 +735,7 @@ End of Statement
                               <Button
                                 size="sm"
                                 variant="secondary"
-                                onClick={() => handleGenerateStatement(ledger)}
+                                onClick={() => handleGenerateStatement(flat)}
                                 leftIcon={<FileText className="h-4 w-4" />}
                               >
                                 Generate Statement
@@ -694,7 +744,7 @@ End of Statement
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  setSelectedLedger(ledger);
+                                  setSelectedFlat(flat);
                                   setShowStatementModal(true);
                                 }}
                                 leftIcon={<Eye className="h-4 w-4" />}
@@ -714,20 +764,20 @@ End of Statement
                                     <div className="flex justify-between">
                                       <span className="text-gray-600 font-inter">Current Balance:</span>
                                       <span className={`font-medium ${
-                                        ledger.currentBalance > 0 ? 'text-success-600' :
-                                        ledger.currentBalance < 0 ? 'text-red-600' : 'text-neutral-600'
+                                        balance > 0 ? 'text-success-600' :
+                                        balance < 0 ? 'text-red-600' : 'text-neutral-600'
                                       }`}>
-                                        {formatCurrency(ledger.currentBalance)}
+                                        {formatCurrency(balance)}
                                       </span>
                                     </div>
                                     <div className="flex justify-between">
                                       <span className="text-gray-600 font-inter">Total Transactions:</span>
-                                      <span className="font-medium text-neutral-900">{ledger.transactions?.length || 0}</span>
+                                      <span className="font-medium text-neutral-900">{flatLedgerTxs.length}</span>
                                     </div>
                                     <div className="flex justify-between">
                                       <span className="text-gray-600 font-inter">Last Updated:</span>
                                       <span className="font-medium text-neutral-900">
-                                        {new Date(ledger.updatedAt || Date.now()).toLocaleDateString('en-GB')}
+                                        {new Date(flat.updatedAt || Date.now()).toLocaleDateString('en-GB')}
                                       </span>
                                     </div>
                                   </div>
@@ -738,15 +788,34 @@ End of Statement
                                   <div className="space-y-2">
                                     {recentTransactions.length > 0 ? (
                                       recentTransactions.map((transaction, index) => (
-                                        <div key={index} className="flex justify-between text-sm">
-                                          <span className="text-gray-600 font-inter">
-                                            {transaction.type.replace('_', ' ')}
-                                          </span>
-                                          <span className={`font-medium ${
-                                            transaction.amount > 0 ? 'text-success-600' : 'text-red-600'
-                                          }`}>
-                                            {formatCurrency(Math.abs(transaction.amount))}
-                                          </span>
+                                        <div key={index} className="text-sm space-y-1">
+                                          <div className="flex justify-between items-start">
+                                            <div>
+                                              <span className="text-gray-600 font-inter">
+                                                {transaction.type.replace(/_/g, ' ').toUpperCase()}
+                                              </span>
+                                              {transaction.quarter && (
+                                                <span className="text-xs text-gray-500 ml-2">
+                                                  {transaction.quarter}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <div className="text-right">
+                                              {transaction.debitAmount > 0 && (
+                                                <span className="font-medium text-red-600">
+                                                  -{formatCurrency(transaction.debitAmount)}
+                                                </span>
+                                              )}
+                                              {transaction.creditAmount > 0 && (
+                                                <span className="font-medium text-success-600">
+                                                  +{formatCurrency(transaction.creditAmount)}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="text-xs text-gray-500">
+                                            {new Date(transaction.transactionDate).toLocaleDateString('en-GB')} • Balance: {formatCurrency(transaction.runningBalance)}
+                                          </div>
                                         </div>
                                       ))
                                     ) : (
@@ -763,20 +832,24 @@ End of Statement
                   </div>
                 )}
               </div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Statement Preview Modal */}
-      {showStatementModal && selectedLedger && (
+      {showStatementModal && selectedFlat && (() => {
+        // Get FlatLedger transactions for the selected flat
+        const balance = flatBalances.get(selectedFlat.id) || 0;
+        const residentName = selectedFlat.currentResidentName || 'Unknown Resident';
+        const flatLedgerTxs = flatTransactions.get(selectedFlat.id) || [];
+        
+        return (
         <Modal
           isOpen={showStatementModal}
           onClose={() => {
             setShowStatementModal(false);
-            setSelectedLedger(null);
+            setSelectedFlat(null);
           }}
-          title={`Account Statement Preview - ${selectedLedger.flatNumber}`}
+          title={`Account Statement Preview - ${selectedFlat.flatNumber}`}
           size="xl"
         >
           <div className="space-y-6">
@@ -800,12 +873,12 @@ End of Statement
               <div className="grid grid-cols-2 gap-6 mt-4">
                 <div>
                   <p className="text-sm text-gray-600 font-inter">Flat Number:</p>
-                  <p className="font-medium text-neutral-900 font-inter">{selectedLedger.flatNumber}</p>
+                  <p className="font-medium text-neutral-900 font-inter">{selectedFlat.flatNumber}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 font-inter">Resident Name:</p>
                   <p className="font-medium text-neutral-900 font-inter">
-                    {selectedLedger.residentName || 'Unknown Resident'}
+                    {residentName}
                   </p>
                 </div>
               </div>
@@ -815,42 +888,47 @@ End of Statement
             <div className="bg-neutral-50 p-4 rounded-lg">
               <h4 className="font-medium text-neutral-900 mb-2 font-inter">Current Account Balance</h4>
               <div className={`text-3xl font-bold ${
-                selectedLedger.currentBalance > 0 ? 'text-success-600' :
-                selectedLedger.currentBalance < 0 ? 'text-red-600' : 'text-neutral-600'
+                balance > 0 ? 'text-success-600' :
+                balance < 0 ? 'text-red-600' : 'text-neutral-600'
               }`}>
-                {formatCurrency(selectedLedger.currentBalance)}
+                {formatCurrency(balance)}
               </div>
               <p className="text-sm text-gray-600 mt-1 font-inter">
-                {selectedLedger.currentBalance > 0 ? 'Credit Balance (you are in credit)' :
-                 selectedLedger.currentBalance < 0 ? 'Debit Balance (amount owed)' : 'Zero Balance'}
+                {balance > 0 ? 'Credit Balance (you are in credit)' :
+                 balance < 0 ? 'Debit Balance (amount owed)' : 'Zero Balance'}
               </p>
             </div>
             
             {/* Transaction Summary for Selected Period */}
             <div>
               <h4 className="font-medium text-neutral-900 mb-3 font-inter">
-                Transaction Summary ({filters.dateRange === 'custom' ? 'Custom Period' : filters.dateRange.toUpperCase()})
+                Transaction Summary (All Time)
               </h4>
               <div className="grid grid-cols-3 gap-4">
                 {(() => {
-                  const transactionsInRange = getTransactionsInDateRange(selectedLedger.transactions || []);
-                  const totalCredits = transactionsInRange.filter(t => t.amount > 0).reduce((sum, t) => sum + t.amount, 0);
-                  const totalDebits = Math.abs(transactionsInRange.filter(t => t.amount < 0).reduce((sum, t) => sum + t.amount, 0));
-                  const creditsApplied = transactionsInRange.filter(t => t.type === 'credit').reduce((sum, t) => sum + Math.abs(t.amount), 0);
+                  const totalDemands = flatLedgerTxs
+                    .filter(t => t.type === 'SERVICE_CHARGE_DEMAND')
+                    .reduce((sum, t) => sum + t.debitAmount, 0);
+                  const totalPayments = flatLedgerTxs
+                    .filter(t => t.type === 'PAYMENT')
+                    .reduce((sum, t) => sum + t.creditAmount, 0);
+                  const totalCredits = flatLedgerTxs
+                    .filter(t => t.type === 'CREDIT_APPLICATION')
+                    .reduce((sum, t) => sum + t.creditAmount, 0);
                   
                   return (
                     <>
-                      <div className="bg-success-50 p-3 rounded">
-                        <p className="text-sm text-success-900 font-inter">Total Credits</p>
-                        <p className="text-lg font-semibold text-success-600 font-inter">{formatCurrency(totalCredits)}</p>
-                      </div>
                       <div className="bg-red-50 p-3 rounded">
-                        <p className="text-sm text-red-900 font-inter">Total Debits</p>
-                        <p className="text-lg font-semibold text-red-600 font-inter">{formatCurrency(totalDebits)}</p>
+                        <p className="text-sm text-red-900 font-inter">Total Demands</p>
+                        <p className="text-lg font-semibold text-red-600 font-inter">{formatCurrency(totalDemands)}</p>
+                      </div>
+                      <div className="bg-success-50 p-3 rounded">
+                        <p className="text-sm text-success-900 font-inter">Total Payments</p>
+                        <p className="text-lg font-semibold text-success-600 font-inter">{formatCurrency(totalPayments)}</p>
                       </div>
                       <div className="bg-blue-50 p-3 rounded">
                         <p className="text-sm text-blue-900 font-inter">Credits Applied</p>
-                        <p className="text-lg font-semibold text-primary-600 font-inter">{formatCurrency(creditsApplied)}</p>
+                        <p className="text-lg font-semibold text-primary-600 font-inter">{formatCurrency(totalCredits)}</p>
                       </div>
                     </>
                   );
@@ -863,41 +941,50 @@ End of Statement
               <div>
                 <h4 className="font-medium text-neutral-900 mb-3 font-inter">Transaction History</h4>
                 <div className="max-h-64 overflow-y-auto border rounded-lg">
-                  {(() => {
-                    const transactionsInRange = getTransactionsInDateRange(selectedLedger.transactions || []);
-                    return transactionsInRange.length > 0 ? (
+                  {flatLedgerTxs.length > 0 ? (
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-neutral-50">
                           <tr>
                             <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase font-inter">Date</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase font-inter">Type</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-neutral-500 uppercase font-inter">Description</th>
-                            <th className="px-4 py-2 text-right text-xs font-medium text-neutral-500 uppercase font-inter">Amount</th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-neutral-500 uppercase font-inter">Debit</th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-neutral-500 uppercase font-inter">Credit</th>
+                            <th className="px-4 py-2 text-right text-xs font-medium text-neutral-500 uppercase font-inter">Balance</th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {transactionsInRange.map((transaction, index) => (
+                          {flatLedgerTxs.map((transaction, index) => (
                             <tr key={index} className="hover:bg-neutral-50">
                               <td className="px-4 py-2 text-sm text-neutral-900 font-inter">
-                                {new Date(transaction.createdAt).toLocaleDateString('en-GB')}
+                                {new Date(transaction.transactionDate).toLocaleDateString('en-GB')}
                               </td>
                               <td className="px-4 py-2 text-sm text-neutral-900 font-inter">
                                 <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                  transaction.type === 'credit' ? 'bg-green-100 text-green-800' :
-                                  transaction.type === 'payment' ? 'bg-blue-100 text-blue-800' :
-                                  transaction.type === 'adjustment' ? 'bg-yellow-100 text-yellow-800' :
+                                  transaction.type === 'PAYMENT' ? 'bg-green-100 text-green-800' :
+                                  transaction.type === 'SERVICE_CHARGE_DEMAND' ? 'bg-red-100 text-red-800' :
+                                  transaction.type === 'CREDIT_APPLICATION' ? 'bg-blue-100 text-blue-800' :
                                   'bg-neutral-100 text-gray-800'
                                 }`}>
-                                  {transaction.type.replace('_', ' ')}
+                                  {transaction.type.replace(/_/g, ' ')}
                                 </span>
                               </td>
                               <td className="px-4 py-2 text-sm text-neutral-900 font-inter">
-                                {transaction.description}
+                                <div>
+                                  {transaction.description}
+                                  {transaction.quarter && (
+                                    <div className="text-xs text-gray-500 mt-0.5">{transaction.quarter}</div>
+                                  )}
+                                </div>
                               </td>
-                              <td className={`px-4 py-2 text-sm text-right font-medium font-inter ${
-                                transaction.amount > 0 ? 'text-success-600' : 'text-red-600'
-                              }`}>
-                                {transaction.amount > 0 ? '+' : ''}{formatCurrency(transaction.amount)}
+                              <td className="px-4 py-2 text-sm text-right font-medium font-inter text-red-600">
+                                {transaction.debitAmount > 0 ? formatCurrency(transaction.debitAmount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-right font-medium font-inter text-success-600">
+                                {transaction.creditAmount > 0 ? formatCurrency(transaction.creditAmount) : '-'}
+                              </td>
+                              <td className="px-4 py-2 text-sm text-right font-medium font-inter text-neutral-900">
+                                {formatCurrency(transaction.runningBalance)}
                               </td>
                             </tr>
                           ))}
@@ -905,10 +992,9 @@ End of Statement
                       </table>
                     ) : (
                       <div className="text-center py-8">
-                        <p className="text-gray-500 font-inter">No transactions in the selected period</p>
+                        <p className="text-gray-500 font-inter">No transactions found</p>
                       </div>
-                    );
-                  })()}
+                    )}
                 </div>
               </div>
             )}
@@ -919,20 +1005,21 @@ End of Statement
               variant="secondary"
               onClick={() => {
                 setShowStatementModal(false);
-                setSelectedLedger(null);
+                setSelectedFlat(null);
               }}
             >
               Close Preview
             </Button>
             <Button
-              onClick={() => handleGenerateStatement(selectedLedger)}
+              onClick={() => handleGenerateStatement(selectedFlat)}
               leftIcon={<Download className="h-4 w-4" />}
             >
               Download Statement
             </Button>
           </ModalFooter>
         </Modal>
-      )}
+        )
+      })()}
     </div>
   );
 };

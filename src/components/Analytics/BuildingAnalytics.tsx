@@ -1,12 +1,12 @@
+import { 
+  Building, Users, Wrench, DollarSign, TrendingUp, TrendingDown, 
+  Calendar, AlertTriangle, CheckCircle, Clock, Home, Zap
+} from 'lucide-react'
 import React, { useState, useEffect } from 'react'
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, Area, AreaChart
 } from 'recharts'
-import { 
-  Building, Users, Wrench, DollarSign, TrendingUp, TrendingDown, 
-  Calendar, AlertTriangle, CheckCircle, Clock, Home, Zap
-} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getAllBuildings } from '../../services/buildingService'
 import { Building as BuildingType } from '../../types'

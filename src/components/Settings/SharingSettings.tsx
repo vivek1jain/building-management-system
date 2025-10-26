@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
 import { Download, Upload, FileText, Users, Home, Truck, Package } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useBuilding } from '../../contexts/BuildingContext';
-import { getPeopleByBuilding } from '../../services/peopleService';
-import { getFlatsByBuilding } from '../../services/flatService';
-import { supplierService } from '../../services/supplierService';
 import { getAssetsByBuilding } from '../../services/buildingService';
+import { getFlatsByBuilding } from '../../services/flatService';
+import { getPeopleByBuilding } from '../../services/peopleService';
+import { supplierService } from '../../services/supplierService';
+import { Person, Flat, Supplier, Asset } from '../../types';
 import { exportPeopleToCSV, exportFlatsToCSV, exportAssetsToCSV } from '../../utils/csvExport';
 import { importPeopleFromCSV, importAssetsFromCSV, ImportValidationResult } from '../../utils/csvImport';
 import BulkImportExport from '../BuildingData/BulkImportExport';
-import { Person, Flat, Supplier, Asset } from '../../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../UI';
 
 interface SharingSettingsProps {
@@ -78,7 +78,8 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
 
   const handleExportPeople = (buildingId: string, buildingName?: string) => {
     const buildingPeople = people.filter(person => person.buildingId === buildingId);
-    exportPeopleToCSV(buildingPeople, buildingName);
+    const peopleWithActive = buildingPeople.map(p => ({ ...p, isActive: true }));
+    exportPeopleToCSV(peopleWithActive, buildingName);
   };
 
   const handleImportPeople = (csvText: string, buildingId: string): ImportValidationResult<Person> => {
@@ -113,7 +114,8 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
   // Flats handlers
   const handleExportFlats = (buildingId: string, buildingName?: string) => {
     const buildingFlats = flats.filter(flat => flat.buildingId === buildingId);
-    exportFlatsToCSV(buildingFlats, buildingName);
+    const flatsWithActive = buildingFlats.map(f => ({ ...f, isActive: true }));
+    exportFlatsToCSV(flatsWithActive, buildingName);
   };
 
   const handleImportFlats = (csvText: string, buildingId: string): ImportValidationResult<any> => {
@@ -140,7 +142,8 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
   // Assets handlers
   const handleExportAssets = (buildingId: string, buildingName?: string) => {
     const buildingAssets = assets.filter(asset => asset.buildingId === buildingId);
-    exportAssetsToCSV(buildingAssets, buildingName);
+    const assetsWithActive = buildingAssets.map(a => ({ ...a, isActive: true }));
+    exportAssetsToCSV(assetsWithActive, buildingName);
   };
 
   const handleImportAssets = (csvText: string, buildingId: string) => {

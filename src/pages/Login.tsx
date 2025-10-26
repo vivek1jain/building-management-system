@@ -1,9 +1,9 @@
+import { Building, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button, Input, Card, CardContent } from '../components/UI'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
-import { Building, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
-import { Button, Input, Card, CardContent } from '../components/UI'
 
 const Login = () => {
   const [isRegistering, setIsRegistering] = useState(false)
@@ -96,6 +96,7 @@ const Login = () => {
                   required
                   leftIcon={<Mail className="h-4 w-4" />}
                   autoComplete="email"
+                  data-testid="email-input"
                 />
                 
                 <div className="relative">
@@ -110,6 +111,7 @@ const Login = () => {
                     required
                     leftIcon={<Lock className="h-4 w-4" />}
                     autoComplete={isRegistering ? 'new-password' : 'current-password'}
+                    data-testid="password-input"
                   />
                   <button
                     type="button"
@@ -132,6 +134,7 @@ const Login = () => {
                   fullWidth
                   loading={loading}
                   disabled={loading}
+                  data-testid="login-button"
                 >
                   {isRegistering ? 'Create Account' : 'Sign in'}
                 </Button>

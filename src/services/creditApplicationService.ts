@@ -22,6 +22,8 @@ import {
   ServiceChargeDemand,
   ServiceChargeDemandStatus
 } from '../types'
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 import { 
   getResidentAccountByFlatId, 
   addAccountTransaction, 
@@ -31,7 +33,7 @@ import {
 
 // Helper function to generate a unique ID
 const generateId = () => {
-  return 'cred-' + Date.now() + '-' + Math.floor(Math.random() * 1000000)
+  return `cred-${  Date.now()  }-${  Math.floor(Math.random() * 1000000)}`
 }
 
 /**
@@ -137,7 +139,7 @@ export const applyCreditToDemand = async (
       sourcePaymentId: findCreditSourcePayment(account),
       originalCreditAmount: creditToApply,
       targetDemandId: demand.id,
-      targetPeriod: targetPeriod,
+      targetPeriod,
       appliedAmount: creditToApply,
       applicationMethod: 'automatic',
       appliedAt: new Date(),
@@ -243,7 +245,7 @@ export const applyCreditToDemand = async (
     return updatedDemand
     
   } catch (error) {
-    console.error('Error applying credit to demand:', error)
+    handleServiceError('Error applying credit to demand:', error)
     throw error
   }
 }
@@ -284,7 +286,7 @@ export const applyCreditsToNewDemands = async (
     return updatedDemands
     
   } catch (error) {
-    console.error('Error applying credits to demands:', error)
+    handleServiceError('Error applying credits to demands:', error)
     throw error
   }
 }
@@ -458,7 +460,7 @@ export const manuallyApplyCreditToDemand = async (
     return updatedDemand
     
   } catch (error) {
-    console.error('Error manually applying credit to demand:', error)
+    handleServiceError('Error manually applying credit to demand:', error)
     throw error
   }
 }
@@ -516,7 +518,7 @@ export const getCreditApplicationHistory = async (buildingId: string): Promise<C
     return creditApplications
     
   } catch (error) {
-    console.error('Error getting credit application history:', error)
+    handleServiceError('Error getting credit application history:', error)
     throw error
   }
 }

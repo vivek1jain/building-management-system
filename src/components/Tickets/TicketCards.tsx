@@ -1,5 +1,5 @@
-import React from 'react'
 import { MapPin, Clock, MessageSquare } from 'lucide-react'
+import React from 'react'
 import { Ticket, TicketStatus, UrgencyLevel } from '../../types'
 
 interface TicketCardsProps {
@@ -61,7 +61,7 @@ const TicketCards: React.FC<TicketCardsProps> = ({
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text
-    return text.substring(0, maxLength) + '...'
+    return `${text.substring(0, maxLength)  }...`
   }
 
   if (tickets.length === 0) {

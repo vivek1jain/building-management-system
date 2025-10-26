@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
 import { PoundSterling, CheckCircle, X } from 'lucide-react';
-import Modal from './UI/Modal';
+import React, { useState } from 'react';
 import { ExpenseCategorySelector } from './Expenses/ExpenseCategorySelector';
+import Modal from './UI/Modal';
 
 interface TicketCompletionModalProps {
   isOpen: boolean;

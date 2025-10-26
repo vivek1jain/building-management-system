@@ -1,10 +1,10 @@
 import { Bell, LogOut } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import NotificationDropdown from '../Notifications/NotificationDropdown'
-import HeaderBuildingSwitcher from './HeaderBuildingSwitcher'
-import { Button } from '../UI'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import NotificationDropdown from '../Notifications/NotificationDropdown'
+import { Button } from '../UI'
+import HeaderBuildingSwitcher from './HeaderBuildingSwitcher'
 
 const Header = () => {
   const { currentUser, logout } = useAuth()
@@ -63,7 +63,7 @@ const Header = () => {
               variant="ghost"
               size="sm"
               className={`flex items-center justify-center ${isMobile ? '' : 'space-x-2'}`}
-              data-testid="user-avatar"
+              data-testid="user-menu"
             >
               <div className={`rounded-full bg-primary-600 flex items-center justify-center ${
                 isMobile ? 'h-6 w-6' : 'h-7 w-7'
@@ -85,6 +85,7 @@ const Header = () => {
                 onClick={logout}
                 title="Logout"
                 className="mb-1"
+                data-testid="logout-button"
               >
                 <LogOut className="h-4 w-4" />
               </Button>
@@ -98,6 +99,7 @@ const Header = () => {
               onClick={logout}
               title="Logout"
               className="p-1.5"
+              data-testid="logout-button"
             >
               <LogOut className="h-4 w-4" />
             </Button>

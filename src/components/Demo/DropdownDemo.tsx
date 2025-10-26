@@ -1,5 +1,3 @@
-import React, { useState } from 'react';
-import { Dropdown, DropdownOption } from '../UI';
 import { 
   Building, 
   User, 
@@ -10,6 +8,8 @@ import {
   Calendar,
   DollarSign
 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Dropdown, DropdownOption } from '../UI';
 
 export const DropdownDemo: React.FC = () => {
   const [selectedBuilding, setSelectedBuilding] = useState('');

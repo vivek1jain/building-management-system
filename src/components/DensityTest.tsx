@@ -1,9 +1,8 @@
 import React from 'react'
 import { useTheme } from '../contexts/ThemeContext'
 import Button from './UI/Button'
+import DataTable, { Column, TableAction } from './UI/DataTable'
 import Input from './UI/Input'
-import DataTable from './UI/DataTable'
-import { Column, TableAction } from './UI/DataTable'
 
 interface TestData {
   id: string

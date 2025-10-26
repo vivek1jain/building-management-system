@@ -1,5 +1,5 @@
-import React from 'react'
 import { Loader2 } from 'lucide-react'
+import React from 'react'
 import { cn } from '../../utils/cn'
 
 // Base spinner sizes
@@ -27,6 +27,7 @@ export const Spinner: React.FC<SpinnerProps> = ({
 }) => {
   return (
     <Loader2 
+      data-testid="loading-spinner"
       className={cn(
         'animate-spin',
         sizeClasses[size],
@@ -48,10 +49,13 @@ export const PageLoading: React.FC<PageLoadingProps> = ({
   className 
 }) => {
   return (
-    <div className={cn(
-      'min-h-screen bg-neutral-50 flex items-center justify-center',
-      className
-    )}>
+    <div 
+      className={cn(
+        'min-h-screen bg-neutral-50 flex items-center justify-center',
+        className
+      )} 
+      data-testid="loading-spinner"
+    >
       <div className="text-center">
         <Spinner size="xl" className="mb-4 mx-auto" />
         <p className="text-lg font-medium text-neutral-900 mb-2">{message}</p>

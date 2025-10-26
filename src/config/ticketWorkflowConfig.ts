@@ -101,31 +101,6 @@ export function getTicketWorkflowConfig(): TicketWorkflowConfig {
   return config;
 }
 
-/**
- * Calculate the grace period expiry date from a completion date
- */
-export function calculateGracePeriodExpiry(completionDate: Date, config?: TicketWorkflowConfig): Date {
-  const workflowConfig = config || getTicketWorkflowConfig();
-  const expiryDate = new Date(completionDate);
-  expiryDate.setDate(expiryDate.getDate() + workflowConfig.REOPENING_GRACE_PERIOD_DAYS);
-  return expiryDate;
-}
-
-/**
- * Check if a user role is allowed to reopen tickets
- */
-export function canUserRoleReopenTickets(userRole: string, config?: TicketWorkflowConfig): boolean {
-  const workflowConfig = config || getTicketWorkflowConfig();
-  return workflowConfig.REOPEN_ALLOWED_ROLES.includes(userRole);
-}
-
-/**
- * Check if a user role is allowed to manually close Complete tickets
- */
-export function canUserRoleManuallyClose(userRole: string, config?: TicketWorkflowConfig): boolean {
-  const workflowConfig = config || getTicketWorkflowConfig();
-  return workflowConfig.MANUAL_CLOSE_ALLOWED_ROLES.includes(userRole);
-}
 
 /**
  * Calculate days remaining in grace period
@@ -143,16 +118,6 @@ export function calculateDaysRemainingInGracePeriod(
   return Math.max(0, workflowConfig.REOPENING_GRACE_PERIOD_DAYS - daysSinceCompletion);
 }
 
-/**
- * Check if a ticket is still within the grace period
- */
-export function isWithinGracePeriod(
-  completionDate: Date,
-  currentDate: Date = new Date(),
-  config?: TicketWorkflowConfig
-): boolean {
-  return calculateDaysRemainingInGracePeriod(completionDate, currentDate, config) > 0;
-}
 
 /**
  * Workflow status descriptions for UI display
@@ -172,24 +137,3 @@ export const WORKFLOW_STATUS_DESCRIPTIONS = {
   }
 } as const;
 
-/**
- * Activity log templates for consistent messaging
- */
-export const ACTIVITY_LOG_TEMPLATES = {
-  TICKET_COMPLETED: (notes?: string) => 
-    `Work marked as completed${notes ? `: ${notes}` : ''}`,
-  
-  TICKET_REOPENED: (reason?: string) => 
-    `Ticket reopened from Complete status${reason ? `: ${reason}` : ''}`,
-  
-  AUTO_CLOSED: (daysSinceCompletion: number) => 
-    `Ticket automatically closed after 7 days (completed ${daysSinceCompletion} days ago)`,
-  
-  MANUAL_CLOSED_FROM_COMPLETE: (reason?: string) => 
-    `Ticket manually closed from Complete status${reason ? `: ${reason}` : ''}`,
-  
-  WORKFLOW_MIGRATED: (daysSinceOriginalClosure: number) => 
-    `Ticket migrated from Closed to Complete status for new 7-day grace period workflow (was closed ${daysSinceOriginalClosure} days ago)`
-} as const;
-
-export type WorkflowStatusKey = keyof typeof WORKFLOW_STATUS_DESCRIPTIONS;

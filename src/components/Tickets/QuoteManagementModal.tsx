@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import {
   Users,
   Clock,
@@ -20,14 +19,15 @@ import {
   Upload,
   FileText
 } from 'lucide-react'
-import { Supplier, QuoteRequest, QuoteRequestStatus } from '../../types'
-import { supplierService } from '../../services/supplierService'
-import { ticketService } from '../../services/ticketService'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import Modal, { ModalFooter } from '../UI/Modal'
-import Button from '../UI/Button'
+import { supplierService } from '../../services/supplierService'
+import { ticketService } from '../../services/ticketService'
+import { Supplier, QuoteRequest, QuoteRequestStatus } from '../../types'
 import SupplierSelectionModal from '../Suppliers/SupplierSelectionModal'
+import Button from '../UI/Button'
+import Modal, { ModalFooter } from '../UI/Modal'
 
 interface QuoteManagementModalProps {
   isOpen: boolean
@@ -155,7 +155,7 @@ const QuoteManagementModal = ({
     setLoading(true)
     try {
       await ticketService.updateQuoteRequest(ticketId, quoteForm.supplierId, {
-        amount: amount,
+        amount,
         description: quoteForm.description,
         terms: '', // Add default empty terms since it's required by the service method
         validUntil: quoteForm.validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default to 30 days from now if not specified

@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react'
 import { 
   Calendar, 
   Clock, 
@@ -10,10 +9,11 @@ import {
   Edit,
   Trash2
 } from 'lucide-react'
-import { BuildingEvent } from '../types'
-import Modal from './UI/Modal'
-import Button from './UI/Button'
+import React, { useState, useEffect } from 'react'
 import { getUserDisplayNames } from '../services/userLookupService'
+import { BuildingEvent } from '../types'
+import Button from './UI/Button'
+import Modal from './UI/Modal'
 
 interface EventDetailModalProps {
   event: BuildingEvent | null

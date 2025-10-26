@@ -1,4 +1,3 @@
-import { NavLink, useLocation } from 'react-router-dom'
 import {
   Home,
   Ticket,
@@ -7,6 +6,7 @@ import {
   MoreHorizontal,
   Bell
 } from 'lucide-react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useCreateTicket } from '../../contexts/CreateTicketContext'
 
 const MobileBottomNav = () => {

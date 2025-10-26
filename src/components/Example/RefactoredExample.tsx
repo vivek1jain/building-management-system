@@ -1,7 +1,6 @@
-import React, { useState } from 'react'
 import { Plus, Edit, Trash2, Eye } from 'lucide-react'
-import { Button, Input, Modal, ModalFooter, DataTable, Card, CardHeader, CardTitle, CardContent } from '../UI'
-import type { Column, TableAction } from '../UI'
+import React, { useState } from 'react'
+import { Button, Input, Modal, ModalFooter, DataTable, Card, CardHeader, CardTitle, CardContent, type Column, type TableAction } from '../UI'
 
 // Example of how to refactor existing components using the new UI system
 interface ExampleData {

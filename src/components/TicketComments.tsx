@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
 import { MessageCircle, Send, User, Clock } from 'lucide-react';
-import { TicketComment, UserRole } from '../types';
+import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { TicketComment, UserRole } from '../types';
 
 interface TicketCommentsProps {
   ticketId: string;

@@ -1,23 +1,23 @@
-import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, User, Calendar, FileText, ChevronRight, Loader2, Award, DollarSign, Receipt, ExternalLink, MessageSquare, Activity, Settings, Quote, CalendarClock, CheckCircle, XCircle, X } from 'lucide-react';
-import { Ticket, TicketComment, TicketStatus, EnhancedQuote, Invoice } from '../types';
-import { useIsMobile } from '../hooks/useMediaQuery';
-import { TicketCommentService } from '../services/ticketCommentService';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotifications } from '../contexts/NotificationContext';
-import { ticketService } from '../services/ticketService';
-import { ticketEventService } from '../services/ticketEventService';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { expenseService } from '../services/expenseService';
+import { getInvoicesByBuilding } from '../services/invoiceService';
+import { TicketCommentService } from '../services/ticketCommentService';
+import { ticketEventService } from '../services/ticketEventService';
+import { ticketService } from '../services/ticketService';
 import { UserBuildingService } from '../services/userBuildingService';
 import { getUserDisplayNames } from '../services/userLookupService';
-import { getInvoicesByBuilding } from '../services/invoiceService';
-import Modal from './UI/Modal';
-import SupplierSelectionModal from './Suppliers/SupplierSelectionModal';
-import QuoteComparisonModal from './Tickets/QuoteComparisonModal';
-import QuoteManagementModal from './Tickets/QuoteManagementModal';
+import { Ticket, TicketComment, TicketStatus, EnhancedQuote, Invoice } from '../types';
 import ScheduleModal from './Scheduling/ScheduleModal';
+import SupplierSelectionModal from './Suppliers/SupplierSelectionModal';
 import { TicketComments } from './TicketComments';
 import TicketCompletionModal from './TicketCompletionModal';
+import QuoteComparisonModal from './Tickets/QuoteComparisonModal';
+import QuoteManagementModal from './Tickets/QuoteManagementModal';
+import Modal from './UI/Modal';
 
 interface TicketDetailModalProps {
   ticket: Ticket;
@@ -943,10 +943,9 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
       console.log('📧 Marking invoice as received for expense:', linkedExpense.id);
       console.log('📄 Selected invoice:', selectedInvoice.invoiceNumber);
       
-      // Mark the expense as invoiced using the expense service
-      // TODO: Update this to also link the selected invoice ID to the expense
-      await expenseService.markAsInvoiced(linkedExpense.id, currentUser.id);
-      console.log('✅ Expense marked as invoiced successfully');
+      // Mark the expense as invoiced and link to the selected invoice
+      await expenseService.markAsInvoiced(linkedExpense.id, currentUser.id, selectedInvoice.id);
+      console.log('✅ Expense marked as invoiced and linked to invoice:', selectedInvoice.id);
 
       // Refresh the expense data to show updated status
       const updatedExpense = await expenseService.getExpenseByTicketId(localTicket.id);

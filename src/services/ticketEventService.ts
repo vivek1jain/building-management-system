@@ -1,6 +1,6 @@
+import { BuildingEvent, Ticket } from '../types';
 import { eventService } from './eventService';
 import { ticketService } from './ticketService';
-import { BuildingEvent, Ticket } from '../types';
 
 export const ticketEventService = {
   // Create an event when a ticket is scheduled
@@ -9,14 +9,6 @@ export const ticketEventService = {
     scheduledDate: Date, 
     userId: string
   ): Promise<BuildingEvent | null> {
-    console.log('🎫➡️📅 Starting createEventForScheduledTicket:', {
-      ticketId: ticket.id,
-      ticketTitle: ticket.title,
-      scheduledDate: scheduledDate.toISOString(),
-      buildingId: ticket.buildingId,
-      userId
-    });
-    
     try {
       // Calculate end date (2 hours after start by default)
       const endDate = new Date(scheduledDate);
@@ -28,26 +20,13 @@ export const ticketEventService = {
         location: ticket.location,
         buildingId: ticket.buildingId,
         startDate: scheduledDate,
-        endDate: endDate,
+        endDate,
         ticketId: ticket.id,
         assignedTo: ticket.assignedTo ? [ticket.assignedTo, userId] : [userId],
         status: 'scheduled' as const
       };
 
-      console.log('🎫➡️📅 Event data to create:', {
-        ...eventData,
-        startDate: eventData.startDate.toISOString(),
-        endDate: eventData.endDate.toISOString()
-      });
-
       const event = await eventService.createEvent(eventData);
-      console.log('✅ Created event for scheduled ticket:', {
-        eventId: event.id,
-        ticketId: ticket.id,
-        buildingId: event.buildingId,
-        status: event.status,
-        title: event.title
-      });
       return event;
     } catch (error) {
       console.error('❌ Failed to create event for scheduled ticket:', {
@@ -81,8 +60,6 @@ export const ticketEventService = {
           startDate: newScheduledDate,
           endDate: newEndDate
         });
-
-        console.log('Updated event for rescheduled ticket:', eventToUpdate.id);
       }
     } catch (error) {
       console.error('Failed to update event for rescheduled ticket:', error);
@@ -101,8 +78,6 @@ export const ticketEventService = {
         await eventService.updateEvent(eventToUpdate.id, {
           status: 'completed'
         });
-
-        console.log('Marked event as completed for ticket:', ticketId);
       }
     } catch (error) {
       console.error('Failed to complete event for ticket:', error);
@@ -121,8 +96,6 @@ export const ticketEventService = {
         await eventService.updateEvent(eventToUpdate.id, {
           status: 'cancelled'
         });
-
-        console.log('Cancelled event for ticket:', ticketId);
       }
     } catch (error) {
       console.error('Failed to cancel event for ticket:', error);

@@ -327,10 +327,10 @@ service cloud.firestore {
       // Anyone authenticated can read, create, and update flat ledger transactions
       allow read, create, update: if isAuthenticated();
       
-      // Only admins can delete flat ledger transactions
-      allow delete: if isAuthenticated() && 
+      // Managers and admins can delete flat ledger transactions (for backfill utility)
+      allow delete: if isManager() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
     // Resident Account Ledgers collection - TEMPORARILY RELAXED FOR DEVELOPMENT

@@ -1,8 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { FlatLedgerModal } from '../components/FlatLedger';
+import { TicketDetailModal } from '../components/TicketDetailModal';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption, PageLoading, SectionLoading, TabLoadingSkeleton, TableRowSkeleton, WidgetSkeleton } from '../components/UI'
 import { useAuth } from '../contexts/AuthContext';
-import { useNotifications } from '../contexts/NotificationContext';
 import { useBuilding } from '../contexts/BuildingContext';
+import { useNotifications } from '../contexts/NotificationContext';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import budgetCategoryMasterService from '../services/budgetCategoryMasterService';
+import { budgetService } from '../services/budgetService';
+import { financialIntegrationService } from '../services/financialIntegrationService';
+import { ticketService } from '../services/ticketService';
 import { 
   Building as BuildingType, 
   Budget, 
@@ -18,13 +25,7 @@ import {
   BudgetCategoryItem,
   BudgetValidationResult
 } from '../types';
-import { budgetService } from '../services/budgetService';
-import budgetCategoryMasterService from '../services/budgetCategoryMasterService';
 import budgetValidationUtils from '../utils/budgetValidation';
-import { FlatLedgerModal } from '../components/FlatLedger';
-import { financialIntegrationService } from '../services/financialIntegrationService';
-import { TicketDetailModal } from '../components/TicketDetailModal';
-import { ticketService } from '../services/ticketService';
 
 type SortField = 'flatNumber' | 'residentName' | 'totalAmountDue' | 'outstandingAmount' | 'dueDate' | 'status'
 type SortDirection = 'asc' | 'desc'
@@ -70,8 +71,8 @@ import {
   Settings,
   Trash2
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent, CardFooter, Button, Input, Modal, ModalHeader, ModalFooter, Dropdown, DropdownOption, PageLoading, SectionLoading, TabLoadingSkeleton, TableRowSkeleton, WidgetSkeleton } from '../components/UI'
 import { ServiceChargePeriodDropdown } from '../components/ServiceCharges/ServiceChargePeriodDropdown'
+import { getFinancialYearInfo } from '../utils/financialYear'
 
 // UK-specific budget categories
 const UK_INCOME_CATEGORIES = [
@@ -201,7 +202,7 @@ const Finances: React.FC = () => {
       setBudgetForm({
         year: budget.year || new Date().getFullYear(),
         financialYearStart: budget.financialYearStart ? new Date(budget.financialYearStart) : new Date('2024-04-01'),
-        status: budget.status || 'draft',
+        status: 'draft' as const, // Always use 'draft' for form editing
         serviceChargeRate: budget.serviceChargeRate || 0,
         totalBudgetAmount: budget.totalBudgetAmount || 0,
         totalSqFt: budget.totalSqFt || 0,
@@ -1271,7 +1272,7 @@ const Finances: React.FC = () => {
     return new Promise((resolve) => {
       const { period, totalDemands, paidCount, partiallyPaidCount, outstandingCount, overdueCount } = data
       
-      let statusLines = []
+      const statusLines = []
       if (paidCount > 0) statusLines.push(`✅ ${paidCount} Paid`)
       if (partiallyPaidCount > 0) statusLines.push(`⚠️ ${partiallyPaidCount} Partially Paid`)
       if (outstandingCount > 0) statusLines.push(`❌ ${outstandingCount} Outstanding`)
@@ -1489,6 +1490,39 @@ const Finances: React.FC = () => {
             
             await Promise.all(cancelPromises)
             
+            console.log('[LedgerSync] Reversing ledger entries for cancelled demands')
+            
+            // Reverse ledger entries for cancelled demands
+            try {
+              const { reverseServiceChargeDemand } = await import('../services/flatLedgerSyncService')
+              
+              let reversedCount = 0
+              for (const demand of existingDemandsForPeriod) {
+                try {
+                  await reverseServiceChargeDemand(
+                    demand, 
+                    currentUser?.id || 'system',
+                    'Cancelled to issue replacement demands'
+                  )
+                  reversedCount++
+                } catch (reverseError) {
+                  console.error('[LedgerSync] Failed to reverse ledger for demand', {
+                    demandId: demand.id,
+                    error: reverseError
+                  })
+                  // Continue with other demands
+                }
+              }
+              
+              console.log('[LedgerSync] ✅ Reversed ledger entries', {
+                totalDemands: existingDemandsForPeriod.length,
+                reversed: reversedCount
+              })
+            } catch (reversalServiceError) {
+              console.error('[LedgerSync] ❌ Ledger reversal service error:', reversalServiceError)
+              // Don't fail - demands are cancelled
+            }
+            
             addNotification({
               userId: currentUser?.id || '',
               title: 'Success',
@@ -1645,13 +1679,21 @@ const Finances: React.FC = () => {
       const status = newOutstandingAmount <= 0 ? ServiceChargeDemandStatus.PAID : 
                     newPaidAmount > 0 ? ServiceChargeDemandStatus.PARTIALLY_PAID : ServiceChargeDemandStatus.ISSUED
 
+      console.log('[LedgerSync] Payment sync requested', {
+        demandId: selectedDemand.id,
+        flatId: selectedDemand.flatId,
+        flatNumber: selectedDemand.flatNumber,
+        amount
+      })
+
+      // Update the service charge demand
       await updateServiceChargeDemand(selectedDemand.id, {
-        status: status,
+        status,
         amountPaid: newPaidAmount,
         outstandingAmount: Math.max(0, newOutstandingAmount),
         paymentHistory: [...(selectedDemand.paymentHistory || []), {
           paymentId: `payment-${Date.now()}`,
-          paymentDate: paymentDate,
+          paymentDate,
           amount: parseFloat(paymentAmount),
           method: PaymentMethod.BANK_TRANSFER,
           reference: `PAY-${Date.now()}`,
@@ -1659,6 +1701,32 @@ const Finances: React.FC = () => {
           recordedAt: new Date()
         } as PaymentRecord]
       })
+
+      // Sync payment to flat ledger
+      try {
+        const { recordPaymentForDemand } = await import('../services/flatLedgerSyncService')
+        
+        await recordPaymentForDemand({
+          demand: selectedDemand,
+          amount,
+          processedAt: paymentDate,
+          method: 'Bank Transfer',
+          reference: `PAY-${Date.now()}`,
+          notes: `Payment for demand ${selectedDemand.id}`,
+          createdBy: currentUser?.id || 'system'
+        })
+        
+        console.log('[LedgerSync] ✅ Payment synced to ledger successfully')
+      } catch (ledgerError) {
+        console.error('[LedgerSync] ❌ Failed to sync payment to ledger:', ledgerError)
+        // Don't fail the whole operation - demand was updated
+        addNotification({
+          userId: currentUser?.id || '',
+          title: 'Warning',
+          message: 'Payment recorded but ledger sync failed. Please check logs.',
+          type: 'warning'
+        })
+      }
 
       addNotification({ userId: currentUser?.id || '', title: 'Success', message: 'Payment recorded successfully!', type: 'success' })
       setShowPaymentModal(false)
@@ -1699,7 +1767,7 @@ const Finances: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Finances</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter" data-testid="page-title">Finances</h1>
             {!isMobile && (
               <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
             )}
@@ -1741,7 +1809,7 @@ const Finances: React.FC = () => {
         {/* Tab Content */}
         <div className="space-y-6">
           {activeTab === 'budget' && (
-            <div className={isMobile ? 'space-y-3' : 'space-y-6'}>
+            <div className={isMobile ? 'space-y-3' : 'space-y-6'} data-testid="budget-overview">
               <div className={`flex items-center justify-between ${
                 isMobile ? 'sticky top-[49px] bg-white z-10 py-3 -mx-4 px-4 border-b border-neutral-200' : ''
               }`}>
@@ -1761,7 +1829,7 @@ const Finances: React.FC = () => {
                         <span>{budgetLocked ? 'Locked' : 'Unlocked'}</span>
                       </button>
                     )}
-                    <Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />}>
+                    <Button onClick={() => setShowBudgetSetup(true)} leftIcon={<Plus className="h-4 w-4" />} data-testid="create-budget">
                       {budget ? 'Edit Budget' : 'Create Budget'}
                     </Button>
                   </div>
@@ -1788,6 +1856,7 @@ const Finances: React.FC = () => {
                     onClick={() => setShowBudgetSetup(true)}
                     className="btn-primary flex items-center justify-center px-3 min-w-[44px]"
                     title={budget ? 'Edit Budget' : 'Create Budget'}
+                    data-testid="create-budget"
                   >
                     {budget ? <Edit className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
                   </button>
@@ -1805,11 +1874,11 @@ const Finances: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div>
                             <p className="text-neutral-600">Annual Budget</p>
-                            <p className="text-base font-bold text-blue-900">£{(budget.totalBudgetAmount || 0).toLocaleString()}</p>
+                            <p className="text-base font-bold text-blue-900" data-testid="budget-total">£{(budget.totalBudgetAmount || 0).toLocaleString()}</p>
                           </div>
                           <div>
                             <p className="text-neutral-600">Actuals (YTD)</p>
-                            <p className="text-base font-bold text-purple-900">
+                            <p className="text-base font-bold text-purple-900" data-testid="budget-spent">
                               £{expenses.filter(e => e.status === 'paid' || e.status === 'invoiced').reduce((sum, e) => sum + (e.amount || 0), 0).toLocaleString()}
                             </p>
                           </div>
@@ -2039,6 +2108,7 @@ const Finances: React.FC = () => {
                     disabled={loading || !selectedBuildingId || !selectedPeriod}
                     className="btn-primary flex items-center justify-center px-3 min-w-[44px] h-[44px]"
                     title={!selectedPeriod ? 'Select a period first' : 'Issue Demands'}
+                    data-testid="generate-demands"
                   >
                     <Plus className="h-5 w-5" />
                   </button>
@@ -2368,7 +2438,7 @@ const Finances: React.FC = () => {
                 </div>
               ) : (
                 // Desktop Table Layout - Period Accordion
-                <div data-demands-section className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+                <div data-testid="invoice-list" data-demands-section className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
                   <div className="px-6 py-4 border-b border-neutral-200">
                     <h3 className="text-lg font-medium text-neutral-900 font-inter">Service Charge Demands</h3>
                     {Object.keys(groupedServiceCharges).length > 1 && (
@@ -3157,6 +3227,7 @@ const Finances: React.FC = () => {
                       onChange={(e) => setBudgetForm({ ...budgetForm, year: parseInt(e.target.value) })}
                       required
                       className="w-20 text-sm [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&[type=number]]:[-moz-appearance:textfield]"
+                      data-testid="budget-year"
                     />
                   </div>
                   
@@ -3464,6 +3535,7 @@ const Finances: React.FC = () => {
                           disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
                           loading={loading}
                           className="flex-1 min-h-[44px]"
+                          data-testid="save-budget"
                         >
                           {budget ? 'Update' : 'Create'}
                         </Button>
@@ -3492,6 +3564,7 @@ const Finances: React.FC = () => {
                           type="submit" 
                           disabled={loading || !selectedBuildingId || !budgetValidation?.isValid} 
                           loading={loading}
+                          data-testid="save-budget"
                         >
                           {budget ? 'Update' : 'Create Budget'}
                         </Button>

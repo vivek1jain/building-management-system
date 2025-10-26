@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
 import { Save, Shield, Plus, X, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
 
-interface SecuritySettings {
+interface SecuritySettingsConfig {
   allowedDomains: string[];
   requireEmailVerification: boolean;
   sessionTimeout: number;
@@ -9,8 +9,8 @@ interface SecuritySettings {
 }
 
 interface SecuritySettingsProps {
-  securitySettings: SecuritySettings;
-  setSecuritySettings: React.Dispatch<React.SetStateAction<SecuritySettings>>;
+  securitySettings: SecuritySettingsConfig;
+  setSecuritySettings: React.Dispatch<React.SetStateAction<SecuritySettingsConfig>>;
   addNotification: (notification: any) => void;
   currentUser: any;
 }
@@ -34,7 +34,7 @@ export const SecuritySettings: React.FC<SecuritySettingsProps> = ({
     setHasChanges(false);
   };
 
-  const updateSecuritySettings = (updates: Partial<SecuritySettings>) => {
+  const updateSecuritySettings = (updates: Partial<SecuritySettingsConfig>) => {
     setSecuritySettings(prev => ({ ...prev, ...updates }));
     setHasChanges(true);
   };

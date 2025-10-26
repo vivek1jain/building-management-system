@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
 import { TestTube, Database, Settings, ChevronRight, Calendar } from 'lucide-react';
+import React, { useState } from 'react';
 import { User, Notification } from '../../types';
-import UITestSuite from '../Testing/UITestSuite';
-import DiagnosticTest from '../Testing/DiagnosticTest';
 import DataCleanup from '../Testing/DataCleanup';
-import TestingUtilities from '../Testing/TestingUtilities';
+import DiagnosticTest from '../Testing/DiagnosticTest';
 import { FinancialYearTest } from '../Testing/FinancialYearTest';
+import TestingUtilities from '../Testing/TestingUtilities';
+import UITestSuite from '../Testing/UITestSuite';
 import { Card, CardContent } from '../UI';
 
 interface TestingSettingsProps {

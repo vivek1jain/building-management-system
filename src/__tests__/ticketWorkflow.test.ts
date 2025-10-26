@@ -287,7 +287,7 @@ describe('Ticket Workflow - Complete to Closed Transition', () => {
       const updateDoc = require('firebase/firestore').updateDoc;
       updateDoc.mockResolvedValue(undefined);
 
-      await ticketService.completeTicket(mockTicketId, mockUserId, 50);
+      await ticketService.completeTicket(mockTicketId, mockUserId, 50, 'Maintenance');
 
       expect(updateDoc).toHaveBeenCalledWith(
         expect.anything(),
@@ -308,7 +308,7 @@ describe('Ticket Workflow - Complete to Closed Transition', () => {
     it('should fail to complete a non-existent ticket', async () => {
       jest.spyOn(ticketService, 'getTicketById').mockResolvedValue(null);
 
-      await expect(ticketService.completeTicket(mockTicketId, mockUserId, 75))
+      await expect(ticketService.completeTicket(mockTicketId, mockUserId, 75, 'Maintenance'))
         .rejects
         .toThrow('Failed to complete ticket');
     });
@@ -466,7 +466,7 @@ describe('Ticket Workflow - Complete to Closed Transition', () => {
       jest.spyOn(ticketService, 'getTicketById').mockResolvedValue(mockTicket);
       
       // 2. Check it can be reopened
-      let reopenCheck = await ticketService.canTicketBeReopened(mockTicketId);
+      const reopenCheck = await ticketService.canTicketBeReopened(mockTicketId);
       expect(reopenCheck.canReopen).toBe(true);
       expect(reopenCheck.daysRemaining).toBe(5);
 

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle, XCircle, Search as SearchIcon } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
 
 interface Issue {
   id: string;

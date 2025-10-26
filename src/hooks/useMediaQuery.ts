@@ -24,5 +24,3 @@ export const useMediaQuery = (query: string): boolean => {
 
 // Predefined breakpoints based on Tailwind CSS
 export const useIsMobile = () => useMediaQuery('(max-width: 768px)')
-export const useIsTablet = () => useMediaQuery('(min-width: 769px) and (max-width: 1023px)')
-export const useIsDesktop = () => useMediaQuery('(min-width: 1024px)')

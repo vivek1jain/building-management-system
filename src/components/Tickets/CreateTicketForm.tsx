@@ -1,6 +1,3 @@
-import { useState } from 'react'
-import { useDropzone } from 'react-dropzone'
-import { useForm } from 'react-hook-form'
 import { 
   Upload, 
   X, 
@@ -11,9 +8,12 @@ import {
   Building,
   ChevronDown
 } from 'lucide-react'
+import { useState } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { useForm } from 'react-hook-form'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
+import { useNotifications } from '../../contexts/NotificationContext'
 import { ticketService } from '../../services/ticketService'
 import { CreateTicketForm as CreateTicketFormType, UrgencyLevel } from '../../types'
 import Button from '../UI/Button'

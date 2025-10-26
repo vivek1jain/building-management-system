@@ -1,16 +1,15 @@
+import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Info } from 'lucide-react'
 import React, { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, Plus, Users, Edit, Trash2, Eye, Building as BuildingIcon, ChevronDown, Info } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { useNotifications } from '../../contexts/NotificationContext'
 import { useBuilding } from '../../contexts/BuildingContext'
-import { Person, Building, PersonStatus } from '../../types'
+import { useNotifications } from '../../contexts/NotificationContext'
 import { getPeopleByBuilding, createPerson, updatePerson } from '../../services/peopleService'
-import { Badge } from '../UI'
-import Button from '../UI/Button'
-import { Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 import { tokens } from '../../styles/tokens'
+import { Person, Building, PersonStatus } from '../../types'
 import { getBadgeColors, getStatusColors, getButtonColors } from '../../utils/colors'
+import { Badge , Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
+import Button from '../UI/Button'
 
 const PeopleDataTable: React.FC = () => {
   const { currentUser } = useAuth()
@@ -378,6 +377,7 @@ const PeopleDataTable: React.FC = () => {
           data-add-button
           onClick={() => setShowCreatePerson(true)}
           className="hidden"
+          data-testid="add-person"
         >
           Add Person
         </button>
@@ -392,7 +392,7 @@ const PeopleDataTable: React.FC = () => {
             <p className="text-gray-600 font-inter mt-2">Get started by adding your first person.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden">
+          <div className="bg-white rounded-lg border border-neutral-200 overflow-hidden" data-testid="people-list">
             {/* Header Row */}
             <div className="bg-neutral-50 px-4 py-3 border-b border-neutral-200">
               <div className="flex items-center justify-between">
@@ -425,7 +425,7 @@ const PeopleDataTable: React.FC = () => {
               const isLastRow = index === filteredPeople.length - 1
               
               return (
-                <div key={person.id} className={`bg-white ${!isLastRow ? 'border-b border-neutral-200' : ''}`}>
+                <div key={person.id} className={`bg-white ${!isLastRow ? 'border-b border-neutral-200' : ''}`} data-testid="person-item">
                   {/* Collapsed View - Main Info */}
                   <div 
                     onClick={() => toggleDesktopExpanded(person.id)}
@@ -864,6 +864,7 @@ const PeopleDataTable: React.FC = () => {
                   value={personForm.name}
                   onChange={(e) => setPersonForm({...personForm, name: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  data-testid="person-name"
                 />
               </div>
               <div>
@@ -873,6 +874,7 @@ const PeopleDataTable: React.FC = () => {
                   value={personForm.email}
                   onChange={(e) => setPersonForm({...personForm, email: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  data-testid="person-email"
                 />
               </div>
             </div>
@@ -885,6 +887,7 @@ const PeopleDataTable: React.FC = () => {
                   value={personForm.phone}
                   onChange={(e) => setPersonForm({...personForm, phone: e.target.value})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  data-testid="person-phone"
                 />
               </div>
               <div>
@@ -893,6 +896,7 @@ const PeopleDataTable: React.FC = () => {
                   value={personForm.status}
                   onChange={(e) => setPersonForm({...personForm, status: e.target.value as PersonStatus})}
                   className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
+                  data-testid="person-status"
                 >
                   <option value={PersonStatus.RESIDENT}>Resident</option>
                   <option value={PersonStatus.OWNER}>Owner</option>
@@ -945,7 +949,7 @@ const PeopleDataTable: React.FC = () => {
 
             <ModalFooter>
               <Button variant="secondary" onClick={() => setShowEditPerson(false)}>Cancel</Button>
-              <Button onClick={handleUpdatePerson}>Update Person</Button>
+              <Button onClick={handleUpdatePerson} data-testid="save-person">Update Person</Button>
             </ModalFooter>
           </div>
         </Modal>

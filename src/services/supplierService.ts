@@ -22,9 +22,7 @@ class SupplierService {
   // Get all suppliers
   async getSuppliers(): Promise<Supplier[]> {
     try {
-      console.log('Fetching suppliers from Firestore...')
       const querySnapshot = await getDocs(this.suppliersCollection)
-      console.log('Suppliers fetched:', querySnapshot.docs.length)
       return querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -61,13 +59,11 @@ class SupplierService {
   // Create new supplier
   async createSupplier(supplierData: Omit<Supplier, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      console.log('Creating supplier:', supplierData)
       const docRef = await addDoc(this.suppliersCollection, {
         ...supplierData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
-      console.log('Supplier created with ID:', docRef.id)
       return docRef.id
     } catch (error) {
       console.error('Error creating supplier:', error)

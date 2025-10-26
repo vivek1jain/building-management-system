@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import {
   Award,
   Clock,
@@ -14,14 +13,15 @@ import {
   Zap,
   User
 } from 'lucide-react'
-import { EnhancedQuote, QuoteRequestStatus, Supplier } from '../../types'
-import { supplierService } from '../../services/supplierService'
-import { ticketService } from '../../services/ticketService'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNotifications } from '../../contexts/NotificationContext'
-import Modal, { ModalFooter } from '../UI/Modal'
-import Button from '../UI/Button'
+import { supplierService } from '../../services/supplierService'
+import { ticketService } from '../../services/ticketService'
+import { EnhancedQuote, QuoteRequestStatus, Supplier } from '../../types'
 import ScheduleModal from '../Scheduling/ScheduleModal'
+import Button from '../UI/Button'
+import Modal, { ModalFooter } from '../UI/Modal'
 
 interface QuoteComparisonModalProps {
   isOpen: boolean

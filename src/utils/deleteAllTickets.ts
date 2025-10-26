@@ -1,5 +1,5 @@
-import { db } from '../firebase/config'
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore'
+import { db } from '../firebase/config'
 
 const TICKETS_COLLECTION = 'tickets'
 

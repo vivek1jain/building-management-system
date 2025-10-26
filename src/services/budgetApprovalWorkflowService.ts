@@ -12,6 +12,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Budget, BudgetStatus, User } from '../types';
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 import { budgetService } from './budgetService';
 
 export interface BudgetApprovalRequest {
@@ -167,7 +169,7 @@ class BudgetApprovalWorkflowService {
 
       return savedRequest;
     } catch (error) {
-      console.error('Error submitting budget for approval:', error);
+      handleServiceError('Error submitting budget for approval:', error);
       throw error;
     }
   }
@@ -264,7 +266,7 @@ class BudgetApprovalWorkflowService {
 
       return approvalRequest;
     } catch (error) {
-      console.error('Error reviewing budget approval:', error);
+      handleServiceError('Error reviewing budget approval:', error);
       throw error;
     }
   }
@@ -287,9 +289,9 @@ class BudgetApprovalWorkflowService {
       const requests = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        requestedAt: doc.data().requestedAt?.toDate() || new Date()
+        createdAt: doc.data().createdAt ? fromFirestoreTimestamp(doc.data().createdAt) : new Date(),
+        updatedAt: doc.data().updatedAt ? fromFirestoreTimestamp(doc.data().updatedAt) : new Date(),
+        requestedAt: doc.data().requestedAt ? fromFirestoreTimestamp(doc.data().requestedAt) : new Date()
       })) as BudgetApprovalRequest[];
 
       // Filter to only include requests where user is pending reviewer
@@ -299,7 +301,7 @@ class BudgetApprovalWorkflowService {
         )
       );
     } catch (error) {
-      console.error('Error getting approval requests for user:', error);
+      handleServiceError('Error getting approval requests for user:', error);
       throw error;
     }
   }
@@ -319,14 +321,14 @@ class BudgetApprovalWorkflowService {
       const history = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-        requestedAt: doc.data().requestedAt?.toDate() || new Date()
+        createdAt: doc.data().createdAt ? fromFirestoreTimestamp(doc.data().createdAt) : new Date(),
+        updatedAt: doc.data().updatedAt ? fromFirestoreTimestamp(doc.data().updatedAt) : new Date(),
+        requestedAt: doc.data().requestedAt ? fromFirestoreTimestamp(doc.data().requestedAt) : new Date()
       })) as BudgetApprovalRequest[];
 
       return history.slice(0, limit);
     } catch (error) {
-      console.error('Error getting approval history:', error);
+      handleServiceError('Error getting approval history:', error);
       throw error;
     }
   }
@@ -345,8 +347,8 @@ class BudgetApprovalWorkflowService {
       const requests = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || new Date(),
-        requestedAt: doc.data().requestedAt?.toDate() || new Date()
+        createdAt: doc.data().createdAt ? fromFirestoreTimestamp(doc.data().createdAt) : new Date(),
+        requestedAt: doc.data().requestedAt ? fromFirestoreTimestamp(doc.data().requestedAt) : new Date()
       })) as BudgetApprovalRequest[];
 
       for (const request of requests) {
@@ -364,7 +366,7 @@ class BudgetApprovalWorkflowService {
         }
       }
     } catch (error) {
-      console.error('Error escalating overdue approvals:', error);
+      handleServiceError('Error escalating overdue approvals:', error);
       throw error;
     }
   }
@@ -421,7 +423,7 @@ class BudgetApprovalWorkflowService {
         }
       };
     } catch (error) {
-      console.error('Error getting approval workflow config:', error);
+      handleServiceError('Error getting approval workflow config:', error);
       // Return minimal default config
       return {
         buildingId,

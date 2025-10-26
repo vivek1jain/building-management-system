@@ -1,8 +1,8 @@
-import React from 'react'
 import { Building } from 'lucide-react'
+import React from 'react'
 import { useBuilding } from '../../contexts/BuildingContext'
-import { Dropdown, DropdownOption } from '../UI'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import { Dropdown, DropdownOption } from '../UI'
 
 const HeaderBuildingSwitcher: React.FC = () => {
   const { 

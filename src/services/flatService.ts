@@ -14,6 +14,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Flat, Person, ServiceChargeDemand } from '../types'
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 
 // Get all flats for a building
 export const getFlatsByBuilding = async (buildingId: string): Promise<Flat[]> => {
@@ -36,15 +38,19 @@ export const getFlatsByBuilding = async (buildingId: string): Promise<Flat[]> =>
         areaSqFt: data.areaSqFt,
         groundRent: data.groundRent,
         notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt)
       })
     })
     
     // Sort by flat number
     return flats.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber))
   } catch (error) {
-    console.error('Error getting flats by building:', error)
+    handleServiceError('Error getting flats by building', error, {
+      service: 'flatService',
+      operation: 'getFlatsByBuilding',
+      metadata: { buildingId }
+    })
     throw error
   }
 }
@@ -68,14 +74,18 @@ export const getFlatById = async (flatId: string): Promise<Flat | null> => {
         areaSqFt: data.areaSqFt,
         groundRent: data.groundRent,
         notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt)
       }
     }
     
     return null
   } catch (error) {
-    console.error('Error getting flat by ID:', error)
+    handleServiceError('Error getting flat by ID', error, {
+      service: 'flatService',
+      operation: 'getFlatById',
+      metadata: { flatId }
+    })
     throw error
   }
 }
@@ -99,7 +109,11 @@ export const createFlat = async (flatData: Omit<Flat, 'id' | 'createdAt' | 'upda
       updatedAt: new Date()
     }
   } catch (error) {
-    console.error('Error creating flat:', error)
+    handleServiceError('Error creating flat', error, {
+      service: 'flatService',
+      operation: 'createFlat',
+      metadata: { flatNumber: flatData.flatNumber }
+    })
     throw error
   }
 }
@@ -113,7 +127,11 @@ export const updateFlat = async (flatId: string, flatData: Partial<Omit<Flat, 'i
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error updating flat:', error)
+    handleServiceError('Error updating flat', error, {
+      service: 'flatService',
+      operation: 'updateFlat',
+      metadata: { flatId }
+    })
     throw error
   }
 }
@@ -124,7 +142,11 @@ export const deleteFlat = async (flatId: string): Promise<void> => {
     const flatRef = doc(db, 'flats', flatId)
     await deleteDoc(flatRef)
   } catch (error) {
-    console.error('Error deleting flat:', error)
+    handleServiceError('Error deleting flat', error, {
+      service: 'flatService',
+      operation: 'deleteFlat',
+      metadata: { flatId }
+    })
     throw error
   }
 }
@@ -156,11 +178,11 @@ export const getFlatResidents = async (flatId: string): Promise<Person[]> => {
         email: data.email,
         phone: data.phone,
         isPrimaryContact: data.isPrimaryContact,
-        moveInDate: data.moveInDate?.toDate(),
-        moveOutDate: data.moveOutDate?.toDate(),
+        moveInDate: data.moveInDate ? fromFirestoreTimestamp(data.moveInDate) : undefined,
+        moveOutDate: data.moveOutDate ? fromFirestoreTimestamp(data.moveOutDate) : undefined,
         notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: data.updatedAt ? fromFirestoreTimestamp(data.updatedAt) : undefined,
         createdByUid: data.createdByUid,
         updatedByUid: data.updatedByUid
       })
@@ -168,7 +190,11 @@ export const getFlatResidents = async (flatId: string): Promise<Person[]> => {
     
     return residents
   } catch (error) {
-    console.error('Error getting flat residents:', error)
+    handleServiceError('Error getting flat residents', error, {
+      service: 'flatService',
+      operation: 'getFlatResidents',
+      metadata: { flatId }
+    })
     throw error
   }
 }
@@ -178,11 +204,15 @@ export const assignPersonToFlat = async (personId: string, flatId: string): Prom
   try {
     const personRef = doc(db, 'people', personId)
     await updateDoc(personRef, {
-      flatId: flatId,
+      flatId,
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error assigning person to flat:', error)
+    handleServiceError('Error assigning person to flat', error, {
+      service: 'flatService',
+      operation: 'assignPersonToFlat',
+      metadata: { personId, flatId }
+    })
     throw error
   }
 }
@@ -196,7 +226,11 @@ export const removePersonFromFlat = async (personId: string): Promise<void> => {
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error removing person from flat:', error)
+    handleServiceError('Error removing person from flat', error, {
+      service: 'flatService',
+      operation: 'removePersonFromFlat',
+      metadata: { personId }
+    })
     throw error
   }
 }

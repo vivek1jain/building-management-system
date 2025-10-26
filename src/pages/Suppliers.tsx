@@ -1,7 +1,3 @@
-import React, { useState, useEffect } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { useNotifications } from '../contexts/NotificationContext'
-import { supplierService } from '../services/supplierService'
 import { 
   User, 
   Building, 
@@ -16,6 +12,10 @@ import {
   Filter,
   Search
 } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
+import { supplierService } from '../services/supplierService'
 import { Supplier, QuoteForm } from '../types'
 
 const Suppliers = () => {

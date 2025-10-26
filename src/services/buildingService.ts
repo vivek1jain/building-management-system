@@ -8,11 +8,12 @@ import {
   deleteDoc, 
   query, 
   where, 
-
   serverTimestamp 
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Building, Asset, Meter, AssetStatus } from '../types'
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 
   // Get all buildings
 export const getAllBuildings = async (): Promise<Building[]> => {
@@ -33,7 +34,7 @@ export const getAllBuildings = async (): Promise<Building[]> => {
         units: data.units,
         capacity: data.capacity,
         area: data.area,
-        financialYearStart: data.financialYearStart?.toDate(),
+        financialYearStart: data.financialYearStart ? fromFirestoreTimestamp(data.financialYearStart) : undefined,
         managers: data.managers || [],
         admins: data.admins || [],
         assets: data.assets || [],
@@ -48,115 +49,22 @@ export const getAllBuildings = async (): Promise<Building[]> => {
         contactInfo: data.contactInfo,
         financialInfo: data.financialInfo,
         financialSettings: data.financialSettings,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt)
       })
     })
     
     // Sort by name in memory
     return buildings.sort((a, b) => a.name.localeCompare(b.name))
     } catch (error) {
-      console.error('Error getting all buildings:', error)
-      throw error
-    }
-}
-
-  // Get buildings by manager
-export const getBuildingsByManager = async (managerId: string): Promise<Building[]> => {
-  try {
-    const buildingsRef = collection(db, 'buildings')
-    const q = query(
-      buildingsRef,
-      where('managers', 'array-contains', managerId)
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const buildings: Building[] = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      buildings.push({
-        id: doc.id,
-        name: data.name,
-        address: data.address,
-        code: data.code,
-        buildingType: data.buildingType,
-        floors: data.floors,
-        units: data.units,
-        capacity: data.capacity,
-        area: data.area,
-        financialYearStart: data.financialYearStart?.toDate(),
-        managers: data.managers || [],
-        admins: data.admins || [],
-        assets: data.assets || [],
-        meters: data.meters || [],
-        totalFloors: data.totalFloors,
-        totalUnits: data.totalUnits,
-        totalFlats: data.totalFlats,
-        yearBuilt: data.yearBuilt,
-        propertyType: data.propertyType,
-        amenities: data.amenities || [],
-        managerId: data.managerId,
-        contactInfo: data.contactInfo,
-        financialInfo: data.financialInfo,
-        financialSettings: data.financialSettings,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+      handleServiceError('Error getting all buildings', error, {
+        service: 'buildingService',
+        operation: 'getAllBuildings'
       })
-    })
-    
-    // Sort by name in memory
-    return buildings.sort((a, b) => a.name.localeCompare(b.name))
-    } catch (error) {
-      console.error('Error getting buildings by manager:', error)
       throw error
     }
 }
 
-// Get building by ID
-export const getBuildingById = async (buildingId: string): Promise<Building | null> => {
-  try {
-    const buildingRef = doc(db, 'buildings', buildingId)
-    const buildingSnap = await getDoc(buildingRef)
-    
-    if (buildingSnap.exists()) {
-      const data = buildingSnap.data()
-      return {
-        id: buildingSnap.id,
-        name: data.name,
-        address: data.address,
-        code: data.code,
-        buildingType: data.buildingType,
-        floors: data.floors,
-        units: data.units,
-        capacity: data.capacity,
-        area: data.area,
-        financialYearStart: data.financialYearStart?.toDate(),
-        managers: data.managers || [],
-        admins: data.admins || [],
-        assets: data.assets || [],
-        meters: data.meters || [],
-        totalFloors: data.totalFloors,
-        totalUnits: data.totalUnits,
-        totalFlats: data.totalFlats,
-        yearBuilt: data.yearBuilt,
-        propertyType: data.propertyType,
-        amenities: data.amenities || [],
-        managerId: data.managerId,
-        contactInfo: data.contactInfo,
-        financialInfo: data.financialInfo,
-        financialSettings: data.financialSettings,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error getting building by ID:', error)
-    throw error
-  }
-}
 
 // Create new building
 export const createBuilding = async (buildingData: Omit<Building, 'id' | 'createdAt' | 'updatedAt'>): Promise<Building> => {
@@ -177,7 +85,10 @@ export const createBuilding = async (buildingData: Omit<Building, 'id' | 'create
       updatedAt: new Date()
     }
   } catch (error) {
-    console.error('Error creating building:', error)
+    handleServiceError('Error creating building', error, {
+      service: 'buildingService',
+      operation: 'createBuilding'
+    })
     throw error
   }
 }
@@ -191,7 +102,11 @@ export const updateBuilding = async (buildingId: string, buildingData: Partial<O
         updatedAt: serverTimestamp()
       })
     } catch (error) {
-      console.error('Error updating building:', error)
+      handleServiceError('Error updating building', error, {
+        service: 'buildingService',
+        operation: 'updateBuilding',
+        metadata: { buildingId }
+      })
       throw error
     }
 }
@@ -202,7 +117,11 @@ export const deleteBuilding = async (buildingId: string): Promise<void> => {
     const buildingRef = doc(db, 'buildings', buildingId)
     await deleteDoc(buildingRef)
     } catch (error) {
-      console.error('Error deleting building:', error)
+      handleServiceError('Error deleting building', error, {
+        service: 'buildingService',
+        operation: 'deleteBuilding',
+        metadata: { buildingId }
+      })
       throw error
     }
 }
@@ -234,17 +153,17 @@ export const getAssetsByBuilding = async (buildingId: string): Promise<Asset[]> 
         manufacturer: data.manufacturer,
         modelNumber: data.modelNumber,
         serialNumber: data.serialNumber,
-        purchaseDate: data.purchaseDate?.toDate(),
-        installationDate: data.installationDate?.toDate(),
-        commissionedDate: data.commissionedDate?.toDate(),
-        decommissionedDate: data.decommissionedDate?.toDate(),
-        warrantyExpiryDate: data.warrantyExpiryDate?.toDate(),
-        nextServiceDate: data.nextServiceDate?.toDate(),
+        purchaseDate: data.purchaseDate ? fromFirestoreTimestamp(data.purchaseDate) : undefined,
+        installationDate: data.installationDate ? fromFirestoreTimestamp(data.installationDate) : undefined,
+        commissionedDate: data.commissionedDate ? fromFirestoreTimestamp(data.commissionedDate) : undefined,
+        decommissionedDate: data.decommissionedDate ? fromFirestoreTimestamp(data.decommissionedDate) : undefined,
+        warrantyExpiryDate: data.warrantyExpiryDate ? fromFirestoreTimestamp(data.warrantyExpiryDate) : undefined,
+        nextServiceDate: data.nextServiceDate ? fromFirestoreTimestamp(data.nextServiceDate) : undefined,
         supplierId: data.supplierId,
         supplierName: data.supplierName,
         notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt),
         createdByUid: data.createdByUid
       })
     })
@@ -252,53 +171,15 @@ export const getAssetsByBuilding = async (buildingId: string): Promise<Asset[]> 
     // Sort by name in memory
     return assets.sort((a, b) => a.name.localeCompare(b.name))
   } catch (error) {
-    console.error('Error getting assets by building:', error)
+    handleServiceError('Error getting assets by building', error, {
+      service: 'buildingService',
+      operation: 'getAssetsByBuilding',
+      metadata: { buildingId }
+    })
     throw error
   }
 }
 
-// Get asset by ID
-export const getAssetById = async (assetId: string): Promise<Asset | null> => {
-  try {
-    const assetRef = doc(db, 'assets', assetId)
-    const assetSnap = await getDoc(assetRef)
-    
-    if (assetSnap.exists()) {
-      const data = assetSnap.data()
-      return {
-        id: assetSnap.id,
-        buildingId: data.buildingId,
-        name: data.name,
-        category: data.category || 'OTHER',
-        type: data.type,
-        status: data.status || AssetStatus.OPERATIONAL,
-        locationDescription: data.locationDescription,
-        flatId: data.flatId,
-        flatNumber: data.flatNumber,
-        manufacturer: data.manufacturer,
-        modelNumber: data.modelNumber,
-        serialNumber: data.serialNumber,
-        purchaseDate: data.purchaseDate?.toDate(),
-        installationDate: data.installationDate?.toDate(),
-        commissionedDate: data.commissionedDate?.toDate(),
-        decommissionedDate: data.decommissionedDate?.toDate(),
-        warrantyExpiryDate: data.warrantyExpiryDate?.toDate(),
-        nextServiceDate: data.nextServiceDate?.toDate(),
-        supplierId: data.supplierId,
-        supplierName: data.supplierName,
-        notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date(),
-        createdByUid: data.createdByUid
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error getting asset by ID:', error)
-    throw error
-  }
-}
 
 // Create new asset
 export const createAsset = async (assetData: Omit<Asset, 'id' | 'createdAt' | 'updatedAt'>): Promise<Asset> => {
@@ -319,7 +200,10 @@ export const createAsset = async (assetData: Omit<Asset, 'id' | 'createdAt' | 'u
       updatedAt: new Date()
     }
     } catch (error) {
-      console.error('Error creating asset:', error)
+      handleServiceError('Error creating asset', error, {
+        service: 'buildingService',
+        operation: 'createAsset'
+      })
       throw error
     }
 }
@@ -333,7 +217,11 @@ export const updateAsset = async (assetId: string, assetData: Partial<Omit<Asset
         updatedAt: serverTimestamp()
       })
     } catch (error) {
-      console.error('Error updating asset:', error)
+      handleServiceError('Error updating asset', error, {
+        service: 'buildingService',
+        operation: 'updateAsset',
+        metadata: { assetId }
+      })
       throw error
     }
 }
@@ -344,7 +232,11 @@ export const deleteAsset = async (assetId: string): Promise<void> => {
     const assetRef = doc(db, 'assets', assetId)
     await deleteDoc(assetRef)
     } catch (error) {
-      console.error('Error deleting asset:', error)
+      handleServiceError('Error deleting asset', error, {
+        service: 'buildingService',
+        operation: 'deleteAsset',
+        metadata: { assetId }
+      })
       throw error
     }
 }
@@ -371,10 +263,10 @@ export const getMetersByBuilding = async (buildingId: string): Promise<Meter[]> 
         meterNumber: data.meterNumber,
         currentReading: data.currentReading,
         lastReading: data.lastReading,
-        lastReadingDate: data.lastReadingDate?.toDate(),
+        lastReadingDate: data.lastReadingDate ? fromFirestoreTimestamp(data.lastReadingDate) : undefined,
         threshold: data.threshold,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt)
       })
     })
     
@@ -385,89 +277,15 @@ export const getMetersByBuilding = async (buildingId: string): Promise<Meter[]> 
       return a.meterNumber.localeCompare(b.meterNumber)
     })
   } catch (error) {
-    console.error('Error getting meters by building:', error)
+    handleServiceError('Error getting meters by building', error, {
+      service: 'buildingService',
+      operation: 'getMetersByBuilding',
+      metadata: { buildingId }
+    })
     throw error
   }
 }
 
-// Get meter by ID
-export const getMeterById = async (meterId: string): Promise<Meter | null> => {
-  try {
-    const meterRef = doc(db, 'meters', meterId)
-    const meterSnap = await getDoc(meterRef)
-    
-    if (meterSnap.exists()) {
-      const data = meterSnap.data()
-      return {
-        id: meterSnap.id,
-        buildingId: data.buildingId,
-        unitId: data.unitId,
-        type: data.type,
-        meterNumber: data.meterNumber,
-        currentReading: data.currentReading,
-        lastReading: data.lastReading,
-        lastReadingDate: data.lastReadingDate?.toDate(),
-        threshold: data.threshold,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate() || new Date()
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error getting meter by ID:', error)
-    throw error
-  }
-}
-
-// Create new meter
-export const createMeter = async (meterData: Omit<Meter, 'id' | 'createdAt' | 'updatedAt'>): Promise<Meter> => {
-  try {
-    const metersRef = collection(db, 'meters')
-    const newMeter = {
-        ...meterData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-    }
-    
-    const docRef = await addDoc(metersRef, newMeter)
-    
-    return {
-      id: docRef.id,
-      ...meterData,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    } catch (error) {
-      console.error('Error creating meter:', error)
-      throw error
-    }
-}
-
-// Update meter
-export const updateMeter = async (meterId: string, meterData: Partial<Omit<Meter, 'id' | 'createdAt' | 'updatedAt'>>): Promise<void> => {
-  try {
-    const meterRef = doc(db, 'meters', meterId)
-    await updateDoc(meterRef, {
-      ...meterData,
-        updatedAt: serverTimestamp()
-      })
-    } catch (error) {
-      console.error('Error updating meter:', error)
-      throw error
-    }
-}
-
-// Delete meter
-export const deleteMeter = async (meterId: string): Promise<void> => {
-    try {
-    const meterRef = doc(db, 'meters', meterId)
-    await deleteDoc(meterRef)
-    } catch (error) {
-      console.error('Error deleting meter:', error)
-      throw error
-    }
-}
 
   // Get building statistics
 export const getBuildingStats = async (buildingId: string) => {
@@ -493,23 +311,12 @@ export const getBuildingStats = async (buildingId: string) => {
     
     return stats
     } catch (error) {
-      console.error('Error getting building stats:', error)
+      handleServiceError('Error getting building stats', error, {
+        service: 'buildingService',
+        operation: 'getBuildingStats',
+        metadata: { buildingId }
+      })
       throw error
     }
 }
 
-// Search buildings
-export const searchBuildings = async (searchTerm: string): Promise<Building[]> => {
-  try {
-    const buildings = await getAllBuildings()
-    
-    return buildings.filter(building => 
-      building.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      building.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      building.code.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  } catch (error) {
-    console.error('Error searching buildings:', error)
-    throw error
-  }
-} 

@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
 import { MapPin, Clock, User, MessageSquare, ArrowUp, ArrowDown } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
 import { Ticket, TicketStatus, UrgencyLevel } from '../types'
 
 type SortField = 'title' | 'status' | 'urgency' | 'location' | 'createdAt' | 'comments'
@@ -66,7 +66,7 @@ const TicketTable: React.FC<TicketTableProps> = ({
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text
-    return text.substring(0, maxLength) + '...'
+    return `${text.substring(0, maxLength)  }...`
   }
 
   const handleSort = (field: SortField) => {

@@ -38,7 +38,7 @@ export const calculateSuggestedAllocation = async (
     const previousYear = targetYear - 1
     const previousBudget = await budgetService.getCurrentYearBudget(buildingId, previousYear)
     
-    let adjustmentPercentage = 5 // Default 5% increase
+    const adjustmentPercentage = 5 // Default 5% increase
     
     const categories: BudgetCategoryAllocation[] = categoryTemplates.map(template => {
       let allocatedAmount = template.defaultAmount || 5000 // Default amount

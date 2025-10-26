@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react'
 import { User, DollarSign, Calendar, MessageSquare, ArrowUp, ArrowDown } from 'lucide-react'
+import React, { useState, useMemo } from 'react'
 import { WorkOrder, TicketStatus, UrgencyLevel, WorkOrderStatus, WorkOrderPriority } from '../types'
 
 type SortField = 'title' | 'status' | 'priority' | 'assignedTo' | 'cost' | 'scheduledDate'
@@ -39,7 +39,7 @@ const WorkOrderTable: React.FC<WorkOrderTableProps> = ({
 
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text
-    return text.substring(0, maxLength) + '...'
+    return `${text.substring(0, maxLength)  }...`
   }
 
   const handleSort = (field: SortField) => {

@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { ServiceChargeRateIntegrationPanel } from './ServiceChargeRateIntegrationPanel';
-import { BudgetApprovalWorkflowPanel } from './BudgetApprovalWorkflowPanel';
-import { BudgetValidationPanel } from './BudgetValidationPanel';
-import { BudgetHealthDashboard } from './BudgetHealthDashboard';
 import { ArrowRight, CheckCircle, Clock, DollarSign, Users, Building, Zap } from 'lucide-react';
+import React, { useState } from 'react';
 import { Card } from '../UI';
+import { BudgetApprovalWorkflowPanel } from './BudgetApprovalWorkflowPanel';
+import { BudgetHealthDashboard } from './BudgetHealthDashboard';
+import { BudgetValidationPanel } from './BudgetValidationPanel';
+import { ServiceChargeRateIntegrationPanel } from './ServiceChargeRateIntegrationPanel';
 
 interface Phase3IntegrationDemoProps {
   buildingId: string;

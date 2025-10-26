@@ -13,6 +13,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Expense } from '../types';
+import { handleServiceError } from '../utils/errorHandling';
+import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 export const expenseService = {
   // Create a new forecast expense (typically when a ticket is completed)
@@ -27,17 +29,19 @@ export const expenseService = {
 
       const docRef = await addDoc(collection(db, 'expenses'), {
         ...expense,
-        createdAt: Timestamp.fromDate(expense.createdAt),
-        updatedAt: Timestamp.fromDate(expense.updatedAt),
-        date: Timestamp.fromDate(expense.date),
-        expectedInvoiceDate: expense.expectedInvoiceDate ? Timestamp.fromDate(expense.expectedInvoiceDate) : null,
-        matchedAt: expense.matchedAt ? Timestamp.fromDate(expense.matchedAt) : null,
+        createdAt: toFirestoreTimestamp(expense.createdAt),
+        updatedAt: toFirestoreTimestamp(expense.updatedAt),
+        date: toFirestoreTimestamp(expense.date),
+        expectedInvoiceDate: toOptionalFirestoreTimestamp(expense.expectedInvoiceDate),
+        matchedAt: toOptionalFirestoreTimestamp(expense.matchedAt),
       });
 
-      console.log('Created forecast expense:', docRef.id);
       return docRef.id;
     } catch (error) {
-      console.error('Error creating forecast expense:', error);
+      handleServiceError('Error creating forecast expense', error, {
+        service: 'expenseService',
+        operation: 'createForecastExpense'
+      });
       throw error;
     }
   },
@@ -56,7 +60,7 @@ export const expenseService = {
     const expenseData: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'> = {
       buildingId,
       budgetId: '', // Will need to be set based on building's current budget
-      category: budgetCategory, // Use category field to match budget categories by name
+      categoryId: '', // Will be set based on budget category
       ticketId,
       amount,
       currency: 'GBP', // Default to GBP for UK market
@@ -75,20 +79,14 @@ export const expenseService = {
 
   // Get all expenses for a building
   async getExpensesByBuilding(buildingId: string): Promise<Expense[]> {
-    console.log('🔍 expenseService.getExpensesByBuilding called with buildingId:', buildingId);
-    
     try {
-      console.log('📄 Creating primary Firestore query with orderBy...');
       const q = query(
         collection(db, 'expenses'),
         where('buildingId', '==', buildingId),
         orderBy('createdAt', 'desc')
       );
-      console.log('✅ Primary query created successfully');
 
-      console.log('🔄 Executing primary Firestore query...');
       const querySnapshot = await getDocs(q);
-      console.log('📊 Primary query completed, found', querySnapshot.docs.length, 'expense documents');
       
       return this.processExpenseDocuments(querySnapshot);
       
@@ -104,7 +102,6 @@ export const expenseService = {
       // Check for specific Firebase errors
       if (error.code === 'failed-precondition') {
         console.error('🚫 FAILED-PRECONDITION: Composite index required for buildingId + createdAt');
-        console.log('🔄 Attempting fallback query without orderBy...');
         
         try {
           // Fallback query without orderBy to avoid index requirement
@@ -112,10 +109,8 @@ export const expenseService = {
             collection(db, 'expenses'),
             where('buildingId', '==', buildingId)
           );
-          console.log('✅ Fallback query created successfully');
           
           const fallbackSnapshot = await getDocs(fallbackQuery);
-          console.log('📊 Fallback query completed, found', fallbackSnapshot.docs.length, 'expense documents');
           
           // Process and manually sort by createdAt in JavaScript
           const expenses = this.processExpenseDocuments(fallbackSnapshot);
@@ -123,7 +118,6 @@ export const expenseService = {
           // Sort manually by createdAt descending
           expenses.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
           
-          console.log('✅ Fallback query successful, manually sorted expenses');
           return expenses;
           
         } catch (fallbackError) {
@@ -146,43 +140,22 @@ export const expenseService = {
   // Helper method to process expense documents
   processExpenseDocuments(querySnapshot: any): Expense[] {
     if (querySnapshot.empty) {
-      console.log('ℹ️ No expenses found');
       return [];
     }
 
-    console.log('🔄 Processing expense documents...');
-    const expenses = querySnapshot.docs.map((doc: any, index: number) => {
-      console.log(`📄 Processing expense ${index + 1}/${querySnapshot.docs.length}: ${doc.id}`);
+    const expenses = querySnapshot.docs.map((doc: any) => {
       const data = doc.data();
-      console.log('📋 Raw expense data:', {
-        id: doc.id,
-        hasDate: !!data.date,
-        hasCreatedAt: !!data.createdAt,
-        hasUpdatedAt: !!data.updatedAt,
-        status: data.status,
-        amount: data.amount,
-        description: data.description
-      });
       
       try {
-        const processedExpense = {
+        return {
           id: doc.id,
           ...data,
-          date: data.date?.toDate ? data.date.toDate() : new Date(data.date),
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt),
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate() : new Date(data.updatedAt),
-          expectedInvoiceDate: data.expectedInvoiceDate?.toDate ? data.expectedInvoiceDate.toDate() : (data.expectedInvoiceDate ? new Date(data.expectedInvoiceDate) : undefined),
-          matchedAt: data.matchedAt?.toDate ? data.matchedAt.toDate() : (data.matchedAt ? new Date(data.matchedAt) : undefined),
+          date: fromFirestoreTimestamp(data.date),
+          createdAt: fromFirestoreTimestamp(data.createdAt),
+          updatedAt: fromFirestoreTimestamp(data.updatedAt),
+          expectedInvoiceDate: data.expectedInvoiceDate ? fromFirestoreTimestamp(data.expectedInvoiceDate) : undefined,
+          matchedAt: data.matchedAt ? fromFirestoreTimestamp(data.matchedAt) : undefined,
         } as Expense;
-        
-        console.log('✅ Processed expense successfully:', {
-          id: processedExpense.id,
-          amount: processedExpense.amount,
-          status: processedExpense.status,
-          createdAt: processedExpense.createdAt
-        });
-        
-        return processedExpense;
       } catch (docError: any) {
         console.error(`❌ Error processing expense document ${doc.id}:`, docError);
         console.error('❌ Document data that failed:', data);
@@ -190,7 +163,6 @@ export const expenseService = {
       }
     });
     
-    console.log('✅ Successfully processed all expenses, returning', expenses.length, 'expenses');
     return expenses;
   },
 
@@ -210,15 +182,19 @@ export const expenseService = {
         return {
           id: doc.id,
           ...data,
-          date: data.date.toDate(),
-          createdAt: data.createdAt.toDate(),
-          updatedAt: data.updatedAt.toDate(),
-          expectedInvoiceDate: data.expectedInvoiceDate?.toDate() || undefined,
-          matchedAt: data.matchedAt?.toDate() || undefined,
+          date: fromFirestoreTimestamp(data.date),
+          createdAt: fromFirestoreTimestamp(data.createdAt),
+          updatedAt: fromFirestoreTimestamp(data.updatedAt),
+          expectedInvoiceDate: data.expectedInvoiceDate ? fromFirestoreTimestamp(data.expectedInvoiceDate) : undefined,
+          matchedAt: data.matchedAt ? fromFirestoreTimestamp(data.matchedAt) : undefined,
         } as Expense;
       });
     } catch (error) {
-      console.error('Error fetching forecast expenses:', error);
+      handleServiceError('Error fetching forecast expenses', error, {
+        service: 'expenseService',
+        operation: 'getForecastExpenses',
+        metadata: { buildingId }
+      });
       throw error;
     }
   },
@@ -241,14 +217,18 @@ export const expenseService = {
       return {
         id: doc.id,
         ...data,
-        date: data.date.toDate(),
-        createdAt: data.createdAt.toDate(),
-        updatedAt: data.updatedAt.toDate(),
-        expectedInvoiceDate: data.expectedInvoiceDate?.toDate() || undefined,
-        matchedAt: data.matchedAt?.toDate() || undefined,
+        date: fromFirestoreTimestamp(data.date),
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt),
+        expectedInvoiceDate: data.expectedInvoiceDate ? fromFirestoreTimestamp(data.expectedInvoiceDate) : undefined,
+        matchedAt: data.matchedAt ? fromFirestoreTimestamp(data.matchedAt) : undefined,
       } as Expense;
     } catch (error) {
-      console.error('Error fetching expense by ticket ID:', error);
+      handleServiceError('Error fetching expense by ticket ID', error, {
+        service: 'expenseService',
+        operation: 'getExpenseByTicketId',
+        metadata: { ticketId }
+      });
       throw error;
     }
   },
@@ -258,18 +238,18 @@ export const expenseService = {
     try {
       const updateData: any = {
         ...updates,
-        updatedAt: Timestamp.fromDate(new Date()),
+        updatedAt: toFirestoreTimestamp(new Date()),
       };
 
       // Convert dates to Timestamps for Firestore storage
       if (updates.date) {
-        updateData.date = Timestamp.fromDate(updates.date);
+        updateData.date = toFirestoreTimestamp(updates.date);
       }
       if (updates.expectedInvoiceDate) {
-        updateData.expectedInvoiceDate = Timestamp.fromDate(updates.expectedInvoiceDate);
+        updateData.expectedInvoiceDate = toFirestoreTimestamp(updates.expectedInvoiceDate);
       }
       if (updates.matchedAt) {
-        updateData.matchedAt = Timestamp.fromDate(updates.matchedAt);
+        updateData.matchedAt = toFirestoreTimestamp(updates.matchedAt);
       }
 
       // Calculate variance if both amounts are provided
@@ -278,9 +258,12 @@ export const expenseService = {
       }
 
       await updateDoc(doc(db, 'expenses', expenseId), updateData);
-      console.log('Updated expense:', expenseId);
     } catch (error) {
-      console.error('Error updating expense:', error);
+      handleServiceError('Error updating expense', error, {
+        service: 'expenseService',
+        operation: 'updateExpense',
+        metadata: { expenseId }
+      });
       throw error;
     }
   },
@@ -300,23 +283,36 @@ export const expenseService = {
       };
 
       await this.updateExpense(expenseId, updates);
-      console.log(`Matched expense ${expenseId} to invoice ${invoiceId}`);
     } catch (error) {
-      console.error('Error matching expense to invoice:', error);
+      handleServiceError('Error matching expense to invoice', error, {
+        service: 'expenseService',
+        operation: 'matchExpenseToInvoice',
+        metadata: { expenseId, invoiceId }
+      });
       throw error;
     }
   },
 
   // Mark expense as invoiced (when invoice is received)
-  async markAsInvoiced(expenseId: string, userId: string): Promise<void> {
+  async markAsInvoiced(expenseId: string, userId: string, invoiceId?: string): Promise<void> {
     try {
-      await this.updateExpense(expenseId, {
+      const updates: Partial<Expense> = {
         status: 'invoiced',
         matchedAt: new Date(),
-      });
-      console.log('Marked expense as invoiced:', expenseId);
+      };
+      
+      // Link to invoice if provided
+      if (invoiceId) {
+        updates.matchedToInvoiceId = invoiceId;
+      }
+      
+      await this.updateExpense(expenseId, updates);
     } catch (error) {
-      console.error('Error marking expense as invoiced:', error);
+      handleServiceError('Error marking expense as invoiced', error, {
+        service: 'expenseService',
+        operation: 'markAsInvoiced',
+        metadata: { expenseId, invoiceId }
+      });
       throw error;
     }
   },
@@ -327,9 +323,12 @@ export const expenseService = {
       await this.updateExpense(expenseId, {
         status: 'paid',
       });
-      console.log('Marked expense as paid:', expenseId);
     } catch (error) {
-      console.error('Error marking expense as paid:', error);
+      handleServiceError('Error marking expense as paid', error, {
+        service: 'expenseService',
+        operation: 'markExpenseAsPaid',
+        metadata: { expenseId }
+      });
       throw error;
     }
   },
@@ -338,9 +337,12 @@ export const expenseService = {
   async deleteExpense(expenseId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, 'expenses', expenseId));
-      console.log('Deleted expense:', expenseId);
     } catch (error) {
-      console.error('Error deleting expense:', error);
+      handleServiceError('Error deleting expense', error, {
+        service: 'expenseService',
+        operation: 'deleteExpense',
+        metadata: { expenseId }
+      });
       throw error;
     }
   },
@@ -351,7 +353,11 @@ export const expenseService = {
       const forecastExpenses = await this.getForecastExpenses(buildingId);
       return forecastExpenses.reduce((total, expense) => total + expense.amount, 0);
     } catch (error) {
-      console.error('Error calculating total forecast amount:', error);
+      handleServiceError('Error calculating total forecast amount', error, {
+        service: 'expenseService',
+        operation: 'getTotalForecastAmount',
+        metadata: { buildingId }
+      });
       throw error;
     }
   },
@@ -373,16 +379,20 @@ export const expenseService = {
           return {
             id: doc.id,
             ...data,
-            date: data.date.toDate(),
-            createdAt: data.createdAt.toDate(),
-            updatedAt: data.updatedAt.toDate(),
-            expectedInvoiceDate: data.expectedInvoiceDate?.toDate() || undefined,
-            matchedAt: data.matchedAt?.toDate() || undefined,
+            date: fromFirestoreTimestamp(data.date),
+            createdAt: fromFirestoreTimestamp(data.createdAt),
+            updatedAt: fromFirestoreTimestamp(data.updatedAt),
+            expectedInvoiceDate: data.expectedInvoiceDate ? fromFirestoreTimestamp(data.expectedInvoiceDate) : undefined,
+            matchedAt: data.matchedAt ? fromFirestoreTimestamp(data.matchedAt) : undefined,
           } as Expense;
         })
         .filter(expense => expense.variance && Math.abs(expense.variance) > 0);
     } catch (error) {
-      console.error('Error fetching expenses with variance:', error);
+      handleServiceError('Error fetching expenses with variance', error, {
+        service: 'expenseService',
+        operation: 'getExpensesWithVariance',
+        metadata: { buildingId }
+      });
       throw error;
     }
   }

@@ -1,6 +1,6 @@
+import { TrendingUp, TrendingDown, Home, Users, AlertTriangle, CheckCircle, Calculator, Building, DollarSign } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { serviceChargeRateIntegrationService, ServiceChargeRateCalculation, ServiceChargeImpactAnalysis } from '../../services/serviceChargeRateIntegrationService';
-import { TrendingUp, TrendingDown, Home, Users, AlertTriangle, CheckCircle, Calculator, Building, DollarSign } from 'lucide-react';
 import { Button, Card } from '../UI';
 
 interface ServiceChargeRateIntegrationPanelProps {

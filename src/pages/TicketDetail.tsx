@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft,
   MapPin,
@@ -25,23 +23,25 @@ import {
   Loader2,
   Award
 } from 'lucide-react'
-import { ticketService } from '../services/ticketService'
-import { supplierService } from '../services/supplierService'
-import { eventService } from '../services/eventService'
-import { useAuth } from '../contexts/AuthContext'
-import { useNotifications } from '../contexts/NotificationContext'
-import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent, TicketComment, EnhancedQuote } from '../types'
-import { TicketComments } from '../components/TicketComments'
-import { TicketCommentService } from '../services/ticketCommentService'
-import { ticketEventService } from '../services/ticketEventService'
-import { UserBuildingService } from '../services/userBuildingService'
-import { getUserDisplayNames } from '../services/userLookupService'
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import EmailNotification from '../components/EmailNotification'
 import QuoteComparison from '../components/Quotes/QuoteComparison'
 import ScheduleModal from '../components/Scheduling/ScheduleModal'
-import EmailNotification from '../components/EmailNotification'
 import SupplierSelectionModal from '../components/Suppliers/SupplierSelectionModal'
+import { TicketComments } from '../components/TicketComments'
 import QuoteComparisonModal from '../components/Tickets/QuoteComparisonModal'
 import QuoteManagementModal from '../components/Tickets/QuoteManagementModal'
+import { useAuth } from '../contexts/AuthContext'
+import { useNotifications } from '../contexts/NotificationContext'
+import { eventService } from '../services/eventService'
+import { supplierService } from '../services/supplierService'
+import { TicketCommentService } from '../services/ticketCommentService'
+import { ticketEventService } from '../services/ticketEventService'
+import { ticketService } from '../services/ticketService'
+import { UserBuildingService } from '../services/userBuildingService'
+import { getUserDisplayNames } from '../services/userLookupService'
+import { Ticket, TicketStatus, UrgencyLevel, Supplier, BuildingEvent, TicketComment, EnhancedQuote } from '../types'
 
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>()

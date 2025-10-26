@@ -96,7 +96,6 @@ export const createBudgetCategoryMaster = async (
       updatedAt: serverTimestamp()
     });
     
-    console.log('Budget category master created with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error creating budget category master:', error);
@@ -133,7 +132,6 @@ export const updateBudgetCategoryMaster = async (
       updatedAt: serverTimestamp()
     });
     
-    console.log('Budget category master updated:', id);
   } catch (error) {
     console.error('Error updating budget category master:', error);
     throw error;
@@ -151,7 +149,6 @@ export const deleteBudgetCategoryMaster = async (id: string): Promise<void> => {
       updatedAt: serverTimestamp()
     });
     
-    console.log('Budget category master deactivated:', id);
   } catch (error) {
     console.error('Error deleting budget category master:', error);
     throw error;
@@ -187,7 +184,6 @@ export const mergeBudgetCategoryMasters = async (
     }
     
     await batch.commit();
-    console.log('Budget category masters merged:', sourceId, '->', targetId);
   } catch (error) {
     console.error('Error merging budget category masters:', error);
     throw error;
@@ -213,7 +209,6 @@ export const initializeDefaultCategories = async (buildingId: string): Promise<v
     });
     
     await batch.commit();
-    console.log('Default budget categories initialized for building:', buildingId);
   } catch (error) {
     console.error('Error initializing default categories:', error);
     throw error;

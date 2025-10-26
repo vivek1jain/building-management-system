@@ -28,7 +28,6 @@ export class UserBuildingService {
       // First try to match by email
       const buildingsByEmail = managerBuildingMap[currentUser.email];
       if (buildingsByEmail) {
-        console.log(`🏢 Manager building access for ${currentUser.email}:`, buildingsByEmail);
         return buildingsByEmail;
       }
 
@@ -36,7 +35,6 @@ export class UserBuildingService {
       if (currentUser.name?.toLowerCase().includes('manager')) {
         if (currentUser.name?.toLowerCase().includes('john')) {
           const buildings = ['building-1', 'YTjZabdRO0wQDXVgcp5b'];
-          console.log(`🏢 Manager building access by name pattern:`, buildings);
           return buildings;
         }
         if (currentUser.name?.toLowerCase().includes('victoria')) return ['building-2'];
@@ -45,7 +43,6 @@ export class UserBuildingService {
 
       // For development: Give managers universal access to all building types
       // This ensures permission system works with both mock and Firebase building IDs
-      console.log(`🏢 DEVELOPMENT MODE: Manager has universal building access`);
       return ['*']; // Special wildcard to indicate access to any building
     }
 
@@ -60,12 +57,10 @@ export class UserBuildingService {
       
       const buildingsByEmail = residentBuildingMap[currentUser.email];
       if (buildingsByEmail) {
-        console.log(`🏠 Resident building access for ${currentUser.email}:`, buildingsByEmail);
         return buildingsByEmail;
       }
       
       // For development: Give residents access to building-1 by default
-      console.log(`🏠 DEFAULT: Resident assigned to building-1`);
       return ['building-1'];
     }
 
@@ -89,7 +84,6 @@ export class UserBuildingService {
 
     // For Firebase-based system, use the Firebase user ID directly
     // This should match the requestedBy field in Firebase tickets
-    console.log(`👤 Using Firebase user ID as resident ID: ${currentUser.id}`);
     return currentUser.id;
   }
 }

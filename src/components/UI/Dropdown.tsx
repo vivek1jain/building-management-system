@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 
 export interface DropdownOption {

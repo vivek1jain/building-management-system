@@ -1,10 +1,10 @@
 import { Outlet } from 'react-router-dom'
-import Sidebar from './Sidebar'
-import Header from './Header'
-import MobileBottomNav from './MobileBottomNav'
-import CreateTicketModal from '../Tickets/CreateTicketModal'
 import { useCreateTicket } from '../../contexts/CreateTicketContext'
 import { useIsMobile } from '../../hooks/useMediaQuery'
+import CreateTicketModal from '../Tickets/CreateTicketModal'
+import Header from './Header'
+import MobileBottomNav from './MobileBottomNav'
+import Sidebar from './Sidebar'
 
 const Layout = () => {
   const { isCreateTicketModalOpen, closeCreateTicketModal } = useCreateTicket()

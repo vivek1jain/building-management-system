@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   Calendar,
   Clock,
@@ -11,9 +10,10 @@ import {
   TrendingUp,
   Star
 } from 'lucide-react'
+import { useState } from 'react'
 import { WorkOrder, WorkOrderStatus, WorkOrderPriority, User as UserType } from '../../types'
-import Modal from '../UI/Modal'
 import Button from '../UI/Button'
+import Modal from '../UI/Modal'
 
 interface WorkOrderDetailModalProps {
   isOpen: boolean

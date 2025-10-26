@@ -1,4 +1,3 @@
-import React, { useState } from 'react'
 import { 
   // DollarSign, 
   User, 
@@ -12,6 +11,7 @@ import {
   Clock,
   AlertTriangle
 } from 'lucide-react'
+import React, { useState } from 'react'
 import { Quote, Supplier } from '../../types'
 
 interface QuoteComparisonProps {
@@ -72,7 +72,7 @@ const QuoteComparison: React.FC<QuoteComparisonProps> = ({
   const formatCurrency = (amount: number, currency: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency
+      currency
     }).format(amount)
   }
 

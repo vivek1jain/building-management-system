@@ -1,7 +1,3 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { useDropzone } from 'react-dropzone'
-import { useForm } from 'react-hook-form'
 import { 
   Upload, 
   X, 
@@ -10,12 +6,16 @@ import {
   FileText,
   Clock
 } from 'lucide-react'
+import { useState } from 'react'
+import { useDropzone } from 'react-dropzone'
+import { useForm } from 'react-hook-form'
+import { useNavigate } from 'react-router-dom'
+import { Dropdown, DropdownOption } from '../components/UI'
 import { useAuth } from '../contexts/AuthContext'
+import { useBuilding } from '../contexts/BuildingContext'
 import { useNotifications } from '../contexts/NotificationContext'
 import { ticketService } from '../services/ticketService'
 import { CreateTicketForm, UrgencyLevel } from '../types'
-import { useBuilding } from '../contexts/BuildingContext'
-import { Dropdown, DropdownOption } from '../components/UI'
 
 const CreateTicket = () => {
   const [attachments, setAttachments] = useState<File[]>([])
@@ -133,9 +133,10 @@ const CreateTicket = () => {
             type="text"
             className="input"
             placeholder="Brief description of the issue"
+            data-testid="ticket-title"
           />
           {errors.title && (
-            <p className="mt-1 text-sm text-red-600 flex items-center">
+            <p className="mt-1 text-sm text-red-600 flex items-center" data-testid="validation-error">
               <AlertCircle className="h-4 w-4 mr-1" />
               {errors.title.message}
             </p>
@@ -155,9 +156,10 @@ const CreateTicket = () => {
             rows={4}
             className="textarea"
             placeholder="Provide detailed information about the issue, including any relevant context..."
+            data-testid="ticket-description"
           />
           {errors.description && (
-            <p className="mt-1 text-sm text-red-600 flex items-center">
+            <p className="mt-1 text-sm text-red-600 flex items-center" data-testid="validation-error">
               <AlertCircle className="h-4 w-4 mr-1" />
               {errors.description.message}
             </p>
@@ -201,6 +203,7 @@ const CreateTicket = () => {
               type="text"
               className="input pl-10"
               placeholder="Building, floor, room number, or specific area"
+              data-testid="ticket-location"
             />
           </div>
           {errors.location && (
@@ -231,6 +234,7 @@ const CreateTicket = () => {
                   type="radio"
                   value={option.value}
                   className="sr-only"
+                  data-testid="ticket-urgency"
                 />
                 <div className="flex flex-col items-center">
                   <span className="text-2xl mb-1">{option.icon}</span>
@@ -313,6 +317,7 @@ const CreateTicket = () => {
             type="button"
             onClick={() => navigate('/tickets')}
             className="btn-secondary"
+            data-testid="cancel-button"
           >
             Cancel
           </button>
@@ -320,6 +325,7 @@ const CreateTicket = () => {
             type="submit"
             disabled={loading}
             className="btn-primary flex items-center"
+            data-testid="submit-ticket"
           >
             {loading ? (
               <>

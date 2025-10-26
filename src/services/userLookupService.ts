@@ -1,3 +1,4 @@
+import { onAuthStateChanged } from 'firebase/auth';
 import { 
   collection, 
   query, 
@@ -7,7 +8,6 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { Person } from '../types';
-import { onAuthStateChanged } from 'firebase/auth';
 
 // In-memory cache to avoid repeated Firestore queries
 const userCache = new Map<string, string>();

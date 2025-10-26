@@ -229,6 +229,30 @@ GitHub Actions workflow with:
 - Instant messaging between users
 - Live status changes on tickets
 
+## Documentation Guidelines
+
+### Progress Tracking
+**IMPORTANT:** All progress, completed work, and technical status should ONLY be tracked in:
+- **PRODUCTION_READINESS.md** (root folder) - The single source of truth for all project progress
+
+**DO NOT:**
+- Create new progress documents (PHASE_*.md, SUMMARY.md, etc.)
+- Create temporary tracking documents
+- Duplicate information across multiple files
+
+**When documenting completed work:**
+1. Update the appropriate section in PRODUCTION_READINESS.md
+2. Mark items as complete with ✅
+3. Add details to the relevant phase/section
+4. Remove any temporary docs that are now redundant
+
+### Other Documentation
+Keep these docs for specific purposes:
+- `docs/WARP.md` - Development environment and commands
+- `docs/TECHNICAL-DEBT.md` - Ongoing cleanup tracking
+- `docs/*_GUIDE.md` - Specific implementation guides
+- `README.md` - Project overview and setup
+
 ## Development Guidelines
 
 ### Adding New Features

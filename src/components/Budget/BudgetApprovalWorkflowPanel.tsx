@@ -1,6 +1,6 @@
+import { CheckCircle, Clock, AlertTriangle, X, Send, MessageSquare, User, Calendar, FileText } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { budgetApprovalWorkflowService, BudgetApprovalRequest } from '../../services/budgetApprovalWorkflowService';
-import { CheckCircle, Clock, AlertTriangle, X, Send, MessageSquare, User, Calendar, FileText } from 'lucide-react';
 import { Button, Modal, Card } from '../UI';
 
 interface BudgetApprovalWorkflowPanelProps {

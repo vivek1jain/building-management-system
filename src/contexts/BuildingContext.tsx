@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { Building } from '../types'
 import { getAllBuildings } from '../services/buildingService'
+import { Building } from '../types'
 import { useAuth } from './AuthContext'
 
 interface BuildingContextType {

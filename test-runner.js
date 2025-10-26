@@ -5,11 +5,11 @@
  * Run with: node test-runner.js
  */
 
+import { exec } from 'child_process';
 import fs from 'fs';
+import net from 'net';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
-import net from 'net';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -225,7 +225,7 @@ class TestRunner {
         if (logSectionIndex !== -1) {
             const beforeLog = content.substring(0, logSectionIndex);
             const afterLog = content.substring(logSectionIndex);
-            const updatedContent = beforeLog + '## Test Execution Log' + testRunEntry + afterLog.substring(afterLog.indexOf('\n\n'));
+            const updatedContent = `${beforeLog  }## Test Execution Log${  testRunEntry  }${afterLog.substring(afterLog.indexOf('\n\n'))}`;
             
             fs.writeFileSync(testCasesPath, updatedContent);
             console.log('📝 Test log updated in TEST_CASES.md');

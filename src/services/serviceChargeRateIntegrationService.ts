@@ -19,6 +19,8 @@ import {
   ServiceChargeDemandStatus,
   PaymentFrequency 
 } from '../types';
+import { handleServiceError } from '../utils/errorHandling'
+import { fromFirestoreTimestamp } from '../utils/firestore'
 import { budgetService } from './budgetService';
 import { generateServiceChargeDemands } from './serviceChargeService';
 
@@ -148,7 +150,7 @@ class ServiceChargeRateIntegrationService {
         comparison
       };
     } catch (error) {
-      console.error('Error calculating rates from budget:', error);
+      handleServiceError('Error calculating rates from budget:', error);
       throw error;
     }
   }
@@ -248,7 +250,7 @@ class ServiceChargeRateIntegrationService {
         budgetCoverage
       };
     } catch (error) {
-      console.error('Error analyzing service charge impact:', error);
+      handleServiceError('Error analyzing service charge impact:', error);
       throw error;
     }
   }
@@ -301,7 +303,7 @@ class ServiceChargeRateIntegrationService {
 
       return demands;
     } catch (error) {
-      console.error('Error generating service charges from budget:', error);
+      handleServiceError('Error generating service charges from budget:', error);
       throw error;
     }
   }
@@ -330,7 +332,7 @@ class ServiceChargeRateIntegrationService {
         recommendations
       };
     } catch (error) {
-      console.error('Error updating service charge rates:', error);
+      handleServiceError('Error updating service charge rates:', error);
       throw error;
     }
   }
@@ -458,7 +460,7 @@ class ServiceChargeRateIntegrationService {
         competitiveness
       };
     } catch (error) {
-      console.error('Error getting comparison data:', error);
+      handleServiceError('Error getting comparison data:', error);
       return {
         competitiveness: 'average'
       };
@@ -476,7 +478,7 @@ class ServiceChargeRateIntegrationService {
     
     // Risk factors
     let riskScore = 0;
-    let reasoning = [];
+    const reasoning = [];
 
     // High average charge
     if (averageCharge > 1500) {

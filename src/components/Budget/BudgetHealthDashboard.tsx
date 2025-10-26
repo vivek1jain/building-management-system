@@ -1,7 +1,7 @@
+import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Info, Shield, Wrench, PiggyBank } from 'lucide-react';
 import React from 'react';
 import { BudgetCategoryItem } from '../../types';
 import { analyzeBudgetHealth, validateRateChange, validateCategoryDistribution } from '../../utils/budgetValidation';
-import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Info, Shield, Wrench, PiggyBank } from 'lucide-react';
 
 interface BudgetHealthDashboardProps {
   categories: BudgetCategoryItem[];

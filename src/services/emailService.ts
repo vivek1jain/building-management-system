@@ -1,5 +1,5 @@
-import { db } from '../firebase/config'
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
+import { db } from '../firebase/config'
 
 export interface EmailTemplate {
   subject: string
@@ -141,9 +141,6 @@ class EmailService {
       
       // In a real implementation, you would send the actual email here
       // For now, we'll just simulate success
-      console.log('Email would be sent to:', emailData.supplierEmail)
-      console.log('Subject:', template.subject)
-      console.log('HTML Content:', template.html)
       
       return true
     } catch (error) {
@@ -310,8 +307,6 @@ class EmailService {
       })
       
       // Simulate email sending
-      console.log('Winner email would be sent to:', emailData.supplierEmail)
-      console.log('Subject:', template.subject)
       
       return true
     } catch (error) {
@@ -340,8 +335,6 @@ class EmailService {
       })
       
       // Simulate email sending
-      console.log('Rejection email would be sent to:', emailData.supplierEmail)
-      console.log('Subject:', template.subject)
       
       return true
     } catch (error) {

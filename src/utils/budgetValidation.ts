@@ -229,7 +229,7 @@ export const autoAdjustPercentages = (
   // Proportionally adjust all percentages to total 100%
   const adjustmentFactor = 100 / totalPercentage;
   
-  let adjustedCategories = categories.map(category => ({
+  const adjustedCategories = categories.map(category => ({
     ...category,
     percentageOfTotal: Number((category.percentageOfTotal * adjustmentFactor).toFixed(2))
   }));

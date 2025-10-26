@@ -14,6 +14,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { WorkOrder, WorkOrderStatus, WorkOrderPriority } from '../types'
+import { handleServiceError } from '../utils/errorHandling';
+import { fromFirestoreTimestamp } from '../utils/firestore';
 
 const WORK_ORDERS_COLLECTION = 'workOrders'
 
@@ -84,7 +86,7 @@ export const getWorkOrdersByBuilding = async (buildingId: string): Promise<WorkO
     
     return workOrders
   } catch (error) {
-    console.error('Error fetching work orders by building:', error)
+    handleServiceError('Error fetching work orders by building:', error)
     throw error
   }
 }
@@ -144,7 +146,7 @@ export const getAllWorkOrders = async (): Promise<WorkOrder[]> => {
     
     return workOrders
   } catch (error) {
-    console.error('Error fetching all work orders:', error)
+    handleServiceError('Error fetching all work orders:', error)
     throw error
   }
 }
@@ -200,7 +202,7 @@ export const getWorkOrderById = async (workOrderId: string): Promise<WorkOrder |
     
     return null
   } catch (error) {
-    console.error('Error getting work order by ID:', error)
+    handleServiceError('Error getting work order by ID:', error)
     throw error
   }
 }
@@ -229,7 +231,7 @@ export const createWorkOrder = async (workOrderData: Omit<WorkOrder, 'id' | 'cre
       updatedAt: new Date()
     }
   } catch (error) {
-    console.error('Error creating work order:', error)
+    handleServiceError('Error creating work order:', error)
     throw error
   }
 }
@@ -243,7 +245,7 @@ export const updateWorkOrder = async (workOrderId: string, updates: Partial<Omit
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error updating work order:', error)
+    handleServiceError('Error updating work order:', error)
     throw error
   }
 }
@@ -261,7 +263,7 @@ export const updateWorkOrderStatus = async (
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error updating work order status:', error)
+    handleServiceError('Error updating work order status:', error)
     throw error
   }
 }
@@ -272,7 +274,7 @@ export const deleteWorkOrder = async (workOrderId: string): Promise<void> => {
     const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
     await deleteDoc(docRef)
   } catch (error) {
-    console.error('Error deleting work order:', error)
+    handleServiceError('Error deleting work order:', error)
     throw error
   }
 }
@@ -297,7 +299,7 @@ export const getWorkOrderStats = async (buildingId?: string) => {
       }).length
     }
   } catch (error) {
-    console.error('Error getting work order stats:', error)
+    handleServiceError('Error getting work order stats:', error)
     return {
       total: 0,
       scheduled: 0,
@@ -369,7 +371,7 @@ export const subscribeToWorkOrders = (buildingId: string | null, callback: (work
       callback(workOrders)
     })
   } catch (error) {
-    console.error('Error subscribing to work orders:', error)
+    handleServiceError('Error subscribing to work orders:', error)
     callback([])
     return () => {}
   }
@@ -387,15 +389,15 @@ export const updateWorkOrderWithSupplierAndPrice = async (
     const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
     await updateDoc(docRef, {
       scheduledSupplierId: supplierId,
-      supplierId: supplierId,
-      supplierName: supplierName,
-      estimatedPrice: estimatedPrice,
+      supplierId,
+      supplierName,
+      estimatedPrice,
       priceSource: 'direct',
       lastStatusChangeByUid: updatedByUid,
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error updating work order with supplier and price:', error)
+    handleServiceError('Error updating work order with supplier and price:', error)
     throw error
   }
 }
@@ -413,7 +415,7 @@ export const updateWorkOrderFinalPrice = async (
     
     const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
     await updateDoc(docRef, {
-      finalPrice: finalPrice,
+      finalPrice,
       completedDate: serverTimestamp(),
       status: WorkOrderStatus.RESOLVED,
       lastStatusChangeByUid: updatedByUid,
@@ -437,14 +439,14 @@ export const updateWorkOrderFinalPrice = async (
         
         console.log(`Created forecast expense ${expenseId} for completed work order ${workOrderId}`)
       } catch (expenseError) {
-        console.error('Failed to create expense forecast for work order:', expenseError)
+        handleServiceError('Failed to create expense forecast for work order:', expenseError)
         // Don't fail the work order completion if expense creation fails
       }
     } else {
       console.warn(`No supplier information found for work order ${workOrderId}, skipping expense forecast creation`)
     }
   } catch (error) {
-    console.error('Error updating work order final price:', error)
+    handleServiceError('Error updating work order final price:', error)
     throw error
   }
 }
@@ -462,17 +464,17 @@ export const acceptQuoteForWorkOrder = async (
     const docRef = doc(db, WORK_ORDERS_COLLECTION, workOrderId)
     await updateDoc(docRef, {
       selectedQuoteId: quoteId,
-      quotePrice: quotePrice,
+      quotePrice,
       finalPrice: quotePrice, // Initialize final price with quote price
-      supplierId: supplierId,
-      supplierName: supplierName,
+      supplierId,
+      supplierName,
       priceSource: 'quote',
       status: WorkOrderStatus.SCHEDULED,
       lastStatusChangeByUid: updatedByUid,
       updatedAt: serverTimestamp()
     })
   } catch (error) {
-    console.error('Error accepting quote for work order:', error)
+    handleServiceError('Error accepting quote for work order:', error)
     throw error
   }
 }

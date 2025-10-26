@@ -1,4 +1,3 @@
-import React, { useState } from 'react'
 import { 
   Building2, 
   Users, 
@@ -7,12 +6,13 @@ import {
   Package,
   Plus
 } from 'lucide-react'
+import React, { useState } from 'react'
+import AssetsDataTable from '../components/BuildingData/AssetsDataTable'
+import FlatsDataTable from '../components/BuildingData/FlatsDataTableFixed'
+import PeopleDataTable from '../components/BuildingData/PeopleDataTable'
+import SuppliersDataTable from '../components/BuildingData/SuppliersDataTable'
 import { Card, CardHeader, CardContent, TabLoadingSkeleton } from '../components/UI'
 import { useIsMobile } from '../hooks/useMediaQuery'
-import PeopleDataTable from '../components/BuildingData/PeopleDataTable'
-import FlatsDataTable from '../components/BuildingData/FlatsDataTableFixed'
-import SuppliersDataTable from '../components/BuildingData/SuppliersDataTable'
-import AssetsDataTable from '../components/BuildingData/AssetsDataTable'
 
 interface TabConfig {
   id: string

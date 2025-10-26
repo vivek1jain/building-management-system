@@ -1,5 +1,5 @@
-import { db } from '../../firebase/config';
 import { collection, getDocs, updateDoc, doc, writeBatch, query, where } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { Ticket } from '../../types';
 
 /**

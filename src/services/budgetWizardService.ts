@@ -249,7 +249,7 @@ export const completeBudgetSetupWizard = async (
 
       const budgetData: Omit<Budget, 'id' | 'createdAt' | 'updatedAt'> = {
         buildingId: wizard.buildingId,
-        year: year,
+        year,
         status: 'approved',
         categories: [],
         totalBudgetAmount: allocation.totalBudgetAmount, // Required property

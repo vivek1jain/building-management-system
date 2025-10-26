@@ -15,6 +15,8 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
 import { Person, PersonStatus, UserRole } from '../types'
+import { handleServiceError } from '../utils/errorHandling';
+import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 // Get all people for a building
 export const getPeopleByBuilding = async (buildingId: string): Promise<Person[]> => {
@@ -43,11 +45,11 @@ export const getPeopleByBuilding = async (buildingId: string): Promise<Person[]>
         email: data.email,
         phone: data.phone,
         isPrimaryContact: data.isPrimaryContact,
-        moveInDate: data.moveInDate?.toDate(),
-        moveOutDate: data.moveOutDate?.toDate(),
+        moveInDate: data.moveInDate ? fromFirestoreTimestamp(data.moveInDate) : undefined,
+        moveOutDate: data.moveOutDate ? fromFirestoreTimestamp(data.moveOutDate) : undefined,
         notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
+        createdAt: fromFirestoreTimestamp(data.createdAt),
+        updatedAt: fromFirestoreTimestamp(data.updatedAt),
         createdByUid: data.createdByUid,
         updatedByUid: data.updatedByUid
       })
@@ -61,54 +63,13 @@ export const getPeopleByBuilding = async (buildingId: string): Promise<Person[]>
   }
 }
 
-// Get a single person by ID
-export const getPersonById = async (personId: string): Promise<Person | null> => {
-  try {
-    const personRef = doc(db, 'people', personId)
-    const personSnap = await getDoc(personRef)
-    
-    if (personSnap.exists()) {
-      const data = personSnap.data()
-      return {
-        id: personSnap.id,
-        uid: data.uid,
-        name: data.name,
-        buildingId: data.buildingId,
-        accessibleBuildingIds: data.accessibleBuildingIds,
-        flatId: data.flatId,
-        flatNumber: data.flatNumber,
-        role: data.role,
-        status: data.status,
-        email: data.email,
-        phone: data.phone,
-        isPrimaryContact: data.isPrimaryContact,
-        moveInDate: data.moveInDate?.toDate(),
-        moveOutDate: data.moveOutDate?.toDate(),
-        notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
-        createdByUid: data.createdByUid,
-        updatedByUid: data.updatedByUid
-      }
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error getting person by ID:', error)
-    throw error
-  }
-}
 
 // Create a new person
 export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' | 'updatedAt'>): Promise<Person> => {
   try {
-    console.log('🔥 createPerson called with data:', personData)
     
     // Check authentication state
     const currentUser = auth.currentUser
-    console.log('🔥 Current auth user:', currentUser ? currentUser.uid : 'No user')
-    console.log('🔥 Current user email:', currentUser ? currentUser.email : 'No email')
-    console.log('🔥 User authenticated:', !!currentUser)
     
     if (!currentUser) {
       throw new Error('User not authenticated')
@@ -121,8 +82,6 @@ export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' |
       updatedAt: serverTimestamp()
     }
     
-    console.log('🔥 Attempting to add document to people collection...')
-    console.log('🔥 Document data being sent:', newPerson)
     
     // Add timeout to detect hanging requests
     const timeoutPromise = new Promise((_, reject) => {
@@ -134,7 +93,6 @@ export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' |
       timeoutPromise
     ]) as any
     
-    console.log('🔥 Document created successfully with ID:', docRef.id)
     
     return {
       id: docRef.id,
@@ -168,178 +126,6 @@ export const updatePerson = async (personId: string, personData: Partial<Omit<Pe
   }
 }
 
-// Delete a person
-export const deletePerson = async (personId: string): Promise<void> => {
-  try {
-    const personRef = doc(db, 'people', personId)
-    await deleteDoc(personRef)
-  } catch (error) {
-    console.error('Error deleting person:', error)
-    throw error
-  }
-}
-
-// Get people by status
-export const getPeopleByStatus = async (buildingId: string, status: PersonStatus): Promise<Person[]> => {
-  try {
-    const peopleRef = collection(db, 'people')
-    const q = query(
-      peopleRef,
-      where('buildingId', '==', buildingId),
-      where('status', '==', status)
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const people: Person[] = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      people.push({
-        id: doc.id,
-        uid: data.uid,
-        name: data.name,
-        buildingId: data.buildingId,
-        accessibleBuildingIds: data.accessibleBuildingIds,
-        flatId: data.flatId,
-        flatNumber: data.flatNumber,
-        role: data.role,
-        status: data.status,
-        email: data.email,
-        phone: data.phone,
-        isPrimaryContact: data.isPrimaryContact,
-        moveInDate: data.moveInDate?.toDate(),
-        moveOutDate: data.moveOutDate?.toDate(),
-        notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
-        createdByUid: data.createdByUid,
-        updatedByUid: data.updatedByUid
-      })
-    })
-    
-    return people.sort((a, b) => a.name.localeCompare(b.name))
-  } catch (error) {
-    console.error('Error getting people by status:', error)
-    throw error
-  }
-}
-
-// Get people by flat
-export const getPeopleByFlat = async (flatId: string): Promise<Person[]> => {
-  try {
-    const peopleRef = collection(db, 'people')
-    const q = query(
-      peopleRef,
-      where('flatId', '==', flatId)
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const people: Person[] = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      people.push({
-        id: doc.id,
-        uid: data.uid,
-        name: data.name,
-        buildingId: data.buildingId,
-        accessibleBuildingIds: data.accessibleBuildingIds,
-        flatId: data.flatId,
-        flatNumber: data.flatNumber,
-        role: data.role,
-        status: data.status,
-        email: data.email,
-        phone: data.phone,
-        isPrimaryContact: data.isPrimaryContact,
-        moveInDate: data.moveInDate?.toDate(),
-        moveOutDate: data.moveOutDate?.toDate(),
-        notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
-        createdByUid: data.createdByUid,
-        updatedByUid: data.updatedByUid
-      })
-    })
-    
-    return people.sort((a, b) => a.name.localeCompare(b.name))
-  } catch (error) {
-    console.error('Error getting people by flat:', error)
-    throw error
-  }
-}
-
-// Get primary contacts
-export const getPrimaryContacts = async (buildingId: string): Promise<Person[]> => {
-  try {
-    const peopleRef = collection(db, 'people')
-    const q = query(
-      peopleRef,
-      where('buildingId', '==', buildingId),
-      where('isPrimaryContact', '==', true)
-    )
-    
-    const querySnapshot = await getDocs(q)
-    const people: Person[] = []
-    
-    querySnapshot.forEach((doc) => {
-      const data = doc.data()
-      people.push({
-        id: doc.id,
-        uid: data.uid,
-        name: data.name,
-        buildingId: data.buildingId,
-        accessibleBuildingIds: data.accessibleBuildingIds,
-        flatId: data.flatId,
-        flatNumber: data.flatNumber,
-        role: data.role,
-        status: data.status,
-        email: data.email,
-        phone: data.phone,
-        isPrimaryContact: data.isPrimaryContact,
-        moveInDate: data.moveInDate?.toDate(),
-        moveOutDate: data.moveOutDate?.toDate(),
-        notes: data.notes,
-        createdAt: data.createdAt?.toDate() || new Date(),
-        updatedAt: data.updatedAt?.toDate(),
-        createdByUid: data.createdByUid,
-        updatedByUid: data.updatedByUid
-      })
-    })
-    
-    return people.sort((a, b) => a.name.localeCompare(b.name))
-  } catch (error) {
-    console.error('Error getting primary contacts:', error)
-    throw error
-  }
-}
-
-// Set primary contact
-export const setPrimaryContact = async (personId: string, isPrimary: boolean): Promise<void> => {
-  try {
-    const personRef = doc(db, 'people', personId)
-    await updateDoc(personRef, {
-      isPrimaryContact: isPrimary,
-      updatedAt: serverTimestamp()
-    })
-  } catch (error) {
-    console.error('Error setting primary contact:', error)
-    throw error
-  }
-}
-
-// Update person status
-export const updatePersonStatus = async (personId: string, status: PersonStatus): Promise<void> => {
-  try {
-    const personRef = doc(db, 'people', personId)
-    await updateDoc(personRef, {
-      status,
-      updatedAt: serverTimestamp()
-    })
-  } catch (error) {
-    console.error('Error updating person status:', error)
-    throw error
-  }
-}
 
 // Get people statistics
 export const getPeopleStats = async (buildingId: string) => {
@@ -389,23 +175,6 @@ export const getPeopleStats = async (buildingId: string) => {
     return stats
   } catch (error) {
     console.error('Error getting people stats:', error)
-    throw error
-  }
-}
-
-// Search people
-export const searchPeople = async (buildingId: string, searchTerm: string): Promise<Person[]> => {
-  try {
-    const people = await getPeopleByBuilding(buildingId)
-    
-    return people.filter(person => 
-      person.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      person.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      person.phone?.includes(searchTerm) ||
-      person.flatNumber?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-  } catch (error) {
-    console.error('Error searching people:', error)
     throw error
   }
 }

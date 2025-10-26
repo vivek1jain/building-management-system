@@ -1,10 +1,10 @@
-import { db } from '../firebase/config'
 import { 
   updateDoc, 
   doc, 
   getDoc,
   serverTimestamp 
 } from 'firebase/firestore'
+import { db } from '../firebase/config'
 import { QuoteRequest, QuoteRequestStatus } from '../types'
 
 const TICKETS_COLLECTION = 'tickets'
@@ -13,7 +13,6 @@ export const quoteRequestService = {
   // Request quotes from suppliers
   async requestQuotes(ticketId: string, supplierIds: string[], userId: string): Promise<void> {
     try {
-      console.log('🔄 Requesting quotes for ticket:', ticketId, 'from suppliers:', supplierIds)
       
       // Get supplier details
       const { supplierService } = await import('./supplierService')
@@ -28,7 +27,6 @@ export const quoteRequestService = {
       }
       
       const ticketData = docSnap.data()
-      console.log('📋 Current ticket data:', { id: ticketId, currentQuoteRequests: ticketData.quoteRequests?.length || 0 })
       
       // Create new quote requests
       const newQuoteRequests: QuoteRequest[] = supplierIds.map(supplierId => {
@@ -54,13 +52,11 @@ export const quoteRequestService = {
         }
       })
       
-      console.log('📝 Created new quote requests:', newQuoteRequests.length)
       
       // Combine with existing quote requests
       const existingQuoteRequests = ticketData.quoteRequests || []
       const allQuoteRequests = [...existingQuoteRequests, ...newQuoteRequests]
       
-      console.log('🔗 Total quote requests after addition:', allQuoteRequests.length)
       
       // Activity log entry
       const activityLogEntry = {
@@ -80,7 +76,6 @@ export const quoteRequestService = {
         updatedAt: serverTimestamp()
       })
       
-      console.log('✅ Quote requests saved to Firebase successfully')
       
     } catch (error) {
       console.error('❌ Error requesting quotes:', error)
@@ -91,7 +86,6 @@ export const quoteRequestService = {
   // Update quote amount when received
   async updateQuoteAmount(ticketId: string, supplierId: string, amount: number, notes?: string, validUntil?: Date, userId?: string): Promise<void> {
     try {
-      console.log('💰 Updating quote amount:', { ticketId, supplierId, amount })
       
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
       const docSnap = await getDoc(docRef)
@@ -118,7 +112,6 @@ export const quoteRequestService = {
         return req
       })
       
-      console.log('📊 Updated quote requests:', updatedQuoteRequests.length)
       
       // Activity log entry
       const supplierName = updatedQuoteRequests.find(req => req.supplierId === supplierId)?.supplierName || 'Unknown'
@@ -138,7 +131,6 @@ export const quoteRequestService = {
         updatedAt: serverTimestamp()
       })
       
-      console.log('✅ Quote amount updated successfully')
       
     } catch (error) {
       console.error('❌ Error updating quote amount:', error)
@@ -149,7 +141,6 @@ export const quoteRequestService = {
   // Accept a quote (mark as winner)
   async acceptQuote(ticketId: string, supplierId: string, userId: string): Promise<void> {
     try {
-      console.log('🏆 Accepting quote:', { ticketId, supplierId })
       
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
       const docSnap = await getDoc(docRef)
@@ -207,7 +198,6 @@ export const quoteRequestService = {
         updatedAt: serverTimestamp()
       })
       
-      console.log('✅ Quote accepted successfully')
       
     } catch (error) {
       console.error('❌ Error accepting quote:', error)
@@ -218,7 +208,6 @@ export const quoteRequestService = {
   // Reject a quote
   async rejectQuote(ticketId: string, supplierId: string, reason: string, userId: string): Promise<void> {
     try {
-      console.log('❌ Rejecting quote:', { ticketId, supplierId, reason })
       
       const docRef = doc(db, TICKETS_COLLECTION, ticketId)
       const docSnap = await getDoc(docRef)
@@ -267,7 +256,6 @@ export const quoteRequestService = {
         updatedAt: serverTimestamp()
       })
       
-      console.log('✅ Quote rejected successfully')
       
     } catch (error) {
       console.error('❌ Error rejecting quote:', error)

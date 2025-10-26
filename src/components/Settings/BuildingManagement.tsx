@@ -1,5 +1,3 @@
-import React, { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { 
   Building2, 
   Plus, 
@@ -13,9 +11,11 @@ import {
   Home,
   Activity
 } from 'lucide-react'
-import { Building } from '../../types'
-import { getAllBuildings, createBuilding, updateBuilding, deleteBuilding } from '../../services/buildingService'
+import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useBuilding } from '../../contexts/BuildingContext'
+import { getAllBuildings, createBuilding, updateBuilding, deleteBuilding } from '../../services/buildingService'
+import { Building } from '../../types'
 
 interface BuildingManagementProps {
   buildings?: any[]

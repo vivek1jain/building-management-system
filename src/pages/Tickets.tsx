@@ -1,26 +1,4 @@
 
-import React, { useState, useEffect } from 'react'
-// import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
-import { useNotifications } from '../contexts/NotificationContext'
-import { useBuilding } from '../contexts/BuildingContext'
-import { ticketService } from '../services/ticketService'
-import * as workOrderService from '../services/workOrderService'
-import { TicketDetailModal } from '../components/TicketDetailModal'
-import { useCreateTicket } from '../contexts/CreateTicketContext'
-import TicketTable from '../components/TicketTable'
-import TicketCards from '../components/Tickets/TicketCards'
-import WorkOrderTable from '../components/WorkOrderTable'
-import { Dropdown, DropdownOption, PageLoading, SectionLoading, ListItemSkeleton } from '../components/UI'
-import { useIsMobile } from '../hooks/useMediaQuery'
-import { 
-  Building as BuildingType, 
-  Ticket, 
-  WorkOrder, 
-  TicketStatus, 
-  WorkOrderStatus, 
-  WorkOrderPriority 
-} from '../types'
 import { 
   Building,
   Calendar, 
@@ -40,6 +18,28 @@ import {
   ClipboardList,
   UserCheck
 } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+// import { Link } from 'react-router-dom'
+import { TicketDetailModal } from '../components/TicketDetailModal'
+import TicketCards from '../components/Tickets/TicketCards'
+import TicketTable from '../components/TicketTable'
+import { Dropdown, DropdownOption, PageLoading, SectionLoading, ListItemSkeleton } from '../components/UI'
+import WorkOrderTable from '../components/WorkOrderTable'
+import { useAuth } from '../contexts/AuthContext'
+import { useBuilding } from '../contexts/BuildingContext'
+import { useCreateTicket } from '../contexts/CreateTicketContext'
+import { useNotifications } from '../contexts/NotificationContext'
+import { useIsMobile } from '../hooks/useMediaQuery'
+import { ticketService } from '../services/ticketService'
+import * as workOrderService from '../services/workOrderService'
+import { 
+  Building as BuildingType, 
+  Ticket, 
+  WorkOrder, 
+  TicketStatus, 
+  WorkOrderStatus, 
+  WorkOrderPriority 
+} from '../types'
 
 const Tickets: React.FC = () => {
   const { currentUser } = useAuth()
@@ -342,14 +342,14 @@ console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id
   }
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-neutral-50" data-testid="ticket-list">
       <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 ${
         isMobile ? 'py-2 space-y-3' : 'py-8 space-y-6'
       }`}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Ticketing</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter" data-testid="page-title">Ticketing</h1>
             {!isMobile && (
               <p className="text-gray-600 mt-1 font-inter">
                 Manage tickets and work orders following the complete workflow
@@ -569,7 +569,7 @@ console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id
                 // Mobile: Accordion-style component
                 <div key={stage.id} className={`rounded-lg shadow-sm border-2 overflow-hidden transition-all duration-200 ${
                   shouldExpand 
-                    ? 'ring-2 ring-blue-500 ' + stage.color 
+                    ? `ring-2 ring-blue-500 ${  stage.color}` 
                     : stage.color
                 } ${
                   stage.count > 0 ? 'hover:shadow-md' : 'opacity-75'
@@ -655,7 +655,7 @@ console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id
                   onClick={() => setSelectedWorkflowStage(selectedWorkflowStage === stage.id ? null : stage.id)}
                   className={`w-full border-2 rounded-lg transition-all duration-200 hover:shadow-md cursor-pointer flex flex-col h-full p-2 lg:p-3 min-h-[80px] hover:scale-105 ${
                     selectedWorkflowStage === stage.id 
-                      ? 'ring-2 ring-blue-500 ' + stage.color 
+                      ? `ring-2 ring-blue-500 ${  stage.color}` 
                       : stage.color
                   }`}
                 >

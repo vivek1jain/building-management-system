@@ -1,4 +1,3 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { 
   Play, 
   CheckCircle, 
@@ -9,6 +8,7 @@ import {
   Bug,
   TestTube
 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button, Card, CardContent } from '../UI';
 
 // Test interfaces

@@ -260,14 +260,5 @@ export const useTheme = (): ThemeContextValue => {
   return context
 }
 
-// Helper function to get CSS variable values
-export const getCSSVariable = (variable: string): string => {
-  return getComputedStyle(document.documentElement).getPropertyValue(variable)
-}
-
-// Helper function to set CSS variables
-export const setCSSVariable = (variable: string, value: string): void => {
-  document.documentElement.style.setProperty(variable, value)
-}
 
 export default ThemeProvider
