@@ -273,25 +273,21 @@ const FlatsDataTableFixed: React.FC = () => {
     }
   }
 
-  // Toggle functions for accordion
+  // Toggle functions for accordion - single-expand behavior
   const toggleDesktopExpanded = (flatId: string) => {
-    const newExpanded = new Set(expandedDesktopFlats)
-    if (newExpanded.has(flatId)) {
-      newExpanded.delete(flatId)
+    if (expandedDesktopFlats.has(flatId)) {
+      setExpandedDesktopFlats(new Set())
     } else {
-      newExpanded.add(flatId)
+      setExpandedDesktopFlats(new Set([flatId]))
     }
-    setExpandedDesktopFlats(newExpanded)
   }
 
   const toggleMobileExpanded = (flatId: string) => {
-    const newExpanded = new Set(expandedMobileFlats)
-    if (newExpanded.has(flatId)) {
-      newExpanded.delete(flatId)
+    if (expandedMobileFlats.has(flatId)) {
+      setExpandedMobileFlats(new Set())
     } else {
-      newExpanded.add(flatId)
+      setExpandedMobileFlats(new Set([flatId]))
     }
-    setExpandedMobileFlats(newExpanded)
   }
 
   const getStatusColor = (status: string) => {

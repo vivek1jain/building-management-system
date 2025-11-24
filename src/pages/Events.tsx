@@ -752,14 +752,11 @@ const Events = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Events</h1>
-            <p className="text-gray-600 mt-1">
-              Chronological view of building events and scheduled work
-            </p>
           </div>
         </div>
 
         {/* New Event Button Area - Aligned with tab header positioning */}
-        <div className="border-b border-neutral-200">
+        <div>
           <div className="flex items-center justify-end py-2">
             <button
               onClick={() => {

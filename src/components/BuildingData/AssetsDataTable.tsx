@@ -324,25 +324,21 @@ const AssetsDataTable: React.FC = () => {
     }
   }
 
-  // Toggle functions for accordion
+  // Toggle functions for accordion - single-expand behavior
   const toggleDesktopExpanded = (assetId: string) => {
-    const newExpanded = new Set(expandedDesktopAssets)
-    if (newExpanded.has(assetId)) {
-      newExpanded.delete(assetId)
+    if (expandedDesktopAssets.has(assetId)) {
+      setExpandedDesktopAssets(new Set())
     } else {
-      newExpanded.add(assetId)
+      setExpandedDesktopAssets(new Set([assetId]))
     }
-    setExpandedDesktopAssets(newExpanded)
   }
 
   const toggleMobileExpanded = (assetId: string) => {
-    const newExpanded = new Set(expandedMobileAssets)
-    if (newExpanded.has(assetId)) {
-      newExpanded.delete(assetId)
+    if (expandedMobileAssets.has(assetId)) {
+      setExpandedMobileAssets(new Set())
     } else {
-      newExpanded.add(assetId)
+      setExpandedMobileAssets(new Set([assetId]))
     }
-    setExpandedMobileAssets(newExpanded)
   }
 
   const getStatusColor = (status: AssetStatus) => {

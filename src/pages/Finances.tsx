@@ -1064,13 +1064,14 @@ const Finances: React.FC = () => {
   }, [groupedServiceCharges])
   
   const togglePeriodExpansion = (period: string) => {
-    const newExpanded = new Set(expandedPeriods)
-    if (newExpanded.has(period)) {
-      newExpanded.delete(period)
+    // Single-expand behavior: expand only this period, collapse others
+    if (expandedPeriods.has(period)) {
+      // Clicking the same open item collapses all
+      setExpandedPeriods(new Set())
     } else {
-      newExpanded.add(period)
+      // Open only this item
+      setExpandedPeriods(new Set([period]))
     }
-    setExpandedPeriods(newExpanded)
   }
 
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode }> = ({ field, children }) => {
@@ -1768,16 +1769,13 @@ const Finances: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900 font-inter" data-testid="page-title">Finances</h1>
-            {!isMobile && (
-              <p className="text-gray-600 font-inter">Manage budgets, service charges, invoices, and financial reports</p>
-            )}
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className={`border-b border-neutral-200 ${
-        isMobile ? 'sticky top-0 bg-white/95 backdrop-blur-sm border-b-2 shadow-sm z-20' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'
+      <div className={`${
+        isMobile ? 'sticky top-0 bg-white/95 backdrop-blur-sm shadow-sm z-20' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'
       }`}>
         <nav className={`-mb-px flex ${isMobile ? 'flex-1 justify-between px-4' : 'space-x-8'}`} aria-label="Tabs">
           {financeTabs.map((tab) => {
@@ -1810,11 +1808,7 @@ const Finances: React.FC = () => {
         <div className="space-y-6">
           {activeTab === 'budget' && (
             <div className={isMobile ? 'space-y-3' : 'space-y-6'} data-testid="budget-overview">
-              <div className={`flex items-center justify-between ${
-                isMobile ? 'sticky top-[49px] bg-white z-10 py-3 -mx-4 px-4 border-b border-neutral-200' : ''
-              }`}>
-                <h2 className="text-lg font-semibold text-neutral-900 font-inter">Budget Management</h2>
-                {!isMobile && (
+              {!isMobile && (
                   <div className="flex items-center space-x-3">
                     {budget && (
                       <button
@@ -1834,7 +1828,6 @@ const Finances: React.FC = () => {
                     </Button>
                   </div>
                 )}
-              </div>
               
               {/* Mobile action buttons */}
               {isMobile && (
@@ -2064,9 +2057,7 @@ const Finances: React.FC = () => {
 
           {activeTab === 'demands' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-neutral-900 font-inter">Service Charge Management</h2>
-                {!isMobile && (
+              {!isMobile && (
                   <div className="flex items-center space-x-3">
                     <h3 className="text-sm font-medium text-neutral-700 font-inter whitespace-nowrap">
                       Issue Demands:
@@ -2090,7 +2081,6 @@ const Finances: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </div>
               
               {/* Mobile controls - on new line */}
               {isMobile && (
@@ -2636,25 +2626,6 @@ const Finances: React.FC = () => {
 
           {activeTab === 'expenses' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <h2 className="text-lg font-semibold text-neutral-900 font-inter">Expense Forecasts</h2>
-                  <button
-                    onClick={() => setShowExpenseHelpModal(true)}
-                    className="text-neutral-400 hover:text-neutral-600 transition-colors"
-                    title="About Expense Forecasts"
-                  >
-                    <Info className="h-4 w-4" />
-                  </button>
-                </div>
-                {!isMobile && (
-                  <div className="flex items-center space-x-3">
-                    <div className="text-sm text-gray-600 font-inter">
-                      Showing forecast expenses from completed tickets
-                    </div>
-                  </div>
-                )}
-              </div>
 
               {/* Expenses Summary (clickable filters) */}
               <div className={`grid gap-4 ${

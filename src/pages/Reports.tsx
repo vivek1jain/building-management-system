@@ -2,13 +2,8 @@ import {
   FileText, 
   Download, 
   Search, 
-  Users,
-  Eye,
   ChevronDown,
-  ChevronRight,
-  TrendingUp,
-  TrendingDown,
-  DollarSign
+  Eye
 } from 'lucide-react';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -17,12 +12,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useBuilding } from '../contexts/BuildingContext';
 import { useNotifications } from '../contexts/NotificationContext';
 import { getFlatsByBuilding } from '../services/flatService';
+import { BulkActionBar } from '../components/Reports/BulkActionBar';
+import { ResidentActionMenu } from '../components/Reports/ResidentActionMenu';
 import { 
   Flat
 } from '../types';
 
 type BalanceFilter = 'all' | 'positive' | 'negative' | 'zero';
-type DateRange = '30d' | '90d' | '6m' | '1y' | 'custom';
+type DateRange = '30d' | '90d' | '6m' | '1y' | '2y' | '5y' | 'all' | 'custom';
 
 interface StatementFilters {
   residents: string[];
@@ -30,7 +27,6 @@ interface StatementFilters {
   dateRange: DateRange;
   customStartDate?: Date;
   customEndDate?: Date;
-  includeTransactions: boolean;
 }
 
 const Reports: React.FC = () => {
@@ -54,8 +50,7 @@ const Reports: React.FC = () => {
     balanceType: 'all',
     dateRange: '1y',
     customStartDate: undefined,
-    customEndDate: undefined,
-    includeTransactions: true
+    customEndDate: undefined
   });
   
   // UI state
@@ -77,6 +72,9 @@ const Reports: React.FC = () => {
     { value: '90d', label: 'Last 90 Days', description: 'Past 3 months' },
     { value: '6m', label: 'Last 6 Months', description: 'Past 6 months' },
     { value: '1y', label: 'Last 12 Months', description: 'Past year' },
+    { value: '2y', label: 'Last 2 Years', description: 'Past 2 years' },
+    { value: '5y', label: 'Last 5 Years', description: 'Past 5 years' },
+    { value: 'all', label: 'All Time', description: 'Complete history' },
     { value: 'custom', label: 'Custom Range', description: 'Select custom date range' }
   ];
 
@@ -135,33 +133,6 @@ const Reports: React.FC = () => {
       
       setFlatBalances(flatBalancesMap);
       
-      // Fetch recent transactions for each flat from FlatLedger
-      if (flatsResult.status === 'fulfilled') {
-        const transactionsMap = new Map<string, any[]>()
-        const { dateFrom } = getDateRangeFromFilters()
-        
-        for (const flat of flatsResult.value) {
-          try {
-            const { getFlatLedgerTransactions } = await import('../services/flatLedgerService')
-            const transactions = await getFlatLedgerTransactions(
-              flat.id,
-              {
-                dateFrom,
-                dateTo: new Date(),
-                includeReversed: false
-              },
-              50 // Get last 50 transactions
-            )
-            transactionsMap.set(flat.id, transactions)
-          } catch (error) {
-            console.error('Failed to fetch transactions for flat:', flat.id, error)
-            transactionsMap.set(flat.id, [])
-          }
-        }
-        
-        setFlatTransactions(transactionsMap)
-      }
-      
       // Process flats
       if (flatsResult.status === 'fulfilled') {
         setFlats(flatsResult.value);
@@ -180,6 +151,33 @@ const Reports: React.FC = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Lazy load transactions when accordion expands
+  const loadFlatTransactions = async (flatId: string) => {
+    // Don't reload if already cached
+    if (flatTransactions.has(flatId)) {
+      return;
+    }
+    
+    try {
+      const { dateFrom } = getDateRangeFromFilters()
+      const { getFlatLedgerTransactions } = await import('../services/flatLedgerService')
+      const transactions = await getFlatLedgerTransactions(
+        flatId,
+        {
+          dateFrom,
+          dateTo: new Date(),
+          includeReversed: false
+        },
+        50 // Get last 50 transactions
+      )
+      
+      setFlatTransactions(prev => new Map(prev).set(flatId, transactions))
+    } catch (error) {
+      console.error('Failed to fetch transactions for flat:', flatId, error)
+      setFlatTransactions(prev => new Map(prev).set(flatId, []))
     }
   };
 
@@ -213,6 +211,17 @@ const Reports: React.FC = () => {
         dateFrom = new Date(now.getTime() - 6 * 30 * 24 * 60 * 60 * 1000)
         break
       case '1y':
+        dateFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
+        break
+      case '2y':
+        dateFrom = new Date(now.getTime() - 2 * 365 * 24 * 60 * 60 * 1000)
+        break
+      case '5y':
+        dateFrom = new Date(now.getTime() - 5 * 365 * 24 * 60 * 60 * 1000)
+        break
+      case 'all':
+        dateFrom = new Date('1970-01-01')
+        break
       default:
         dateFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
         break
@@ -238,11 +247,8 @@ const Reports: React.FC = () => {
         (filters.balanceType === 'negative' && balance < 0) ||
         (filters.balanceType === 'zero' && balance === 0);
       
-      // Resident selection filter (empty means all selected)
-      const matchesResident = filters.residents.length === 0 || 
-        filters.residents.includes(flat.id);
-      
-      return matchesSearch && matchesBalance && matchesResident;
+      // Always show all residents - selection is for bulk actions only
+      return matchesSearch && matchesBalance;
     });
   }, [flats, flatBalances, searchQuery, filters]);
 
@@ -453,13 +459,16 @@ For queries, please contact building management.
   };
 
   const toggleLedgerExpansion = (ledgerId: string) => {
-    const newExpanded = new Set(expandedLedgers);
-    if (newExpanded.has(ledgerId)) {
-      newExpanded.delete(ledgerId);
+    // Single-expand behavior: expand only this ledger, collapse others
+    if (expandedLedgers.has(ledgerId)) {
+      // Clicking the same open item collapses all
+      setExpandedLedgers(new Set());
     } else {
-      newExpanded.add(ledgerId);
+      // Open only this item
+      setExpandedLedgers(new Set([ledgerId]));
+      // Lazy load transactions when expanding
+      loadFlatTransactions(ledgerId);
     }
-    setExpandedLedgers(newExpanded);
   };
 
   // Show loading spinner while data is loading
@@ -469,40 +478,14 @@ For queries, please contact building management.
 
   return (
     <div className="min-h-screen bg-neutral-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 pb-24">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Reports & Statements</h1>
-            <p className="text-gray-600 font-inter">Generate resident account statements and financial reports</p>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Button
-              onClick={() => loadReportsData()}
-              disabled={loading || !selectedBuildingId}
-              variant="secondary"
-            >
-              Refresh Data
-            </Button>
+            <h1 className="text-3xl font-bold text-neutral-900 font-inter">Reports</h1>
           </div>
         </div>
 
-        {/* Header Actions */}
-        <div className="border-b border-neutral-200 pb-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-neutral-900 font-inter flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Account Statements
-            </h2>
-            <Button
-              onClick={handleBulkStatementGeneration}
-              disabled={loading}
-              leftIcon={<Download className="h-4 w-4" />}
-            >
-              Generate Selected Statements
-            </Button>
-          </div>
-        </div>
 
         {/* Search and Filters */}
         <div className="flex items-center gap-4 mb-6">
@@ -537,19 +520,6 @@ For queries, please contact building management.
             size="sm"
             className="min-w-[200px]"
           />
-          
-          {/* Statement Options */}
-          <div className="flex items-center space-x-4">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={filters.includeTransactions}
-                onChange={(e) => setFilters({ ...filters, includeTransactions: e.target.checked })}
-                className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-              />
-              <span className="text-sm font-inter">Include Transactions</span>
-            </label>
-          </div>
         </div>
         
         {/* Custom Date Range */}
@@ -586,79 +556,10 @@ For queries, please contact building management.
 
         {/* Content */}
         <div className="space-y-6">
-
-              {/* Summary Statistics */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <Users className="h-8 w-8 text-primary-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500 font-inter">Total Residents</p>
-                        <p className="text-2xl font-semibold text-neutral-900 font-inter">{summaryStats.totalResidents}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <TrendingUp className="h-8 w-8 text-success-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500 font-inter">Total Credit Balance</p>
-                        <p className="text-2xl font-semibold text-success-600 font-inter">
-                          {formatCurrency(summaryStats.totalCreditBalance)}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <TrendingDown className="h-8 w-8 text-red-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500 font-inter">Total Debit Balance</p>
-                        <p className="text-2xl font-semibold text-red-600 font-inter">
-                          {formatCurrency(summaryStats.totalDebitBalance)}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-6">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <DollarSign className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-500 font-inter">Credits Applied</p>
-                        <p className="text-2xl font-semibold text-primary-600 font-inter">
-                          {formatCurrency(summaryStats.creditsAppliedTotal)}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Resident Accounts Table */}
+              {/* Resident Accounts */}
               <div className="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-                <div className="px-6 py-4 border-b border-neutral-200">
-                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Resident Account Statements</h3>
-                  <p className="text-sm text-gray-600 font-inter mt-1">
-                    Select residents and generate individual or bulk account statements
-                  </p>
+              <div className="px-6 py-4 border-b border-neutral-200">
+                  <h3 className="text-lg font-medium text-neutral-900 font-inter">Account Statements</h3>
                 </div>
                 
                 {filteredLedgers.length === 0 ? (
@@ -673,7 +574,7 @@ For queries, please contact building management.
                     </p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-neutral-200">
+                  <div className="space-y-2">
                     {filteredLedgers.map((flat) => {
                       const balance = flatBalances.get(flat.id) || 0;
                       const residentName = flat.currentResidentName || 'Unknown Resident';
@@ -685,145 +586,104 @@ For queries, please contact building management.
                       const recentTransactions = flatLedgerTxs.slice(0, 3); // Get 3 most recent
                       
                       return (
-                        <div key={flat.id} className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setFilters({ 
-                                      ...filters, 
-                                      residents: [...filters.residents, flat.id] 
-                                    });
-                                  } else {
-                                    setFilters({ 
-                                      ...filters, 
-                                      residents: filters.residents.filter(id => id !== flat.id) 
-                                    });
-                                  }
-                                }}
-                                className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
-                              />
-                              <button
-                                onClick={() => toggleLedgerExpansion(flat.id)}
-                                className="flex items-center space-x-2 text-left hover:bg-neutral-50 rounded p-2 transition-colors"
-                              >
-                                {isExpanded ? (
-                                  <ChevronDown className="h-4 w-4 text-neutral-500" />
-                                ) : (
-                                  <ChevronRight className="h-4 w-4 text-neutral-500" />
-                                )}
-                                <div>
-                                  <h4 className="font-medium text-neutral-900 font-inter">
-                                    {flat.flatNumber} - {residentName}
-                                  </h4>
-                                  <p className="text-sm text-gray-500 font-inter">
-                                    Balance: <span className={`font-medium ${
-                                      balance > 0 ? 'text-success-600' :
-                                      balance < 0 ? 'text-red-600' : 'text-neutral-600'
-                                    }`}>
-                                      {formatCurrency(balance)}
-                                    </span>
-                                  </p>
-                                </div>
-                              </button>
+                        <div key={flat.id} className="bg-white rounded-lg shadow-sm border border-neutral-200 overflow-hidden">
+                          {/* Collapsed View */}
+                          <div className="p-3 flex items-center justify-between hover:bg-neutral-50 transition-colors">
+                            <div className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer" onClick={() => toggleLedgerExpansion(flat.id)}>
+                              <div onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setFilters({ 
+                                        ...filters, 
+                                        residents: [...filters.residents, flat.id] 
+                                      });
+                                    } else {
+                                      setFilters({ 
+                                        ...filters, 
+                                        residents: filters.residents.filter(id => id !== flat.id) 
+                                      });
+                                    }
+                                  }}
+                                  className="rounded border-neutral-300 text-primary-600 focus:ring-primary-500 flex-shrink-0"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-sm font-medium text-neutral-900 font-inter truncate">
+                                  {flat.flatNumber} - {residentName}
+                                </h4>
+                                <p className="text-xs text-gray-500 font-inter mt-0.5 truncate">
+                                  Balance: <span className={`font-medium ${
+                                    balance > 0 ? 'text-success-600' :
+                                    balance < 0 ? 'text-red-600' : 'text-neutral-600'
+                                  }`}>
+                                    {formatCurrency(balance)}
+                                  </span>
+                                </p>
+                              </div>
+                              <ChevronDown className={`h-4 w-4 text-neutral-400 transition-transform duration-200 flex-shrink-0 ${
+                                isExpanded ? 'rotate-180' : ''
+                              }`} />
                             </div>
                             
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                size="sm"
-                                variant="secondary"
+                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                              <button
                                 onClick={() => handleGenerateStatement(flat)}
-                                leftIcon={<FileText className="h-4 w-4" />}
+                                disabled={loading}
+                                className="px-3 py-1.5 text-xs font-medium text-primary-600 bg-primary-50 hover:bg-primary-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                               >
-                                Generate Statement
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
+                                <FileText className="h-3.5 w-3.5 inline mr-1" />
+                                Generate
+                              </button>
+                              <button
                                 onClick={() => {
                                   setSelectedFlat(flat);
                                   setShowStatementModal(true);
                                 }}
-                                leftIcon={<Eye className="h-4 w-4" />}
+                                disabled={loading}
+                                className="px-3 py-1.5 text-xs font-medium text-neutral-600 bg-neutral-50 hover:bg-neutral-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-inter"
                               >
+                                <Eye className="h-3.5 w-3.5 inline mr-1" />
                                 Preview
-                              </Button>
+                              </button>
                             </div>
                           </div>
                           
                           {/* Expanded Details */}
                           {isExpanded && (
-                            <div className="mt-4 pl-8 border-l-2 border-neutral-200">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="px-3 py-3 border-t border-neutral-100">
+                              {recentTransactions.length > 0 ? (
                                 <div>
-                                  <h5 className="font-medium text-neutral-900 mb-2 font-inter">Account Summary</h5>
-                                  <div className="space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600 font-inter">Current Balance:</span>
-                                      <span className={`font-medium ${
-                                        balance > 0 ? 'text-success-600' :
-                                        balance < 0 ? 'text-red-600' : 'text-neutral-600'
-                                      }`}>
-                                        {formatCurrency(balance)}
-                                      </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600 font-inter">Total Transactions:</span>
-                                      <span className="font-medium text-neutral-900">{flatLedgerTxs.length}</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600 font-inter">Last Updated:</span>
-                                      <span className="font-medium text-neutral-900">
-                                        {new Date(flat.updatedAt || Date.now()).toLocaleDateString('en-GB')}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                                
-                                <div>
-                                  <h5 className="font-medium text-neutral-900 mb-2 font-inter">Recent Transactions</h5>
-                                  <div className="space-y-2">
-                                    {recentTransactions.length > 0 ? (
-                                      recentTransactions.map((transaction, index) => (
-                                        <div key={index} className="text-sm space-y-1">
-                                          <div className="flex justify-between items-start">
-                                            <div>
-                                              <span className="text-gray-600 font-inter">
-                                                {transaction.type.replace(/_/g, ' ').toUpperCase()}
-                                              </span>
-                                              {transaction.quarter && (
-                                                <span className="text-xs text-gray-500 ml-2">
-                                                  {transaction.quarter}
-                                                </span>
-                                              )}
-                                            </div>
-                                            <div className="text-right">
-                                              {transaction.debitAmount > 0 && (
-                                                <span className="font-medium text-red-600">
-                                                  -{formatCurrency(transaction.debitAmount)}
-                                                </span>
-                                              )}
-                                              {transaction.creditAmount > 0 && (
-                                                <span className="font-medium text-success-600">
-                                                  +{formatCurrency(transaction.creditAmount)}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                          <div className="text-xs text-gray-500">
-                                            {new Date(transaction.transactionDate).toLocaleDateString('en-GB')} • Balance: {formatCurrency(transaction.runningBalance)}
-                                          </div>
+                                  <p className="text-xs font-medium text-neutral-700 mb-2 font-inter">Recent activity</p>
+                                  <div className="space-y-1">
+                                    {recentTransactions.map((transaction, index) => (
+                                      <div key={index} className="text-xs">
+                                        <div className="flex justify-between">
+                                          <span className="font-medium text-neutral-900 font-inter capitalize">
+                                            {transaction.type.replace(/_/g, ' ').toLowerCase()}
+                                          </span>
+                                          <span className={`font-semibold font-inter ${
+                                            transaction.debitAmount > 0 ? 'text-red-600' : 'text-success-600'
+                                          }`}>
+                                            {transaction.debitAmount > 0 && '-'}
+                                            {transaction.debitAmount > 0 ? formatCurrency(transaction.debitAmount) : formatCurrency(transaction.creditAmount)}
+                                          </span>
                                         </div>
-                                      ))
-                                    ) : (
-                                      <p className="text-sm text-gray-500 font-inter">No recent transactions</p>
-                                    )}
+                                        <div className="text-gray-500 font-inter">
+                                          {new Date(transaction.transactionDate).toLocaleDateString('en-GB')}
+                                          {transaction.quarter && (
+                                            <span className="ml-1.5 text-gray-400">{transaction.quarter}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
                                   </div>
                                 </div>
-                              </div>
+                              ) : (
+                                <p className="text-xs text-gray-500 font-inter">No recent transactions</p>
+                              )}
                             </div>
                           )}
                         </div>
@@ -852,59 +712,57 @@ For queries, please contact building management.
           title={`Account Statement Preview - ${selectedFlat.flatNumber}`}
           size="xl"
         >
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Statement Header */}
-            <div className="border-b pb-4">
-              <div className="flex justify-between items-start">
+            <div className="pb-4 border-b border-neutral-200">
+              <div className="flex justify-between items-baseline mb-4">
                 <div>
-                  <h3 className="text-xl font-semibold text-neutral-900 font-inter">
+                  <h3 className="text-lg font-semibold text-neutral-900 font-inter">
                     {selectedBuilding?.name || 'Building Name'}
                   </h3>
-                  <p className="text-gray-600 font-inter">Resident Account Statement</p>
+                  <p className="text-sm text-gray-500 font-inter mt-0.5">Account statement</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-600 font-inter">Statement Date:</p>
-                  <p className="font-medium text-neutral-900 font-inter">
+                  <p className="text-xs text-gray-500 font-inter">Statement date</p>
+                  <p className="text-sm font-semibold text-neutral-900 font-inter">
                     {new Date().toLocaleDateString('en-GB')}
                   </p>
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-6 mt-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-600 font-inter">Flat Number:</p>
-                  <p className="font-medium text-neutral-900 font-inter">{selectedFlat.flatNumber}</p>
+                  <p className="text-xs text-gray-500 font-inter">Flat number</p>
+                  <p className="text-sm font-semibold text-neutral-900 font-inter mt-0.5">{selectedFlat.flatNumber}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600 font-inter">Resident Name:</p>
-                  <p className="font-medium text-neutral-900 font-inter">
+                  <p className="text-xs text-gray-500 font-inter">Resident name</p>
+                  <p className="text-sm font-semibold text-neutral-900 font-inter mt-0.5">
                     {residentName}
                   </p>
                 </div>
               </div>
             </div>
             
-            {/* Current Balance */}
-            <div className="bg-neutral-50 p-4 rounded-lg">
-              <h4 className="font-medium text-neutral-900 mb-2 font-inter">Current Account Balance</h4>
+            {/* Current Balance - Primary Section */}
+            <div>
+              <p className="text-xs font-medium text-neutral-700 mb-2 font-inter">Current balance</p>
               <div className={`text-3xl font-bold ${
                 balance > 0 ? 'text-success-600' :
-                balance < 0 ? 'text-red-600' : 'text-neutral-600'
+                balance < 0 ? 'text-red-600' : 'text-neutral-900'
               }`}>
                 {formatCurrency(balance)}
               </div>
-              <p className="text-sm text-gray-600 mt-1 font-inter">
-                {balance > 0 ? 'Credit Balance (you are in credit)' :
-                 balance < 0 ? 'Debit Balance (amount owed)' : 'Zero Balance'}
+              <p className="text-xs text-gray-500 mt-1 font-inter">
+                {balance > 0 ? 'Credit balance (in your favour)' :
+                 balance < 0 ? 'Debit balance (amount owed)' : 'Zero balance'}
               </p>
             </div>
             
-            {/* Transaction Summary for Selected Period */}
+            {/* Transaction Summary Cards */}
             <div>
-              <h4 className="font-medium text-neutral-900 mb-3 font-inter">
-                Transaction Summary (All Time)
-              </h4>
-              <div className="grid grid-cols-3 gap-4">
+              <p className="text-xs font-medium text-neutral-700 mb-3 font-inter">Transaction summary (all time)</p>
+              <div className="grid grid-cols-3 gap-3">
                 {(() => {
                   const totalDemands = flatLedgerTxs
                     .filter(t => t.type === 'SERVICE_CHARGE_DEMAND')
@@ -918,17 +776,17 @@ For queries, please contact building management.
                   
                   return (
                     <>
-                      <div className="bg-red-50 p-3 rounded">
-                        <p className="text-sm text-red-900 font-inter">Total Demands</p>
-                        <p className="text-lg font-semibold text-red-600 font-inter">{formatCurrency(totalDemands)}</p>
+                      <div className="bg-red-50 p-3 rounded border border-red-100">
+                        <p className="text-xs font-medium text-red-900 font-inter">Total demands</p>
+                        <p className="text-base font-semibold text-red-600 font-inter mt-1">{formatCurrency(totalDemands)}</p>
                       </div>
-                      <div className="bg-success-50 p-3 rounded">
-                        <p className="text-sm text-success-900 font-inter">Total Payments</p>
-                        <p className="text-lg font-semibold text-success-600 font-inter">{formatCurrency(totalPayments)}</p>
+                      <div className="bg-success-50 p-3 rounded border border-success-100">
+                        <p className="text-xs font-medium text-success-900 font-inter">Total payments</p>
+                        <p className="text-base font-semibold text-success-600 font-inter mt-1">{formatCurrency(totalPayments)}</p>
                       </div>
-                      <div className="bg-blue-50 p-3 rounded">
-                        <p className="text-sm text-blue-900 font-inter">Credits Applied</p>
-                        <p className="text-lg font-semibold text-primary-600 font-inter">{formatCurrency(totalCredits)}</p>
+                      <div className="bg-blue-50 p-3 rounded border border-blue-100">
+                        <p className="text-xs font-medium text-blue-900 font-inter">Credits applied</p>
+                        <p className="text-base font-semibold text-primary-600 font-inter mt-1">{formatCurrency(totalCredits)}</p>
                       </div>
                     </>
                   );
@@ -936,12 +794,11 @@ For queries, please contact building management.
               </div>
             </div>
             
-            {/* Recent Transactions */}
-            {filters.includeTransactions && (
-              <div>
-                <h4 className="font-medium text-neutral-900 mb-3 font-inter">Transaction History</h4>
-                <div className="max-h-64 overflow-y-auto border rounded-lg">
-                  {flatLedgerTxs.length > 0 ? (
+            {/* Transaction History */}
+            <div>
+              <p className="text-xs font-medium text-neutral-700 mb-3 font-inter">Transaction history</p>
+              <div className="max-h-64 overflow-y-auto border border-neutral-200 rounded-lg bg-white">
+                {flatLedgerTxs.length > 0 ? (
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-neutral-50">
                           <tr>
@@ -966,16 +823,13 @@ For queries, please contact building management.
                                   transaction.type === 'CREDIT_APPLICATION' ? 'bg-blue-100 text-blue-800' :
                                   'bg-neutral-100 text-gray-800'
                                 }`}>
-                                  {transaction.type.replace(/_/g, ' ')}
+                                  {transaction.type.replace(/_/g, ' ').toLowerCase()}
                                 </span>
                               </td>
                               <td className="px-4 py-2 text-sm text-neutral-900 font-inter">
-                                <div>
-                                  {transaction.description}
-                                  {transaction.quarter && (
-                                    <div className="text-xs text-gray-500 mt-0.5">{transaction.quarter}</div>
-                                  )}
-                                </div>
+                                {transaction.quarter && (
+                                  <div className="text-gray-500 font-inter">{transaction.quarter}</div>
+                                )}
                               </td>
                               <td className="px-4 py-2 text-sm text-right font-medium font-inter text-red-600">
                                 {transaction.debitAmount > 0 ? formatCurrency(transaction.debitAmount) : '-'}
@@ -995,31 +849,29 @@ For queries, please contact building management.
                         <p className="text-gray-500 font-inter">No transactions found</p>
                       </div>
                     )}
-                </div>
               </div>
-            )}
+            </div>
           </div>
           
           <ModalFooter>
             <Button
-              variant="secondary"
-              onClick={() => {
-                setShowStatementModal(false);
-                setSelectedFlat(null);
-              }}
-            >
-              Close Preview
-            </Button>
-            <Button
               onClick={() => handleGenerateStatement(selectedFlat)}
               leftIcon={<Download className="h-4 w-4" />}
             >
-              Download Statement
+              Download
             </Button>
           </ModalFooter>
         </Modal>
-        )
+        );
       })()}
+
+      {/* Bulk Action Bar */}
+      <BulkActionBar
+        selectedCount={filters.residents.length}
+        onGenerateStatements={handleBulkStatementGeneration}
+        onClearSelection={() => setFilters({ ...filters, residents: [] })}
+        isLoading={loading}
+      />
     </div>
   );
 };

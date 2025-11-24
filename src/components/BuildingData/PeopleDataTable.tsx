@@ -306,24 +306,26 @@ const PeopleDataTable: React.FC = () => {
   const [expandedDesktopPeople, setExpandedDesktopPeople] = useState<Set<string>>(new Set())
 
   const toggleDesktopExpanded = (personId: string) => {
-    const newExpanded = new Set(expandedDesktopPeople)
-    if (newExpanded.has(personId)) {
-      newExpanded.delete(personId)
+    // Single-expand behavior: expand only this person, collapse others
+    if (expandedDesktopPeople.has(personId)) {
+      // Clicking the same open item collapses all
+      setExpandedDesktopPeople(new Set())
     } else {
-      newExpanded.add(personId)
+      // Open only this item
+      setExpandedDesktopPeople(new Set([personId]))
     }
-    setExpandedDesktopPeople(newExpanded)
   }
 
 
   const toggleExpanded = (personId: string) => {
-    const newExpanded = new Set(expandedPeople)
-    if (newExpanded.has(personId)) {
-      newExpanded.delete(personId)
+    // Single-expand behavior: expand only this person, collapse others
+    if (expandedPeople.has(personId)) {
+      // Clicking the same open item collapses all
+      setExpandedPeople(new Set())
     } else {
-      newExpanded.add(personId)
+      // Open only this item
+      setExpandedPeople(new Set([personId]))
     }
-    setExpandedPeople(newExpanded)
   }
 
   if (loading) {

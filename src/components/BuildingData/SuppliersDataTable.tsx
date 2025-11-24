@@ -403,25 +403,21 @@ const SuppliersDataTable: React.FC = () => {
     })
   }, [suppliers, selectedBuildingId, searchTerm, selectedSpecialty])
 
-  // Toggle functions for accordion
+  // Toggle functions for accordion - single-expand behavior
   const toggleDesktopExpanded = (supplierId: string) => {
-    const newExpanded = new Set(expandedDesktopSuppliers)
-    if (newExpanded.has(supplierId)) {
-      newExpanded.delete(supplierId)
+    if (expandedDesktopSuppliers.has(supplierId)) {
+      setExpandedDesktopSuppliers(new Set())
     } else {
-      newExpanded.add(supplierId)
+      setExpandedDesktopSuppliers(new Set([supplierId]))
     }
-    setExpandedDesktopSuppliers(newExpanded)
   }
 
   const toggleMobileExpanded = (supplierId: string) => {
-    const newExpanded = new Set(expandedMobileSuppliers)
-    if (newExpanded.has(supplierId)) {
-      newExpanded.delete(supplierId)
+    if (expandedMobileSuppliers.has(supplierId)) {
+      setExpandedMobileSuppliers(new Set())
     } else {
-      newExpanded.add(supplierId)
+      setExpandedMobileSuppliers(new Set([supplierId]))
     }
-    setExpandedMobileSuppliers(newExpanded)
   }
 
   if (loading) {

@@ -350,11 +350,6 @@ console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900 font-inter" data-testid="page-title">Ticketing</h1>
-            {!isMobile && (
-              <p className="text-gray-600 mt-1 font-inter">
-                Manage tickets and work orders following the complete workflow
-              </p>
-            )}
           </div>
           {/* New Ticket Button - Mobile only in header */}
           {isMobile && (
@@ -368,7 +363,7 @@ console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id
         </div>
 
       {/* Tab Navigation */}
-      <div className={`border-b border-neutral-200 ${
+      <div className={`${
         isMobile ? 'sticky top-0 bg-neutral-50 z-10' : ''
       }`}>
         <div className="flex items-center justify-between">

@@ -74,9 +74,6 @@ const BuildingDataManagement: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900 font-inter">Building</h1>
-            {!isMobile && (
-              <p className="text-gray-600 font-inter">Manage people, flats, suppliers, and assets data for your buildings</p>
-            )}
           </div>
           {/* Add Button - Mobile only in header */}
           {isMobile && (
@@ -94,7 +91,7 @@ const BuildingDataManagement: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-neutral-200">
+        <div>
           <div className="flex items-center justify-between">
             <nav className={`-mb-px flex ${isMobile ? 'justify-between px-4 flex-1' : 'space-x-8'}`} aria-label="Tabs">
               {tabs.map((tab) => {

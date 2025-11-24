@@ -1,13 +1,12 @@
-import { Bell, LogOut } from 'lucide-react'
-import { useAuth } from '../../contexts/AuthContext'
+import { Bell } from 'lucide-react'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { useIsMobile } from '../../hooks/useMediaQuery'
 import NotificationDropdown from '../Notifications/NotificationDropdown'
 import { Button } from '../UI'
 import HeaderBuildingSwitcher from './HeaderBuildingSwitcher'
+import UserMenu from './UserMenu'
 
 const Header = () => {
-  const { currentUser, logout } = useAuth()
   const { notifications, isDropdownOpen, setIsDropdownOpen } = useNotifications()
   const isMobile = useIsMobile()
 
@@ -57,53 +56,8 @@ const Header = () => {
             {isDropdownOpen && <NotificationDropdown />}
           </div>
           
-          {/* User Menu */}
-          <div className="relative">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`flex items-center justify-center ${isMobile ? '' : 'space-x-2'}`}
-              data-testid="user-menu"
-            >
-              <div className={`rounded-full bg-primary-600 flex items-center justify-center ${
-                isMobile ? 'h-6 w-6' : 'h-7 w-7'
-              }`}>
-                <span className="text-xs font-medium text-white">
-                  {currentUser?.name?.charAt(0) || 'U'}
-                </span>
-              </div>
-              {!isMobile && <span className="text-neutral-700">{currentUser?.name}</span>}
-            </Button>
-          </div>
-          
-          {/* Logout */}
-          {!isMobile && (
-            <div className="flex flex-col items-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={logout}
-                title="Logout"
-                className="mb-1"
-                data-testid="logout-button"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-              <span className="text-xs text-neutral-500">Logout</span>
-            </div>
-          )}
-          {isMobile && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              title="Logout"
-              className="p-1.5"
-              data-testid="logout-button"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          )}
+          {/* User Menu Dropdown */}
+          <UserMenu />
         </div>
       </div>
     </header>

@@ -432,7 +432,7 @@ const Dashboard: React.FC = () => {
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900 mb-2" data-testid="page-title">Welcome back, {currentUser.name}</h1>
+            <h1 className="text-3xl font-bold text-neutral-900 mb-2" data-testid="page-title">Welcome</h1>
           </div>
         </div>
 

@@ -5,7 +5,7 @@ import {
   Database
 } from 'lucide-react';
 import React, { useState } from 'react';
-import { LedgerBackfillUtility } from '../components/Admin';
+import { LedgerBackfillUtility, TicketAutoCloseUtility } from '../components/Admin';
 import { SecuritySettings } from '../components/Settings/SecuritySettings';
 import { SharingSettings } from '../components/Settings/SharingSettings';
 import { TestingSettings } from '../components/Settings/TestingSettings';
@@ -44,14 +44,11 @@ const Admin: React.FC = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-neutral-900">Admin</h1>
-            <p className="text-neutral-600">
-              Manage system security, access controls, and testing configurations.
-            </p>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-neutral-200">
+        <div>
           <div className="flex items-center justify-between">
             <nav className="-mb-px flex space-x-8">
               <button
@@ -143,6 +140,7 @@ const Admin: React.FC = () => {
                       Administrative utilities for data synchronization and maintenance.
                     </p>
                   </div>
+                  <TicketAutoCloseUtility />
                   <LedgerBackfillUtility />
                 </div>
               )}

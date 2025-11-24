@@ -90,15 +90,12 @@ const Settings: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-neutral-900">System Settings</h1>
-            <p className="text-neutral-600">
-              Configure buildings, manage users, set up financial parameters, and control security settings.
-            </p>
+            <h1 className="text-3xl font-bold text-neutral-900">Settings</h1>
           </div>
         </div>
 
         {/* Tab Navigation */}
-        <div className="border-b border-neutral-200">
+        <div>
           <div className="flex items-center justify-between">
             <nav className="-mb-px flex space-x-8">
               <button
