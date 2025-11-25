@@ -1,4 +1,4 @@
-import { AlertCircle, Clock, CheckCircle, FileX } from 'lucide-react'
+import { AlertCircle, Clock, CheckCircle, HelpCircle } from 'lucide-react'
 import React, { useState } from 'react'
 import { collection, query, where, getDocs, writeBatch, Timestamp } from 'firebase/firestore'
 import { db } from '../../firebase/config'
@@ -184,68 +184,66 @@ export const TicketAutoCloseUtility: React.FC = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5 text-purple-600" />
-          Ticket Auto-Close Utility
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-purple-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-purple-900">
-              <p className="font-medium mb-2">What does this do?</p>
-              <ul className="list-disc list-inside space-y-1 text-purple-800">
-                <li>Finds all tickets in "Complete" status</li>
-                <li>Checks when each ticket was completed (from activity log)</li>
-                <li>Closes tickets that have been complete for 7+ days</li>
-                <li>Adds detailed activity log entries for audit trail</li>
-                <li>Shows you exactly what would happen in the overnight job</li>
-              </ul>
-            </div>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-purple-100 rounded-lg">
+            <Clock className="h-4 w-4 text-purple-700" />
+          </div>
+          <h3 className="text-base font-semibold">Auto-Close Tickets</h3>
+        </div>
+        <div className="group relative">
+          <HelpCircle className="h-4 w-4 text-neutral-400 hover:text-neutral-600 cursor-help" />
+          <div className="absolute right-0 top-6 w-72 p-3 bg-neutral-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-lg">
+            <p className="font-medium mb-2">Ticket Auto-Close Utility</p>
+            <p className="mb-2">Closes tickets that have been "Complete" for 7+ days.</p>
+            <ul className="space-y-1 list-disc list-inside">
+              <li>Finds all "Complete" tickets</li>
+              <li>Checks completion date from activity log</li>
+              <li>Closes tickets older than 7 days</li>
+              <li>Adds audit trail entries</li>
+              <li>Runs in browser (no Cloud Functions)</li>
+            </ul>
+            <p className="mt-2 text-yellow-300">💡 Check console (F12) for detailed logs</p>
           </div>
         </div>
+      </div>
 
+      <div className="flex-1">
         {result && (
-          <div className={`rounded-lg p-4 border ${
+          <div className={`rounded-lg p-3 border text-sm mb-3 ${
             result.success 
               ? 'bg-green-50 border-green-200' 
               : 'bg-red-50 border-red-200'
           }`}>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2">
               {result.success ? (
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
               ) : (
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
               )}
               <div className="flex-1">
-                <p className={`font-medium ${
+                <p className={`font-medium text-xs ${
                   result.success ? 'text-green-900' : 'text-red-900'
                 }`}>
                   {result.message}
                 </p>
                 {result.details && (
-                  <p className={`text-sm mt-1 ${
+                  <p className={`text-xs mt-1 ${
                     result.success ? 'text-green-800' : 'text-red-800'
                   }`}>
                     {result.details}
                   </p>
                 )}
                 {result.success && result.processedCount !== undefined && (
-                  <div className="mt-3 pt-3 border-t border-green-200">
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      <div>
-                        <p className="text-green-700 font-medium">Processed</p>
-                        <p className="text-2xl font-bold text-green-900">{result.processedCount}</p>
-                        <p className="text-xs text-green-700">Complete tickets</p>
-                      </div>
-                      <div>
-                        <p className="text-green-700 font-medium">Closed</p>
-                        <p className="text-2xl font-bold text-green-900">{result.closedCount}</p>
-                        <p className="text-xs text-green-700">Exceeded grace period</p>
-                      </div>
+                  <div className="flex items-center gap-4 mt-2 text-xs">
+                    <div>
+                      <span className="text-green-700">Processed: </span>
+                      <span className="font-bold text-green-900">{result.processedCount}</span>
+                    </div>
+                    <div>
+                      <span className="text-green-700">Closed: </span>
+                      <span className="font-bold text-green-900">{result.closedCount}</span>
                     </div>
                   </div>
                 )}
@@ -253,61 +251,26 @@ export const TicketAutoCloseUtility: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-900">
-              <p className="font-medium">📋 Grace Period Rules:</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-800 mt-2">
-                <li><strong>7 days:</strong> Time window for managers to reopen completed tickets</li>
-                <li><strong>Warning shown:</strong> UI displays countdown on completed tickets</li>
-                <li><strong>Auto-close:</strong> After 7 days, ticket moves to "Closed" status</li>
-                <li><strong>Activity tracked:</strong> All closures logged with timestamps</li>
-              </ul>
-            </div>
-          </div>
+      <div className="flex justify-end">
+        <Button
+          onClick={handleAutoClose}
+          disabled={loading}
+          loading={loading}
+          className="text-xs px-3 py-1.5 h-7 flex items-center justify-center"
+        >
+          {loading ? 'Processing...' : 'Run Auto-Close'}
+        </Button>
+      </div>
+
+      {loading && (
+        <div className="text-right text-xs text-gray-600 mt-2">
+          <Clock className="h-3 w-3 animate-spin inline mr-1" />
+          Processing...
         </div>
-
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <FileX className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-yellow-900">
-              <p className="font-medium">🎯 Usage:</p>
-              <ul className="list-disc list-inside space-y-1 text-yellow-800 mt-2">
-                <li><strong>Manual:</strong> Run anytime by clicking the button below (no billing required)</li>
-                <li><strong>Direct:</strong> Runs in your browser, no Cloud Functions needed</li>
-                <li><strong>Frequency:</strong> Run weekly or as needed to close old completed tickets</li>
-                <li><strong>Monitoring:</strong> Check browser console (F12) for detailed logs</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <Button
-            onClick={handleAutoClose}
-            disabled={loading}
-            loading={loading}
-            className="flex-1"
-          >
-            {loading ? 'Processing...' : 'Run Auto-Close Now'}
-          </Button>
-        </div>
-
-        {loading && (
-          <div className="text-center text-sm text-gray-600">
-            <Clock className="h-4 w-4 animate-spin inline mr-2" />
-            Processing tickets... Check browser console for details
-          </div>
-        )}
-
-        <div className="bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
-          <p className="font-medium text-gray-700 mb-1">💡 Pro Tip:</p>
-          <p>Open the browser console (F12) to see detailed logs of which tickets are being processed and closed.</p>
-        </div>
-      </CardContent>
-    </Card>
+      )}
+    </div>
   )
 }
 

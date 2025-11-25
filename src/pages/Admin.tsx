@@ -1,7 +1,6 @@
 import { 
   Shield,
   TestTube,
-  Share2,
   Database
 } from 'lucide-react';
 import React, { useState } from 'react';
@@ -18,7 +17,7 @@ const Admin: React.FC = () => {
   const { addNotification } = useNotifications();
   
   // State for active tab and loading
-  const [activeTab, setActiveTab] = useState<'security' | 'testing' | 'sharing' | 'data'>('security');
+  const [activeTab, setActiveTab] = useState<'security' | 'testing' | 'data'>('security');
   const [loading, setLoading] = useState(false);
   
   const handleTabChange = async (tab: typeof activeTab) => {
@@ -74,17 +73,6 @@ const Admin: React.FC = () => {
                 Testing
               </button>
               <button
-                onClick={() => handleTabChange('sharing')}
-                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'sharing'
-                    ? 'border-blue-500 text-primary-600'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                }`}
-              >
-                <Share2 className="w-4 h-4" />
-                Sharing
-              </button>
-              <button
                 onClick={() => handleTabChange('data')}
                 className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'data'
@@ -123,14 +111,6 @@ const Admin: React.FC = () => {
                 />
               )}
 
-              {/* Sharing Tab */}
-              {activeTab === 'sharing' && (
-                <SharingSettings 
-                  addNotification={addNotification}
-                  currentUser={currentUser}
-                />
-              )}
-
               {/* Data Tools Tab */}
               {activeTab === 'data' && (
                 <div className="space-y-6">
@@ -140,8 +120,34 @@ const Admin: React.FC = () => {
                       Administrative utilities for data synchronization and maintenance.
                     </p>
                   </div>
-                  <TicketAutoCloseUtility />
-                  <LedgerBackfillUtility />
+                  
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h3 className="text-base font-semibold text-neutral-900 mb-4">Import/Export Building Data</h3>
+                      <SharingSettings 
+                        addNotification={addNotification}
+                        currentUser={currentUser}
+                      />
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h3 className="text-base font-semibold text-neutral-900 mb-4">Maintenance Utilities</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                        <Card className="border border-neutral-200 h-full">
+                          <CardContent className="pt-4 pb-4 h-full">
+                            <TicketAutoCloseUtility />
+                          </CardContent>
+                        </Card>
+                        <Card className="border border-neutral-200 h-full">
+                          <CardContent className="pt-4 pb-4 h-full">
+                            <LedgerBackfillUtility />
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </>

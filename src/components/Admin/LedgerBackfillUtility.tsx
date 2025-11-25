@@ -1,4 +1,4 @@
-import { AlertCircle, RefreshCw, CheckCircle, Trash2 } from 'lucide-react'
+import { AlertCircle, RefreshCw, CheckCircle, Trash2, HelpCircle } from 'lucide-react'
 import React, { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useBuilding } from '../../contexts/BuildingContext'
@@ -175,57 +175,56 @@ export const LedgerBackfillUtility: React.FC = () => {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <RefreshCw className="h-5 w-5 text-blue-600" />
-          Flat Ledger Backfill Utility
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-blue-900">
-              <p className="font-medium mb-2">What does this do?</p>
-              <ul className="list-disc list-inside space-y-1 text-blue-800">
-                <li>Syncs all historical service charge demands AND payments to flat ledgers</li>
-                <li>Creates ledger transactions with proper linking (serviceChargeDemandId)</li>
-                <li>Recalculates running balances for all flats</li>
-                <li>Enables accurate statements with correct balances</li>
-              </ul>
-            </div>
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <RefreshCw className="h-4 w-4 text-blue-700" />
+          </div>
+          <h3 className="text-base font-semibold">Ledger Backfill</h3>
+        </div>
+        <div className="group relative">
+          <HelpCircle className="h-4 w-4 text-neutral-400 hover:text-neutral-600 cursor-help" />
+          <div className="absolute right-0 top-6 w-72 p-3 bg-neutral-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-lg">
+            <p className="font-medium mb-2">Flat Ledger Backfill</p>
+            <p className="mb-2">Syncs all historical service charge demands and payments to flat ledgers.</p>
+            <ul className="space-y-1 list-disc list-inside">
+              <li>Creates ledger transactions for demands & payments</li>
+              <li>Recalculates running balances</li>
+              <li>Enables accurate statements</li>
+            </ul>
+            <p className="mt-2 text-yellow-300">⚠️ Clear ledger first if re-running to avoid duplicates</p>
           </div>
         </div>
+      </div>
 
+      <div className="flex-1">
         {selectedBuilding && (
-          <div className="bg-gray-50 rounded-lg p-3 text-sm">
-            <p className="text-gray-600">Selected Building:</p>
-            <p className="font-medium text-gray-900">{selectedBuilding.name}</p>
-            <p className="text-xs text-gray-500 mt-1">ID: {selectedBuildingId}</p>
+          <div className="text-xs text-neutral-600 mb-3">
+            <span className="font-medium">{selectedBuilding.name}</span>
           </div>
         )}
 
         {result && (
-          <div className={`rounded-lg p-4 border ${
+          <div className={`rounded-lg p-3 border text-sm mb-3 ${
             result.success 
               ? 'bg-green-50 border-green-200' 
               : 'bg-red-50 border-red-200'
           }`}>
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-2">
               {result.success ? (
-                <CheckCircle className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
               ) : (
-                <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
               )}
-              <div>
-                <p className={`font-medium ${
+              <div className="flex-1">
+                <p className={`font-medium text-xs ${
                   result.success ? 'text-green-900' : 'text-red-900'
                 }`}>
                   {result.message}
                 </p>
                 {result.details && (
-                  <p className={`text-sm mt-1 ${
+                  <p className={`text-xs mt-1 ${
                     result.success ? 'text-green-800' : 'text-red-800'
                   }`}>
                     {result.details}
@@ -235,51 +234,35 @@ export const LedgerBackfillUtility: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-yellow-900">
-              <p className="font-medium">⚠️ Important Notes:</p>
-              <ul className="list-disc list-inside space-y-1 text-yellow-800 mt-2">
-                <li>If re-running backfill, CLEAR LEDGER first to avoid duplicates</li>
-                <li>May take several minutes for buildings with many demands</li>
-                <li>Watch the browser console for detailed progress logs</li>
-                <li>Backfill now includes both demands AND their payment history</li>
-              </ul>
-            </div>
-          </div>
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={handleClearLedger}
+          disabled={loading || !selectedBuildingId}
+          variant="danger"
+          className="flex-1 text-xs px-3 py-1.5 h-7 flex items-center justify-center"
+        >
+          Clear
+        </Button>
+        
+        <Button
+          onClick={handleBackfill}
+          disabled={loading || !selectedBuildingId}
+          loading={loading}
+          className="flex-1 text-xs px-3 py-1.5 h-7 flex items-center justify-center"
+        >
+          {loading ? 'Backfilling...' : 'Backfill'}
+        </Button>
+      </div>
+
+      {loading && (
+        <div className="text-center text-xs text-gray-600 mt-2">
+          <RefreshCw className="h-3 w-3 animate-spin inline mr-1" />
+          Processing...
         </div>
-
-        <div className="flex gap-3">
-          <Button
-            onClick={handleClearLedger}
-            disabled={loading || !selectedBuildingId}
-            variant="danger"
-            className="flex-1"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Clear Ledger
-          </Button>
-          
-          <Button
-            onClick={handleBackfill}
-            disabled={loading || !selectedBuildingId}
-            loading={loading}
-            className="flex-1"
-          >
-            {loading ? 'Backfilling...' : 'Backfill Ledger Data'}
-          </Button>
-        </div>
-
-        {loading && (
-          <div className="text-center text-sm text-gray-600">
-            <RefreshCw className="h-4 w-4 animate-spin inline mr-2" />
-            Processing... Open browser console to see progress
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      )}
+    </div>
   )
 }
 
