@@ -5,8 +5,9 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useBuilding } from '../../contexts/BuildingContext'
 import { useNotifications } from '../../contexts/NotificationContext'
 import { getPeopleByBuilding, createPerson, updatePerson } from '../../services/peopleService'
+import { getFlatsByBuilding } from '../../services/flatService'
 import { tokens } from '../../styles/tokens'
-import { Person, Building, PersonStatus } from '../../types'
+import { Person, Building, PersonStatus, Flat } from '../../types'
 import { getBadgeColors, getStatusColors, getButtonColors } from '../../utils/colors'
 import { Badge , Modal, ModalFooter, Dropdown, DropdownOption } from '../UI'
 import Button from '../UI/Button'
@@ -16,6 +17,7 @@ const PeopleDataTable: React.FC = () => {
   const { addNotification } = useNotifications()
   const { selectedBuildingId, selectedBuilding } = useBuilding()
   const [people, setPeople] = useState<(Person & { isActive: boolean })[]>([])
+  const [flats, setFlats] = useState<Flat[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreatePerson, setShowCreatePerson] = useState(false)
   const [showViewPerson, setShowViewPerson] = useState(false)
@@ -52,6 +54,7 @@ const PeopleDataTable: React.FC = () => {
   useEffect(() => {
     if (selectedBuildingId) {
       loadPeople()
+      loadFlats()
     }
   }, [selectedBuildingId])
 
@@ -82,6 +85,20 @@ const PeopleDataTable: React.FC = () => {
     }
   }
 
+  const loadFlats = async () => {
+    if (!selectedBuildingId) return
+    
+    try {
+      console.log('🔥 Loading flats from Firebase for building:', selectedBuildingId)
+      const buildingFlats = await getFlatsByBuilding(selectedBuildingId)
+      console.log('🔥 Flats loaded:', buildingFlats.length)
+      setFlats(buildingFlats)
+    } catch (error) {
+      console.error('🚨 Error loading flats:', error)
+    }
+  }
+
+
   const handleCreatePerson = async () => {
     if (!currentUser || !selectedBuildingId) return
     
@@ -97,12 +114,15 @@ const PeopleDataTable: React.FC = () => {
     
     try {
       console.log('🔥 Creating person in Firebase...')
+      // Find the selected flat to get its flatNumber
+      const selectedFlat = flats.find(f => f.id === personForm.flatId)
+      
       const personData = {
         name: personForm.name,
         buildingId: selectedBuildingId,
         accessibleBuildingIds: [selectedBuildingId],
         flatId: personForm.flatId || null,
-        flatNumber: personForm.flatId || null,
+        flatNumber: selectedFlat?.flatNumber || null,
         status: personForm.status,
         email: personForm.email,
         phone: personForm.phone,
@@ -195,6 +215,9 @@ const PeopleDataTable: React.FC = () => {
     try {
       console.log('🔥 Updating person in Firebase...', selectedPerson.id)
       
+      // Find the selected flat to get its flatNumber
+      const selectedFlat = flats.find(f => f.id === personForm.flatId)
+      
       // Prepare the update data
       const updateData = {
         name: personForm.name,
@@ -202,7 +225,7 @@ const PeopleDataTable: React.FC = () => {
         phone: personForm.phone,
         status: personForm.status,
         flatId: personForm.flatId || null,
-        flatNumber: personForm.flatId || null,
+        flatNumber: selectedFlat?.flatNumber || null,
         moveInDate: personForm.moveInDate ? new Date(personForm.moveInDate) : null,
         moveOutDate: personForm.moveOutDate ? new Date(personForm.moveOutDate) : null,
         notes: personForm.notes,
@@ -711,13 +734,19 @@ const PeopleDataTable: React.FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Flat Number</label>
-                <input
-                  type="text"
+                <label className="block text-xs font-medium text-neutral-700 mb-1 font-inter">Flat</label>
+                <select
                   value={personForm.flatId}
                   onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
                   className="w-full h-9 px-3 text-sm border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-                />
+                >
+                  <option value="">No flat</option>
+                  {flats.map(flat => (
+                    <option key={flat.id} value={flat.id}>
+                      {flat.flatNumber} (Floor {flat.floor})
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -909,13 +938,19 @@ const PeopleDataTable: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat ID</label>
-              <input
-                type="text"
+              <label className="block text-sm font-medium text-neutral-700 mb-1 font-inter">Flat</label>
+              <select
                 value={personForm.flatId}
                 onChange={(e) => setPersonForm({...personForm, flatId: e.target.value})}
                 className="w-full px-3 py-2 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-inter"
-              />
+              >
+                <option value="">No flat</option>
+                {flats.map(flat => (
+                  <option key={flat.id} value={flat.id}>
+                    {flat.flatNumber} (Floor {flat.floor})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

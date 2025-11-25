@@ -3,18 +3,40 @@ import {
   BarChart3,
   Settings,
   Shield,
-  ChevronRight
+  ChevronRight,
+  User,
+  CreditCard
 } from 'lucide-react'
 import React from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { UserRole } from '../../types'
+
+interface MoreMenuItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  description: string
+  allowedRoles?: UserRole[] // If undefined, accessible to all roles
+}
 
 const MobileMoreMenu: React.FC = () => {
-  const moreItems = [
+  const { currentUser } = useAuth()
+
+  const moreItems: MoreMenuItem[] = [
     { name: 'Events', href: '/events', icon: Calendar, description: 'Schedule and manage building events' },
-    { name: 'Reports', href: '/reports', icon: BarChart3, description: 'View analytics and reports' },
-    { name: 'Settings', href: '/settings', icon: Settings, description: 'System configuration and preferences' },
-    { name: 'Admin', href: '/admin', icon: Shield, description: 'Administrative functions and controls' },
+    { name: 'Payments', href: '/my-payments', icon: CreditCard, description: 'View your service charges and payments', allowedRoles: ['resident'] },
+    { name: 'Reports', href: '/reports', icon: BarChart3, description: 'View analytics and reports', allowedRoles: ['admin', 'manager'] },
+    { name: 'Settings', href: '/settings', icon: Settings, description: 'System configuration and preferences', allowedRoles: ['admin', 'manager'] },
+    { name: 'Admin', href: '/admin', icon: Shield, description: 'Administrative functions and controls', allowedRoles: ['admin'] },
   ]
+
+  // Filter menu items based on user role
+  const filteredItems = moreItems.filter(item => {
+    if (!item.allowedRoles) return true // No role restriction
+    if (!currentUser) return false
+    return item.allowedRoles.includes(currentUser.role)
+  })
 
   return (
     <div className="min-h-screen bg-neutral-50 pb-20 lg:pb-8">
@@ -31,7 +53,7 @@ const MobileMoreMenu: React.FC = () => {
 
         {/* Menu Items */}
         <div className="space-y-2">
-          {moreItems.map((item) => {
+          {filteredItems.map((item) => {
             const Icon = item.icon
             return (
               <NavLink

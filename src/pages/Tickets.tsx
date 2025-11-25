@@ -47,9 +47,12 @@ const Tickets: React.FC = () => {
   const { selectedBuildingId } = useBuilding()
   const { openCreateTicketModal } = useCreateTicket()
   const isMobile = useIsMobile()
+  const isResident = currentUser?.role === 'resident'
   
-  // State management
-  const [activeTab, setActiveTab] = useState<'my-tickets' | 'tickets' | 'work-orders' | 'workflow'>('workflow')
+  // State management - Residents start on 'my-tickets', others on 'workflow'
+  const [activeTab, setActiveTab] = useState<'my-tickets' | 'tickets' | 'work-orders' | 'workflow'>(
+    isResident ? 'my-tickets' : 'workflow'
+  )
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [ticketsLoading, setTicketsLoading] = useState(true)
@@ -115,7 +118,7 @@ const Tickets: React.FC = () => {
       const unsubscribe = ticketService.subscribeToTickets((ticketsData: Ticket[]) => {
         console.log('Received tickets data:', ticketsData.length, 'tickets')
         // Filter tickets by selected building (with fallback for legacy tickets without buildingId)
-        const buildingTickets = ticketsData.filter(ticket => {
+        let buildingTickets = ticketsData.filter(ticket => {
           // If ticket has no buildingId (legacy tickets), show them in the first building
           if (!ticket.buildingId && selectedBuildingId === 'building-1') {
             return true
@@ -123,8 +126,15 @@ const Tickets: React.FC = () => {
           // Otherwise, match by buildingId
           return ticket.buildingId === selectedBuildingId
         })
-        console.log('Filtered tickets for building', selectedBuildingId, ':', buildingTickets.length, 'tickets')
-console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id: t.id, buildingId: t.buildingId })))
+        
+        // Residents only see their own tickets
+        if (currentUser?.role === 'resident') {
+          buildingTickets = buildingTickets.filter(ticket => ticket.requestedBy === currentUser.id)
+          console.log('Filtered tickets for resident:', buildingTickets.length, 'tickets')
+        } else {
+          console.log('Filtered tickets for building', selectedBuildingId, ':', buildingTickets.length, 'tickets')
+        }
+        
         setTickets(buildingTickets)
         setTicketsLoading(false) // Set loading to false when data arrives
       })
@@ -368,48 +378,54 @@ console.log('Sample ticket buildingIds:', ticketsData.slice(0, 3).map(t => ({ id
       }`}>
         <div className="flex items-center justify-between">
           <nav className={`-mb-px flex ${isMobile ? 'flex-1 justify-between px-4' : 'space-x-8'}`}>
-            <button
-              onClick={() => setActiveTab('workflow')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
-                activeTab === 'workflow'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              {isMobile ? (
-                <div className="relative">
-                  <GitMerge className="h-5 w-5" />
-                  {(tickets.length + workOrders.length) > 0 && (
-                    <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
-                      {tickets.length + workOrders.length > 99 ? '99+' : tickets.length + workOrders.length}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                `Workflow (${tickets.length + workOrders.length})`
-              )}
-            </button>
-            <button
-              onClick={() => setActiveTab('work-orders')}
-              className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
-                activeTab === 'work-orders'
-                  ? 'border-blue-500 text-primary-600'
-                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-              }`}
-            >
-              {isMobile ? (
-                <div className="relative">
-                  <Wrench className="h-5 w-5" />
-                  {tickets.filter(ticket => ticket.status === 'Scheduled').length > 0 && (
-                    <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
-                      {tickets.filter(ticket => ticket.status === 'Scheduled').length > 99 ? '99+' : tickets.filter(ticket => ticket.status === 'Scheduled').length}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                `Work Orders (${tickets.filter(ticket => ticket.status === 'Scheduled').length})`
-              )}
-            </button>
+            {/* Workflow tab - Hidden for residents */}
+            {!isResident && (
+              <button
+                onClick={() => setActiveTab('workflow')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
+                  activeTab === 'workflow'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                {isMobile ? (
+                  <div className="relative">
+                    <GitMerge className="h-5 w-5" />
+                    {(tickets.length + workOrders.length) > 0 && (
+                      <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                        {tickets.length + workOrders.length > 99 ? '99+' : tickets.length + workOrders.length}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  `Workflow (${tickets.length + workOrders.length})`
+                )}
+              </button>
+            )}
+            {/* Work Orders tab - Hidden for residents */}
+            {!isResident && (
+              <button
+                onClick={() => setActiveTab('work-orders')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${
+                  activeTab === 'work-orders'
+                    ? 'border-blue-500 text-primary-600'
+                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+                }`}
+              >
+                {isMobile ? (
+                  <div className="relative">
+                    <Wrench className="h-5 w-5" />
+                    {tickets.filter(ticket => ticket.status === 'Scheduled').length > 0 && (
+                      <span className="absolute top-1/2 -translate-y-1/2 -right-4 bg-neutral-200 text-neutral-700 text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                        {tickets.filter(ticket => ticket.status === 'Scheduled').length > 99 ? '99+' : tickets.filter(ticket => ticket.status === 'Scheduled').length}
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  `Work Orders (${tickets.filter(ticket => ticket.status === 'Scheduled').length})`
+                )}
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('my-tickets')}
               className={`py-2 px-1 border-b-2 font-medium text-sm font-inter flex items-center justify-center ${isMobile ? 'min-w-[44px] relative' : ''} ${

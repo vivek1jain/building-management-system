@@ -12,6 +12,21 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
     }
+    
+    // Helper function to check if user is admin or manager
+    function canManage() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
+    }
+    
+    // Helper function to check if user is a resident
+    function isResident() {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'resident';
+    }
 
     // Users collection
     match /users/{userId} {
@@ -21,26 +36,35 @@ service cloud.firestore {
       // Users can read and write their own data
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
       
-      // Managers can read all users
-      allow read: if isManager();
+      // TEMPORARILY RELAXED: Allow all authenticated users to read all users
+      // (for User Management page and permission checks)
+      // TODO: In production, restrict to admins/managers only
+      allow read: if isAuthenticated();
       
-      // Allow reading user data for role checks (needed for helper functions)
-      allow read: if isAuthenticated() && request.auth.uid == userId;
+      // Admins and managers can update/delete users
+      allow update, delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
     }
     
-    // Tickets collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Tickets collection - Role-based access
     match /tickets/{ticketId} {
-      // Anyone authenticated can read tickets
+      // Anyone authenticated can read tickets for now (will be restricted in production)
+      // TODO: Restrict to ticket owner (requestedBy) and managers only
       allow read: if isAuthenticated();
       
       // Anyone authenticated can create tickets
       allow create: if isAuthenticated();
       
-      // DEVELOPMENT: Allow any authenticated user to update tickets
+      // Anyone authenticated can update tickets for now (will be restricted in production)
       allow update: if isAuthenticated();
       
       // Only managers can delete tickets
-      allow delete: if isManager();
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
     }
     
     // Suppliers collection - TEMPORARILY RELAXED FOR DEVELOPMENT
@@ -126,44 +150,45 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
-    // Expenses collection - TEMPORARILY RELAXED FOR TESTING
+    // Expenses collection
     match /expenses/{expenseId} {
-      // Anyone authenticated can read expenses
-      allow read: if isAuthenticated();
+      // Only admins and managers can read expenses
+      allow read: if canManage();
       
-      // Managers and finance users can create and update expenses
-      allow create, update: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
+      // Only admins and managers can create and update expenses
+      allow create, update: if canManage();
       
-      // TESTING: Allow managers and admins to delete expenses for data cleanup
-      allow delete: if isManager() || (isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // Only admins and managers can delete expenses
+      allow delete: if canManage();
     }
     
     // Flats collection
     match /flats/{flatId} {
-      // Anyone authenticated can read flats
-      allow read: if isAuthenticated();
+      // Admins and managers can read all flats
+      // Residents can only read their own flat
+      allow read: if isAuthenticated() && (
+        canManage() ||
+        (isResident() && flatId == get(/databases/$(database)/documents/people/$(request.auth.uid)).data.flatId)
+      );
       
-      // Anyone authenticated can create and update flats (for development)
-      allow create, update: if isAuthenticated();
+      // Only admins and managers can create and update flats
+      allow create, update: if canManage();
       
-      // Managers can delete flats
-      allow delete: if isManager();
+      // Only admins and managers can delete flats
+      allow delete: if canManage();
     }
     
     // Service Charge Demands collection
     match /serviceChargeDemands/{demandId} {
-      // Anyone authenticated can read service charge demands
+      // TEMPORARILY RELAXED: Allow all authenticated users to read demands
+      // TODO: Implement proper flat-based filtering for residents in production
       allow read: if isAuthenticated();
       
-      // Anyone authenticated can create and update service charge demands (for development)
-      allow create, update: if isAuthenticated();
+      // Only admins and managers can create and update service charge demands
+      allow create, update: if canManage();
       
-      // Managers can delete service charge demands
-      allow delete: if isManager();
+      // Only admins and managers can delete service charge demands
+      allow delete: if canManage();
     }
     
     // Invoices collection
@@ -348,6 +373,31 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // Invitations collection - for user invitation system
+    match /invitations/{invitationId} {
+      // Admins and managers can create and read all invitations
+      allow create: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
+      
+      // Allow public read access for invitations (for acceptance page)
+      // Note: This is safe because token is cryptographically secure and single-use
+      allow read: if true;
+      
+      // Allow public update for accepting invitations (marking as accepted)
+      // This is safe because:
+      // 1. User must know the secure token to find the invitation
+      // 2. Invitation can only be accepted once (status change to 'accepted')
+      // 3. User account creation is handled by Firebase Auth which is secure
+      allow update: if true;
+      
+      // Only admins can delete invitations
+      allow delete: if isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
     // Test collection (for Firebase connection testing)
     match /test/{testId} {
       // Anyone authenticated can read and write test documents

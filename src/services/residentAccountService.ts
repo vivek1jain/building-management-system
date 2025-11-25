@@ -132,17 +132,31 @@ export const getResidentAccountByFlatId = async (flatId: string): Promise<Reside
       return null
     }
     
-    const doc = querySnapshot.docs[0]
+    const accountDoc = querySnapshot.docs[0]
+    const accountData = accountDoc.data()
+    const accountId = accountDoc.id
+    
+    // Load transactions for this account
+    let transactions: AccountTransaction[] = []
+    try {
+      transactions = await getAccountTransactionHistory(accountId)
+    } catch (error) {
+      console.warn('Failed to load transactions for account:', error)
+      // Continue without transactions rather than failing
+    }
+    
     return {
-      id: doc.id,
-      ...doc.data(),
+      id: accountId,
+      ...accountData,
       // Convert Firestore timestamps
-      accountOpenedDate: doc.data().accountOpenedDate?.toDate?.() || new Date(doc.data().accountOpenedDate),
-      accountClosedDate: doc.data().accountClosedDate?.toDate?.() || null,
-      lastTransactionDate: doc.data().lastTransactionDate?.toDate?.() || null,
-      lastStatementDate: doc.data().lastStatementDate?.toDate?.() || null,
-      createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
-      updatedAt: doc.data().updatedAt?.toDate?.() || new Date(doc.data().updatedAt)
+      accountOpenedDate: accountData.accountOpenedDate?.toDate?.() || new Date(accountData.accountOpenedDate),
+      accountClosedDate: accountData.accountClosedDate?.toDate?.() || null,
+      lastTransactionDate: accountData.lastTransactionDate?.toDate?.() || null,
+      lastStatementDate: accountData.lastStatementDate?.toDate?.() || null,
+      createdAt: accountData.createdAt?.toDate?.() || new Date(accountData.createdAt),
+      updatedAt: accountData.updatedAt?.toDate?.() || new Date(accountData.updatedAt),
+      // Include transactions
+      transactions
     } as ResidentAccountLedger
     
   } catch (error) {
@@ -326,14 +340,28 @@ export const getAccountTransactionHistory = async (
   limit: number = 50
 ): Promise<AccountTransaction[]> => {
   try {
-    const q = query(
-      collection(db, 'accountTransactions'),
-      where('accountLedgerId', '==', accountLedgerId),
-      orderBy('processedAt', 'desc'),
-      // Note: Firebase queries with limit need to be handled on client side if limit is provided
-    )
+    // Try with orderBy first, if index doesn't exist, fall back to without orderBy
+    let querySnapshot
+    try {
+      const q = query(
+        collection(db, 'accountTransactions'),
+        where('accountLedgerId', '==', accountLedgerId),
+        orderBy('processedAt', 'desc')
+      )
+      querySnapshot = await getDocs(q)
+    } catch (indexError: any) {
+      // If it's an index error, try without orderBy
+      if (indexError.code === 'failed-precondition' || indexError.message?.includes('index')) {
+        const q = query(
+          collection(db, 'accountTransactions'),
+          where('accountLedgerId', '==', accountLedgerId)
+        )
+        querySnapshot = await getDocs(q)
+      } else {
+        throw indexError
+      }
+    }
     
-    const querySnapshot = await getDocs(q)
     let transactions = querySnapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data(),
@@ -341,6 +369,9 @@ export const getAccountTransactionHistory = async (
       processedAt: doc.data().processedAt?.toDate?.() || new Date(doc.data().processedAt),
       createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt)
     })) as AccountTransaction[]
+    
+    // Sort on client side if we couldn't use orderBy
+    transactions.sort((a, b) => b.processedAt.getTime() - a.processedAt.getTime())
     
     // Apply limit on client side
     if (limit > 0) {

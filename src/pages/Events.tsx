@@ -24,6 +24,7 @@ import Modal, { ModalFooter } from '../components/UI/Modal'
 import { useAuth } from '../contexts/AuthContext'
 import { useBuilding } from '../contexts/BuildingContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { useRoleAccess } from '../hooks/useRoleAccess'
 import { eventService } from '../services/eventService'
 import { ticketService } from '../services/ticketService'
 import { BuildingEvent, Ticket } from '../types'
@@ -39,6 +40,7 @@ const Events = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
+  const { canManage } = useRoleAccess()
   
   // Events state management
   const [allEvents, setAllEvents] = useState<BuildingEvent[]>([])
@@ -755,20 +757,22 @@ const Events = () => {
           </div>
         </div>
 
-        {/* New Event Button Area - Aligned with tab header positioning */}
-        <div>
-          <div className="flex items-center justify-end py-2">
-            <button
-              onClick={() => {
-                resetForm()
-                setShowCreateForm(true)
-              }}
-              className="btn-primary flex items-center font-inter"
-            >
-              New Event
-            </button>
+        {/* New Event Button Area - Aligned with tab header positioning - Only for managers/admins */}
+        {canManage() && (
+          <div>
+            <div className="flex items-center justify-end py-2">
+              <button
+                onClick={() => {
+                  resetForm()
+                  setShowCreateForm(true)
+                }}
+                className="btn-primary flex items-center font-inter"
+              >
+                New Event
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       
         {/* Search and Filter */}
         <div className="flex items-center gap-4 mb-6">

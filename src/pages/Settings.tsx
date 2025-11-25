@@ -2,11 +2,9 @@ import {
   Settings as SettingsIcon, 
   Building as BuildingIcon, 
   Users, 
-  Calendar, 
-  Palette
+  Calendar
 } from 'lucide-react';
 import React, { useState } from 'react';
-import { AppearanceSettings } from '../components/Settings/AppearanceSettings';
 import { BuildingManagement } from '../components/Settings/BuildingManagement';
 import { FinancialSetup } from '../components/Settings/FinancialSetup';
 import { UserManagement } from '../components/Settings/UserManagement';
@@ -48,7 +46,7 @@ const Settings: React.FC = () => {
   const { addNotification } = useNotifications();
   
   // State for active tab and loading
-  const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial' | 'appearance'>('buildings');
+  const [activeTab, setActiveTab] = useState<'buildings' | 'users' | 'financial'>('buildings');
   const [loading, setLoading] = useState(false);
   
   const handleTabChange = async (tab: typeof activeTab) => {
@@ -107,7 +105,7 @@ const Settings: React.FC = () => {
                 }`}
               >
                 <BuildingIcon className="w-4 h-4" />
-                Building Management
+                Buildings
               </button>
               <button
                 onClick={() => handleTabChange('users')}
@@ -118,7 +116,7 @@ const Settings: React.FC = () => {
                 }`}
               >
                 <Users className="w-4 h-4" />
-                User Management
+                Users
               </button>
               <button
                 onClick={() => handleTabChange('financial')}
@@ -129,18 +127,7 @@ const Settings: React.FC = () => {
                 }`}
               >
                 <Calendar className="w-4 h-4" />
-                Financial Setup
-              </button>
-              <button
-                onClick={() => handleTabChange('appearance')}
-                className={`flex items-center gap-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'appearance'
-                    ? 'border-blue-500 text-primary-600'
-                    : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
-                }`}
-              >
-                <Palette className="w-4 h-4" />
-                Appearance
+                Payments
               </button>
             </nav>
             
@@ -194,14 +181,6 @@ const Settings: React.FC = () => {
                 <FinancialSetup 
                   financialYear={financialYear}
                   setFinancialYear={setFinancialYear}
-                  addNotification={addNotification}
-                  currentUser={currentUser}
-                />
-              )}
-
-              {/* Appearance Tab */}
-              {activeTab === 'appearance' && (
-                <AppearanceSettings 
                   addNotification={addNotification}
                   currentUser={currentUser}
                 />

@@ -94,7 +94,6 @@ const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  leftIcon={<Mail className="h-4 w-4" />}
                   autoComplete="email"
                   data-testid="email-input"
                 />
@@ -109,7 +108,6 @@ const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    leftIcon={<Lock className="h-4 w-4" />}
                     autoComplete={isRegistering ? 'new-password' : 'current-password'}
                     data-testid="password-input"
                   />

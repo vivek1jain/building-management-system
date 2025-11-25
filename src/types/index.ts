@@ -1,5 +1,5 @@
 // User roles and types
-export type UserRole = 'admin' | 'manager' | 'finance' | 'supplier' | 'requester' | 'client' | 'vendor' | 'resident' | 'tenant';
+export type UserRole = 'admin' | 'manager' | 'resident' | 'supplier';
 
 export interface User {
   id: string;
@@ -8,19 +8,42 @@ export interface User {
   role: UserRole;
   avatar?: string;
   phone?: string;
+  isActive?: boolean; // User account status (default: true)
+  deactivatedAt?: Date; // When the user was deactivated
+  deactivatedBy?: string; // User ID of admin who deactivated
   createdAt: Date;
   updatedAt: Date;
 }
 
-// Enhanced Person Management (from studio-master)
+// User Invitation System
+export type InvitationStatus = 'pending' | 'accepted' | 'expired' | 'cancelled';
+
+export interface UserInvitation {
+  id: string;
+  email: string;
+  role: UserRole;
+  invitedBy: string; // Admin user ID
+  invitedByName: string;
+  token: string; // Secure random token for invitation link
+  status: InvitationStatus;
+  expiresAt: Date;
+  acceptedAt?: Date;
+  buildingIds: string[]; // Building associations (required)
+  // Additional user data
+  phone?: string;
+  personStatus?: PersonStatus; // Status for person record
+  // Role-specific metadata
+  flatNumber?: string; // For residents
+  companyName?: string; // For suppliers
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Enhanced Person Management
 export enum PersonStatus {
   OWNER = "Owner",
-  TENANT = "Tenant", 
-  RESIDENT = "Resident",
+  TENANT = "Tenant",
   MANAGER = "Manager",
-  PROSPECT = "Prospect",
-  ARCHIVED = "Archived",
-  PENDING_APPROVAL = "Pending Approval",
 }
 
 export interface Person {
@@ -28,7 +51,6 @@ export interface Person {
   uid?: string;
   name: string;
   buildingId: string | null;
-  accessibleBuildingIds?: string[] | null;
   flatId: string | null;
   flatNumber?: string | null;
   role?: UserRole;

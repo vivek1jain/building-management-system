@@ -6,21 +6,45 @@ import {
   Building,
   Wrench,
   BarChart3,
-  Shield
+  Shield,
+  User,
+  CreditCard,
+  Briefcase
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { UserRole } from '../../types'
+
+interface NavigationItem {
+  name: string
+  href: string
+  icon: React.ComponentType<{ className?: string }>
+  testId: string
+  allowedRoles?: UserRole[] // If undefined, accessible to all roles
+}
 
 const Sidebar = () => {
-  const navigation = [
+  const { currentUser } = useAuth()
+
+  const navigation: NavigationItem[] = [
     { name: 'Dashboard', href: '/', icon: Home, testId: 'nav-dashboard' },
     { name: 'Ticketing', href: '/tickets', icon: Wrench, testId: 'nav-tickets' },
     { name: 'Events', href: '/events', icon: Calendar, testId: 'nav-events' },
-    { name: 'Finances', href: '/finances', icon: PoundSterling, testId: 'nav-budget' },
-    { name: 'Building', href: '/building-data', icon: Building, testId: 'nav-building' },
-    { name: 'Reports', href: '/reports', icon: BarChart3, testId: 'nav-reports' },
-    { name: 'Settings', href: '/settings', icon: Settings, testId: 'nav-settings' },
-    { name: 'Admin', href: '/admin', icon: Shield, testId: 'nav-admin' },
+    { name: 'Finances', href: '/finances', icon: PoundSterling, testId: 'nav-finances', allowedRoles: ['admin', 'manager'] },
+    { name: 'Payments', href: '/my-payments', icon: CreditCard, testId: 'nav-my-payments', allowedRoles: ['resident'] },
+    { name: 'Building', href: '/building-data', icon: Building, testId: 'nav-building', allowedRoles: ['admin', 'manager'] },
+    { name: 'Reports', href: '/reports', icon: BarChart3, testId: 'nav-reports', allowedRoles: ['admin', 'manager'] },
+    { name: 'Suppliers', href: '/suppliers', icon: Briefcase, testId: 'nav-suppliers', allowedRoles: ['admin', 'manager'] },
+    { name: 'Settings', href: '/settings', icon: Settings, testId: 'nav-settings', allowedRoles: ['admin', 'manager'] },
+    { name: 'Admin', href: '/admin', icon: Shield, testId: 'nav-admin', allowedRoles: ['admin'] },
   ]
+
+  // Filter navigation items based on user role
+  const filteredNavigation = navigation.filter(item => {
+    if (!item.allowedRoles) return true // No role restriction
+    if (!currentUser) return false
+    return item.allowedRoles.includes(currentUser.role)
+  })
 
   return (
     <div className="hidden md:flex md:flex-shrink-0" data-testid="sidebar">
@@ -31,7 +55,7 @@ const Sidebar = () => {
               <h1 className="text-xl font-semibold text-neutral-900">Building Manager</h1>
             </div>
             <nav className="mt-5 flex-1 px-2 space-y-1">
-              {navigation.map((item) => {
+              {filteredNavigation.map((item) => {
                 const Icon = item.icon
                 return (
                   <NavLink

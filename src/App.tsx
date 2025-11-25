@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import ProtectedRoute from './components/Auth/ProtectedRoute'
+import RoleProtectedRoute from './components/Auth/RoleProtectedRoute'
 import Layout from './components/Layout/Layout'
 import NotificationList from './components/Notifications/NotificationList'
 import { PageLoading } from './components/UI'
@@ -10,14 +11,15 @@ import { CreateTicketProvider } from './contexts/CreateTicketContext'
 import { NotificationProvider } from './contexts/NotificationContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import './utils/testPermissions' // Load test functions for development
+import './utils/debugTickets' // Load debug functions for ticket troubleshooting
 
 // Eager load critical pages
 import Dashboard from './pages/Dashboard'
 import Login from './pages/Login'
+import { AcceptInvitation } from './pages/AcceptInvitation'
 
 // Lazy load secondary pages for better initial load performance
 const ComprehensiveDashboard = lazy(() => import('./pages/ComprehensiveDashboard'))
-const CreateTicket = lazy(() => import('./pages/CreateTicket'))
 const TicketDetail = lazy(() => import('./pages/TicketDetail'))
 const Suppliers = lazy(() => import('./pages/Suppliers'))
 const Events = lazy(() => import('./pages/Events'))
@@ -27,6 +29,8 @@ const Finances = lazy(() => import('./pages/Finances'))
 const Reports = lazy(() => import('./pages/Reports'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Admin = lazy(() => import('./pages/Admin'))
+const ResidentPayments = lazy(() => import('./pages/ResidentPayments'))
+const ResidentProfile = lazy(() => import('./pages/ResidentProfile'))
 const MobileMoreMenu = lazy(() => import('./components/Layout/MobileMoreMenu'))
 const DensityTest = lazy(() => import('./components/DensityTest'))
 
@@ -41,6 +45,7 @@ function App() {
             <NotificationList />
             <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/accept-invitation/:token" element={<AcceptInvitation />} />
             <Route path="/" element={
               <ProtectedRoute>
                 <Layout />
@@ -55,19 +60,41 @@ function App() {
               
               {/* New Comprehensive Features */}
               <Route path="building-data" element={
-                <Suspense fallback={<PageLoading message="Loading building data..." />}>
-                  <BuildingDataManagement />
-                </Suspense>
+                <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Suspense fallback={<PageLoading message="Loading building data..." />}>
+                    <BuildingDataManagement />
+                  </Suspense>
+                </RoleProtectedRoute>
               } />
               <Route path="finances" element={
-                <Suspense fallback={<PageLoading message="Loading finances..." />}>
-                  <Finances />
-                </Suspense>
+                <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Suspense fallback={<PageLoading message="Loading finances..." />}>
+                    <Finances />
+                  </Suspense>
+                </RoleProtectedRoute>
               } />
               <Route path="reports" element={
-                <Suspense fallback={<PageLoading message="Loading reports..." />}>
-                  <Reports />
-                </Suspense>
+                <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Suspense fallback={<PageLoading message="Loading reports..." />}>
+                    <Reports />
+                  </Suspense>
+                </RoleProtectedRoute>
+              } />
+              
+              {/* Resident-Only Pages */}
+              <Route path="my-payments" element={
+                <RoleProtectedRoute allowedRoles={['resident']}>
+                  <Suspense fallback={<PageLoading message="Loading payments..." />}>
+                    <ResidentPayments />
+                  </Suspense>
+                </RoleProtectedRoute>
+              } />
+              <Route path="my-profile" element={
+                <RoleProtectedRoute allowedRoles={['resident']}>
+                  <Suspense fallback={<PageLoading message="Loading profile..." />}>
+                    <ResidentProfile />
+                  </Suspense>
+                </RoleProtectedRoute>
               } />
               
               {/* Unified Tickets & Work Orders */}
@@ -81,20 +108,17 @@ function App() {
                   <Tickets />
                 </Suspense>
               } />
-              <Route path="tickets/new" element={
-                <Suspense fallback={<PageLoading message="Creating ticket..." />}>
-                  <CreateTicket />
-                </Suspense>
-              } />
               <Route path="tickets/:id" element={
                 <Suspense fallback={<PageLoading message="Loading ticket..." />}>
                   <TicketDetail />
                 </Suspense>
               } />
               <Route path="suppliers" element={
-                <Suspense fallback={<PageLoading message="Loading suppliers..." />}>
-                  <Suppliers />
-                </Suspense>
+                <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Suspense fallback={<PageLoading message="Loading suppliers..." />}>
+                    <Suppliers />
+                  </Suspense>
+                </RoleProtectedRoute>
               } />
               <Route path="events" element={
                 <Suspense fallback={<PageLoading message="Loading events..." />}>
@@ -107,14 +131,18 @@ function App() {
                 </Suspense>
               } />
               <Route path="settings" element={
-                <Suspense fallback={<PageLoading message="Loading settings..." />}>
-                  <Settings />
-                </Suspense>
+                <RoleProtectedRoute allowedRoles={['admin', 'manager']}>
+                  <Suspense fallback={<PageLoading message="Loading settings..." />}>
+                    <Settings />
+                  </Suspense>
+                </RoleProtectedRoute>
               } />
               <Route path="admin" element={
-                <Suspense fallback={<PageLoading message="Loading admin..." />}>
-                  <Admin />
-                </Suspense>
+                <RoleProtectedRoute allowedRoles={['admin']}>
+                  <Suspense fallback={<PageLoading message="Loading admin..." />}>
+                    <Admin />
+                  </Suspense>
+                </RoleProtectedRoute>
               } />
               <Route path="density-test" element={
                 <Suspense fallback={<PageLoading message="Loading..." />}>

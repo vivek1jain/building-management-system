@@ -5,6 +5,7 @@ import { Button } from '../UI'
 import { useState, useRef, useEffect } from 'react'
 import { cn } from '../../utils/cn'
 import ProfileSettingsModal from './ProfileSettingsModal'
+import ResidentProfileModal from './ResidentProfileModal'
 
 const UserMenu = () => {
   const { currentUser, logout } = useAuth()
@@ -13,6 +14,7 @@ const UserMenu = () => {
   const menuRef = useRef<HTMLDivElement>(null)
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isResidentProfileOpen, setIsResidentProfileOpen] = useState(false)
 
   const getInitials = () => {
     if (!currentUser?.name) return 'U'
@@ -42,7 +44,12 @@ const UserMenu = () => {
 
   const handleProfileSettings = () => {
     setIsOpen(false)
-    setIsSettingsOpen(true)
+    // Show modal for all users
+    if (currentUser?.role === 'resident') {
+      setIsResidentProfileOpen(true)
+    } else {
+      setIsSettingsOpen(true)
+    }
   }
 
   return (
@@ -111,6 +118,7 @@ const UserMenu = () => {
       )}
       </div>
       <ProfileSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
+      <ResidentProfileModal isOpen={isResidentProfileOpen} onClose={() => setIsResidentProfileOpen(false)} />
     </>
   )
 }

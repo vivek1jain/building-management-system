@@ -25,6 +25,8 @@ import { Link } from 'react-router-dom'
 import { Button, Card, CardHeader, CardTitle, CardContent, PageLoading, WidgetSkeleton, SectionLoading, ListItemSkeleton } from '../components/UI'
 import { useAuth } from '../contexts/AuthContext'
 import { useBuilding } from '../contexts/BuildingContext'
+import { useRoleAccess } from '../hooks/useRoleAccess'
+import { hasPermission } from '../config/permissions'
 import { useNotifications } from '../contexts/NotificationContext'
 import { budgetService } from '../services/budgetService'
 import { getAllBuildings } from '../services/buildingService'
@@ -37,12 +39,14 @@ import { getPeopleByBuilding } from '../services/peopleService'
 import { getServiceChargeDemands } from '../services/serviceChargeService'
 import { ticketService } from '../services/ticketService'
 import { getWorkOrdersByBuilding } from '../services/workOrderService'
+import { getResidentAccountByFlatId } from '../services/residentAccountService'
 import { Building as BuildingType, Ticket, TicketStatus, UrgencyLevel, Budget, ServiceChargeDemand, Invoice, InvoiceStatus, BuildingEvent, WorkOrder } from '../types'
 
 const Dashboard: React.FC = () => {
   const { currentUser } = useAuth()
   const { addNotification } = useNotifications()
   const { buildings, selectedBuildingId, selectedBuilding: selectedBuildingData, setSelectedBuildingId, loading: buildingsLoading } = useBuilding()
+  const { canManage, isResident } = useRoleAccess()
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [ticketsLoading, setTicketsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -67,31 +71,45 @@ const Dashboard: React.FC = () => {
   const [flats, setFlats] = useState<any[]>([])
   const [people, setPeople] = useState<any[]>([])
   const [buildingDataLoading, setBuildingDataLoading] = useState(false)
+  
+  // Resident payment data state
+  const [residentAccount, setResidentAccount] = useState<any>(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [upcomingDemands, setUpcomingDemands] = useState<any[]>([])
+  const [overdueDemands, setOverdueDemands] = useState<any[]>([])
 
   // Load tickets, financial data, events, and work orders when selected building changes
   useEffect(() => {
     if (selectedBuildingId) {
       loadTickets()
-      loadFinancialData()
+      if (canManage()) {
+        loadFinancialData()
+      }
       loadEvents()
       loadWorkOrders()
       loadBuildingData()
+      if (isResident()) {
+        loadResidentPaymentData()
+      }
     }
   }, [selectedBuildingId])
 
   const loadTickets = async () => {
-    if (!selectedBuildingId) return
+    if (!selectedBuildingId || !currentUser) return
     
     try {
       setTicketsLoading(true)
       setRefreshing(true)
-      console.log('🎫 Loading all tickets from Firebase...')
       const allTickets = await ticketService.getTickets()
-      console.log('🎫 All tickets loaded:', allTickets.length)
       
       // Filter tickets for the selected building
-      const buildingTickets = allTickets.filter(ticket => ticket.buildingId === selectedBuildingId)
-      console.log('🎫 Building tickets filtered:', buildingTickets.length)
+      let buildingTickets = allTickets.filter(ticket => ticket.buildingId === selectedBuildingId)
+      
+      // Residents only see their own tickets
+      if (isResident()) {
+        buildingTickets = buildingTickets.filter(ticket => ticket.requestedBy === currentUser.id)
+      }
+      
       setTickets(buildingTickets)
     } catch (error) {
       console.error('❌ Error loading tickets:', error)
@@ -152,7 +170,7 @@ const Dashboard: React.FC = () => {
       const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuildingId)
       setEvents(buildingEvents)
     } catch (error) {
-      console.error('❌ Error loading events:', error)
+      console.error('Error loading events:', error)
       // Don't show notification for events loading errors as this is less critical
     } finally {
       setEventsLoading(false)
@@ -167,7 +185,7 @@ const Dashboard: React.FC = () => {
       const buildingWorkOrders = await getWorkOrdersByBuilding(selectedBuildingId)
       setWorkOrders(buildingWorkOrders)
     } catch (error) {
-      console.error('❌ Error loading work orders:', error)
+      console.error('Error loading work orders:', error)
       // Don't show notification for work orders loading errors as this is less critical
     } finally {
       setWorkOrdersLoading(false)
@@ -179,17 +197,87 @@ const Dashboard: React.FC = () => {
     
     try {
       setBuildingDataLoading(true)
-      const [flatsData, peopleData] = await Promise.all([
-        getFlatsByBuilding(selectedBuildingId),
-        getPeopleByBuilding(selectedBuildingId)
-      ])
+      const flatsData = await getFlatsByBuilding(selectedBuildingId)
+      const peopleData = await getPeopleByBuilding(selectedBuildingId)
       
       setFlats(flatsData)
       setPeople(peopleData)
     } catch (error) {
-      console.error('Error loading building data for dashboard:', error)
+      console.error('Error loading building data:', error)
     } finally {
       setBuildingDataLoading(false)
+    }
+  }
+  
+  const loadResidentPaymentData = async () => {
+    if (!selectedBuildingId || !currentUser) return
+    
+    try {
+      setPaymentLoading(true)
+      // Fetch people data directly to avoid dependency on loadBuildingData
+      const peopleData = await getPeopleByBuilding(selectedBuildingId)
+      const personRecord = peopleData.find(p => p.uid === currentUser.id)
+      
+      if (personRecord && personRecord.flatId) {
+        const account = await getResidentAccountByFlatId(personRecord.flatId)
+        setResidentAccount(account)
+        
+        // Fetch service charge demands for upcoming/overdue notifications
+        const { collection, query, where, getDocs } = await import('firebase/firestore')
+        const { db } = await import('../firebase/config')
+        const demandsRef = collection(db, 'serviceChargeDemands')
+        
+        let demandsSnapshot
+        try {
+          const demandsQuery = query(
+            demandsRef,
+            where('flatId', '==', personRecord.flatId),
+            where('buildingId', '==', selectedBuildingId)
+          )
+          demandsSnapshot = await getDocs(demandsQuery)
+        } catch (indexError: any) {
+          // Fallback: query by flatId only if composite index doesn't exist
+          const fallbackQuery = query(
+            demandsRef,
+            where('flatId', '==', personRecord.flatId)
+          )
+          demandsSnapshot = await getDocs(fallbackQuery)
+        }
+        
+        const now = new Date()
+        const overdue: any[] = []
+        const upcoming: any[] = []
+        
+        demandsSnapshot.forEach(doc => {
+          const demand = { id: doc.id, ...doc.data() } as any
+          const dueDate = demand.dueDate?.toDate?.() || new Date(demand.dueDate)
+          const outstanding = demand.outstandingAmount || 0
+          
+          const demandObj = {
+            ...demand,
+            dueDate,
+            issuedDate: demand.issuedDate?.toDate?.() || new Date(demand.issuedDate),
+            createdAt: demand.createdAt?.toDate?.() || new Date(demand.createdAt),
+            updatedAt: demand.updatedAt?.toDate?.() || new Date(demand.updatedAt)
+          }
+          
+          // Categorize demands by due date
+          if (outstanding > 0) {
+            if (dueDate < now) {
+              overdue.push(demandObj)
+            } else {
+              upcoming.push(demandObj)
+            }
+          }
+        })
+        
+        setOverdueDemands(overdue)
+        setUpcomingDemands(upcoming)
+      }
+    } catch (error) {
+      console.error('Error loading resident payment data:', error)
+    } finally {
+      setPaymentLoading(false)
     }
   }
   
@@ -431,6 +519,58 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* Upcoming/Overdue Payment Banners for Residents */}
+        {isResident() && !paymentLoading && (
+          <>
+            {/* Upcoming Payment Notice */}
+            {overdueDemands.length === 0 && upcomingDemands.length > 0 && (
+              <div className="mb-6 bg-primary-50 border border-primary-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-primary-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-primary-900">Upcoming Payment{upcomingDemands.length !== 1 ? 's' : ''}</h3>
+                    <p className="text-sm text-primary-700 mt-1">
+                      You have {upcomingDemands.length} upcoming payment{upcomingDemands.length !== 1 ? 's' : ''} totaling £{upcomingDemands.reduce((sum, d) => sum + d.outstandingAmount, 0).toFixed(2)}.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {upcomingDemands.map(demand => (
+                        <div key={demand.id} className="flex justify-between text-xs text-primary-600">
+                          <span>{demand.financialQuarterDisplayString}</span>
+                          <span className="font-medium">£{demand.outstandingAmount.toFixed(2)} - Due {demand.dueDate.toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Payment Overdue Notice */}
+            {overdueDemands.length > 0 && (
+              <div className="mb-6 bg-danger-50 border border-danger-200 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-danger-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-danger-900">Payment Overdue</h3>
+                    <p className="text-sm text-danger-700 mt-1">
+                      You have {overdueDemands.length} overdue payment{overdueDemands.length !== 1 ? 's' : ''} totaling £{overdueDemands.reduce((sum, d) => sum + d.outstandingAmount, 0).toFixed(2)}. 
+                      Please make a payment as soon as possible to avoid any late fees.
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {overdueDemands.map(demand => (
+                        <div key={demand.id} className="flex justify-between text-xs text-danger-600">
+                          <span>{demand.financialQuarterDisplayString}</span>
+                          <span className="font-medium">£{demand.outstandingAmount.toFixed(2)} - Due {demand.dueDate.toLocaleDateString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Dashboard Layout: 2/3 width panels + 1/3 width recent activity */}
         <div className="flex gap-6">
           {/* Main Dashboard Panels - 2/3 width */}
@@ -445,68 +585,38 @@ const Dashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 flex-1 flex flex-col">
-                  <div className="grid grid-cols-2 gap-3 flex-1">
-                    <Link to="/tickets-work-orders" className="bg-red-50 p-3 rounded-lg hover:bg-red-100 transition-colors h-16">
-                      <div className="flex items-center justify-between h-full">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500">Critical Tickets</p>
-                          <p className="text-lg font-bold text-black" data-testid="total-tickets">{metrics.urgentTickets}</p>
-                        </div>
-                        <AlertTriangle className="h-4 w-4 text-red-600 ml-2" />
-                      </div>
-                    </Link>
-                    <Link to="/tickets-work-orders" className="bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors h-16">
-                      <div className="flex items-center justify-between h-full">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500">Open Tickets</p>
-                          <p className="text-lg font-bold text-black">{metrics.openTickets}</p>
-                        </div>
-                        <Clock className="h-4 w-4 text-blue-600 ml-2" />
-                      </div>
-                    </Link>
-                    <Link to="/work-orders" className="bg-purple-50 p-3 rounded-lg hover:bg-purple-100 transition-colors h-16">
-                      <div className="flex items-center justify-between h-full">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500">Work Orders</p>
-                          <p className="text-lg font-bold text-black">{metrics.totalWorkOrders}</p>
-                        </div>
-                        <Wrench className="h-4 w-4 text-purple-600 ml-2" />
-                      </div>
-                    </Link>
-                    <Link to="/tickets-work-orders" className="bg-green-50 p-3 rounded-lg hover:bg-green-100 transition-colors h-16">
-                      <div className="flex items-center justify-between h-full">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500">New Tickets</p>
-                          <p className="text-lg font-bold text-black">{metrics.newTickets}</p>
-                        </div>
-                        <Bell className="h-4 w-4 text-green-600 ml-2" />
-                      </div>
-                    </Link>
-                  </div>
-                  {urgentItems.length > 0 && (
-                    <div className="bg-gray-50 p-3 rounded-lg mt-3">
-                      <p className="text-sm font-medium text-gray-900 mb-2">Urgent Items ({urgentItems.length})</p>
-                      <div className="space-y-1">
-                        {urgentItems.slice(0, 2).map((item) => (
-                          <div key={`${item.type}-${item.id}`} className="text-xs text-gray-600 truncate">
-                            • {item.title}
+                  <div className="flex-1 flex items-center">
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                      <Link to="/tickets-work-orders" className="bg-red-50 p-3 rounded-lg hover:bg-red-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Critical Tickets</p>
+                            <p className="text-lg font-bold text-black" data-testid="total-tickets">{metrics.urgentTickets}</p>
                           </div>
-                        ))}
-                        {urgentItems.length > 2 && (
-                          <p className="text-xs text-gray-500">+{urgentItems.length - 2} more</p>
-                        )}
-                      </div>
+                          <AlertTriangle className="h-4 w-4 text-red-600 ml-2" />
+                        </div>
+                      </Link>
+                      <Link to="/tickets-work-orders" className="bg-blue-50 p-3 rounded-lg hover:bg-blue-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Open Tickets</p>
+                            <p className="text-lg font-bold text-black">{metrics.openTickets}</p>
+                          </div>
+                          <Clock className="h-4 w-4 text-blue-600 ml-2" />
+                        </div>
+                      </Link>
                     </div>
-                  )}
+                  </div>
                   <div className="mt-auto pt-3 border-t border-gray-100">
-                    <Link to="/tickets-work-orders" className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center">
-                      Manage Tickets <ArrowRight className="h-3 w-3 ml-1" />
+                    <Link to="/tickets" className="text-sm text-red-600 hover:text-red-700 font-medium flex items-center">
+                      View Tickets <ArrowRight className="h-3 w-3 ml-1" />
                     </Link>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Finances Panel */}
+              {/* Finances Panel - Admin/Manager Only */}
+              {canManage() && (
               <Card className="flex flex-col h-80" data-testid="financial-overview">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
@@ -578,8 +688,10 @@ const Dashboard: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
-              {/* Reports Panel */}
+              {/* Reports Panel - Admin/Manager Only */}
+              {canManage() && (
               <Card className="flex flex-col h-80" data-testid="budget-overview">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
@@ -615,6 +727,7 @@ const Dashboard: React.FC = () => {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
               {/* Events Panel */}
               <Card className="flex flex-col h-80" data-testid="upcoming-events">
@@ -625,29 +738,31 @@ const Dashboard: React.FC = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 flex-1 flex flex-col">
-                  <div className="grid grid-cols-2 gap-3 flex-1">
-                    <Link to="/events" className="bg-indigo-50 p-3 rounded-lg hover:bg-indigo-100 transition-colors h-16">
-                      <div className="flex items-center justify-between h-full">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500">Upcoming Events</p>
-                          <p className="text-lg font-bold text-black">{metrics.upcomingEvents}</p>
+                  <div className="flex-1 flex items-center">
+                    <div className="grid grid-cols-2 gap-3 w-full">
+                      <Link to="/events" className="bg-indigo-50 p-3 rounded-lg hover:bg-indigo-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Upcoming Events</p>
+                            <p className="text-lg font-bold text-black">{metrics.upcomingEvents}</p>
+                          </div>
+                          <Calendar className="h-4 w-4 text-indigo-600 ml-2" />
                         </div>
-                        <Calendar className="h-4 w-4 text-indigo-600 ml-2" />
-                      </div>
-                    </Link>
-                    <Link to="/events" className="bg-orange-50 p-3 rounded-lg hover:bg-orange-100 transition-colors h-16">
-                      <div className="flex items-center justify-between h-full">
-                        <div className="flex-1">
-                          <p className="text-xs text-gray-500">Today's Events</p>
-                          <p className="text-lg font-bold text-black">{metrics.todaysEvents}</p>
+                      </Link>
+                      <Link to="/events" className="bg-orange-50 p-3 rounded-lg hover:bg-orange-100 transition-colors h-16">
+                        <div className="flex items-center justify-between h-full">
+                          <div className="flex-1">
+                            <p className="text-xs text-gray-500">Today's Events</p>
+                            <p className="text-lg font-bold text-black">{metrics.todaysEvents}</p>
+                          </div>
+                          <Calendar className="h-4 w-4 text-orange-600 ml-2" />
                         </div>
-                        <Calendar className="h-4 w-4 text-orange-600 ml-2" />
-                      </div>
-                    </Link>
+                      </Link>
+                    </div>
                   </div>
                   <div className="mt-auto pt-3 border-t border-gray-100">
                     <Link to="/events" className="text-sm text-indigo-600 hover:text-indigo-700 font-medium flex items-center">
-                      Manage Events <ArrowRight className="h-3 w-3 ml-1" />
+                      View Events <ArrowRight className="h-3 w-3 ml-1" />
                     </Link>
                   </div>
                 </CardContent>
@@ -655,68 +770,179 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Recent Activity Panel - 1/3 width, full height */}
+          {/* Recent Activity or Payment Summary Panel - 1/3 width, full height */}
           <div className="w-1/3">
-            <Card className="h-full" data-testid="recent-activity">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
+            {isResident() ? (
+              /* Payment Summary for Residents */
+              <Card className="flex flex-col h-80" data-testid="payment-summary">
+                <CardHeader className="pb-3">
                   <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
-                    <Activity className="h-5 w-5 mr-2 text-gray-600" />
-                    Recent Activity
+                    <CreditCard className="h-5 w-5 mr-2 text-green-600" />
+                    Payment Summary
                   </CardTitle>
-                  {refreshing && (
-                    <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0 h-full overflow-y-auto">
-                <div className="space-y-4">
-                  {ticketsLoading ? (
-                    Array.from({ length: 8 }).map((_, index) => (
-                      <div key={index} className="animate-pulse">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-5 h-5 bg-gray-200 rounded"></div>
-                          <div className="flex-1 space-y-2">
-                            <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                            <div className="h-2 bg-gray-200 rounded w-1/2"></div>
-                          </div>
-                          <div className="w-16 h-4 bg-gray-200 rounded"></div>
+                </CardHeader>
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  {paymentLoading ? (
+                    <div className="space-y-3">
+                      {Array.from({ length: 3 }).map((_, index) => (
+                        <div key={index} className="animate-pulse flex items-center justify-between">
+                          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : residentAccount ? (
+                    <div className="flex flex-col h-full">
+                      {/* Current Balance - Horizontal Layout */}
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-xs text-gray-500">Current Balance</p>
+                        <p className={`text-2xl font-bold ${
+                          residentAccount.currentBalance > 0 ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          £{Math.abs(residentAccount.currentBalance).toLocaleString()}
+                          <span className="text-sm font-normal ml-1">
+                            {residentAccount.currentBalance > 0 ? 'owing' : 'credit'}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* Dividing Line */}
+                      <div className="border-t border-gray-200 mb-3"></div>
+
+                      {/* Simple 3-Row Table */}
+                      <div className="flex-1">
+                        <div className="space-y-2">
+                          {(() => {
+                            // Get last 3 transactions
+                            const recentTransactions = residentAccount.transactions
+                              ?.filter((t: any) => t.type === 'charge' || t.type === 'payment')
+                              .sort((a: any, b: any) => new Date(b.processedAt).getTime() - new Date(a.processedAt).getTime())
+                              .slice(0, 3) || []
+                            
+                            if (recentTransactions.length === 0) {
+                              return (
+                                <div className="text-center py-4">
+                                  <FileText className="mx-auto h-6 w-6 text-gray-300 mb-2" />
+                                  <p className="text-gray-500 text-xs">No recent transactions</p>
+                                </div>
+                              )
+                            }
+
+                            return recentTransactions.map((transaction: any, index: number) => {
+                              const isCharge = transaction.type === 'charge'
+                              const isPaid = transaction.type === 'payment'
+                              // Only first item (most recent outstanding charge) gets color
+                              const isHighlighted = index === 0 && isCharge && residentAccount.currentBalance > 0
+                              
+                              return (
+                                <div 
+                                  key={transaction.id} 
+                                  className={`grid grid-cols-[1fr,auto,auto] gap-3 items-center p-2 rounded ${
+                                    isHighlighted ? 'bg-red-50' : 'bg-gray-50'
+                                  }`}
+                                >
+                                  <p className={`text-sm font-medium truncate ${
+                                    isHighlighted ? 'text-red-900' : 'text-gray-600'
+                                  }`}>
+                                    {transaction.description}
+                                  </p>
+                                  <p className={`text-xs whitespace-nowrap ${
+                                    isHighlighted ? 'text-red-600' : 'text-gray-500'
+                                  }`}>
+                                    {new Date(transaction.processedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                  </p>
+                                  <p className={`text-sm font-bold text-right ${
+                                    isHighlighted ? 'text-red-900' : 'text-gray-600'
+                                  }`}>
+                                    {isPaid ? '-' : ''}£{transaction.amount.toLocaleString()}
+                                  </p>
+                                </div>
+                              )
+                            })
+                          })()}
                         </div>
                       </div>
-                    ))
-                  ) : tickets.length > 0 ? (
-                    tickets
-                      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-                      .slice(0, 15)
-                      .map((item) => (
-                        <div key={item.id} className="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-b-0">
-                          <div className="flex-shrink-0 mt-0.5">
-                            <FileText className="h-4 w-4 text-blue-500" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900 truncate">
-                              {item.title}
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">
-                              Ticket • {formatTimeAgo(item.updatedAt)}
-                            </p>
-                          </div>
-                          <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(item.status)} flex-shrink-0`}>
-                            {item.status}
-                          </span>
-                        </div>
-                      ))
+
+                      {/* View Full Payments Link */}
+                      <div className="mt-auto pt-3 border-t border-gray-100">
+                        <Link to="/my-payments" className="text-sm text-green-600 hover:text-green-700 font-medium flex items-center">
+                          View Full Payment History <ArrowRight className="h-3 w-3 ml-1" />
+                        </Link>
+                      </div>
+                    </div>
                   ) : (
                     <div className="text-center py-8">
-                      <Activity className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+                      <CreditCard className="mx-auto h-8 w-8 text-gray-300 mb-2" />
                       <p className="text-gray-500 text-sm">
-                        No recent activity to show
+                        No payment information available
                       </p>
                     </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ) : (
+              /* Recent Activity for Managers/Admins */
+              <Card className="h-full" data-testid="recent-activity">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg font-medium text-gray-900 flex items-center">
+                      <Activity className="h-5 w-5 mr-2 text-gray-600" />
+                      Recent Activity
+                    </CardTitle>
+                    {refreshing && (
+                      <RefreshCw className="h-4 w-4 text-gray-400 animate-spin" />
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0 h-full overflow-y-auto">
+                  <div className="space-y-4">
+                    {ticketsLoading ? (
+                      Array.from({ length: 8 }).map((_, index) => (
+                        <div key={index} className="animate-pulse">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                            <div className="flex-1 space-y-2">
+                              <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                              <div className="h-2 bg-gray-200 rounded w-1/2"></div>
+                            </div>
+                            <div className="w-16 h-4 bg-gray-200 rounded"></div>
+                          </div>
+                        </div>
+                      ))
+                    ) : tickets.length > 0 ? (
+                      tickets
+                        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+                        .slice(0, 15)
+                        .map((item) => (
+                          <div key={item.id} className="flex items-start space-x-3 pb-3 border-b border-gray-100 last:border-b-0">
+                            <div className="flex-shrink-0 mt-0.5">
+                              <FileText className="h-4 w-4 text-blue-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">
+                                {item.title}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Ticket • {formatTimeAgo(item.updatedAt)}
+                              </p>
+                            </div>
+                            <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${getStatusColor(item.status)} flex-shrink-0`}>
+                              {item.status}
+                            </span>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Activity className="mx-auto h-8 w-8 text-gray-300 mb-2" />
+                        <p className="text-gray-500 text-sm">
+                          No recent activity to show
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
 

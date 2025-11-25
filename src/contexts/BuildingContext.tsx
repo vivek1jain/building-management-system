@@ -60,14 +60,19 @@ export const BuildingProvider: React.FC<BuildingProviderProps> = ({ children }) 
       setError(null)
       console.log('🏢 Loading buildings from BuildingContext...')
       
-      const buildingsData = await getAllBuildings()
+      // Pass user ID and role for filtering (admins see all, others see only assigned)
+      const buildingsData = await getAllBuildings(currentUser?.id, currentUser?.role)
       console.log('🏢 Buildings loaded in context:', buildingsData.length)
       
       setBuildings(buildingsData)
       
       // If no buildings found, show appropriate message
       if (buildingsData.length === 0) {
-        setError('No buildings found. Please add a building first.')
+        if (currentUser?.role === 'admin') {
+          setError('No buildings found. Please add a building first.')
+        } else {
+          setError('No buildings assigned. Please contact an administrator.')
+        }
       }
     } catch (err) {
       console.error('❌ Error loading buildings in context:', err)

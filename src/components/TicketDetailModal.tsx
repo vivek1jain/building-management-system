@@ -34,12 +34,20 @@ interface MobileTabConfig {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-const mobileTabsConfig: MobileTabConfig[] = [
-  { id: 'details', label: 'Details', icon: FileText },
-  { id: 'management', label: 'Manage', icon: Settings },
-  { id: 'comments', label: 'Comments', icon: MessageSquare },
-  { id: 'activity', label: 'Activity', icon: Activity },
-];
+const getMobileTabsConfig = (isResident: boolean): MobileTabConfig[] => {
+  const tabs: MobileTabConfig[] = [
+    { id: 'details', label: 'Details', icon: FileText },
+    { id: 'comments', label: 'Comments', icon: MessageSquare },
+    { id: 'activity', label: 'Activity', icon: Activity },
+  ];
+  
+  // Only show management tab for non-residents
+  if (!isResident) {
+    tabs.splice(1, 0, { id: 'management', label: 'Manage', icon: Settings });
+  }
+  
+  return tabs;
+};
 
 export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   ticket,
@@ -50,6 +58,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const isMobile = useIsMobile();
+  const isResident = currentUser?.role === 'resident';
   
   // Mobile tab state
   const [activeTab, setActiveTab] = useState<MobileTab>('details');
@@ -1243,7 +1252,7 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
           {isMobile && (
             <div className="border-b border-neutral-200 sticky top-0 bg-white z-10">
               <nav className="flex justify-evenly px-2">
-                {mobileTabsConfig.map((tab) => {
+                {getMobileTabsConfig(isResident).map((tab) => {
                   const Icon = tab.icon;
                   const isActive = activeTab === tab.id;
                   
@@ -1298,8 +1307,8 @@ export const TicketDetailModal: React.FC<TicketDetailModalProps> = ({
             </div>
           )}
 
-          {/* Ticket Management Tab */}
-          {(!isMobile || activeTab === 'management') && (
+          {/* Ticket Management Tab - Hidden for residents */}
+          {!isResident && (!isMobile || activeTab === 'management') && (
             <div className={`bg-white border border-neutral-200 rounded-lg p-6 shadow-sm relative ${isMobile ? 'min-h-[400px]' : 'lg:col-span-1'}`}>
             <h4 className="text-md font-semibold text-neutral-900 mb-4">Ticket Management</h4>
             

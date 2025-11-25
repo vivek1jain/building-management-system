@@ -11,12 +11,13 @@ import {
   serverTimestamp 
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { Building, Asset, Meter, AssetStatus } from '../types'
+import { Building, Asset, Meter, AssetStatus, UserRole } from '../types'
 import { handleServiceError } from '../utils/errorHandling'
 import { fromFirestoreTimestamp } from '../utils/firestore'
+import { getUserBuildingIds } from './peopleService'
 
-  // Get all buildings
-export const getAllBuildings = async (): Promise<Building[]> => {
+  // Get all buildings (with optional role-based filtering)
+export const getAllBuildings = async (userId?: string, userRole?: UserRole): Promise<Building[]> => {
   try {
     const buildingsRef = collection(db, 'buildings')
     const querySnapshot = await getDocs(buildingsRef)
@@ -54,8 +55,24 @@ export const getAllBuildings = async (): Promise<Building[]> => {
       })
     })
     
+    // Filter buildings based on user role
+    let filteredBuildings = buildings
+    
+    // Admins see all buildings
+    if (userId && userRole && userRole !== 'admin') {
+      // Non-admins see only buildings they have access to
+      try {
+        const userBuildingIds = await getUserBuildingIds(userId)
+        filteredBuildings = buildings.filter(b => userBuildingIds.includes(b.id))
+        console.log(`🏛️ Filtered buildings for ${userRole}: ${filteredBuildings.length}/${buildings.length}`)
+      } catch (error) {
+        console.warn('⚠️ Could not filter buildings for user, returning all:', error)
+        // Fall back to showing all buildings if filtering fails
+      }
+    }
+    
     // Sort by name in memory
-    return buildings.sort((a, b) => a.name.localeCompare(b.name))
+    return filteredBuildings.sort((a, b) => a.name.localeCompare(b.name))
     } catch (error) {
       handleServiceError('Error getting all buildings', error, {
         service: 'buildingService',
