@@ -8,8 +8,7 @@ import {
   BarChart3,
   Shield,
   User,
-  CreditCard,
-  Briefcase
+  CreditCard
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -34,7 +33,6 @@ const Sidebar = () => {
     { name: 'Payments', href: '/my-payments', icon: CreditCard, testId: 'nav-my-payments', allowedRoles: ['resident'] },
     { name: 'Building', href: '/building-data', icon: Building, testId: 'nav-building', allowedRoles: ['admin', 'manager'] },
     { name: 'Reports', href: '/reports', icon: BarChart3, testId: 'nav-reports', allowedRoles: ['admin', 'manager'] },
-    { name: 'Suppliers', href: '/suppliers', icon: Briefcase, testId: 'nav-suppliers', allowedRoles: ['admin', 'manager'] },
     { name: 'Settings', href: '/settings', icon: Settings, testId: 'nav-settings', allowedRoles: ['admin', 'manager'] },
     { name: 'Admin', href: '/admin', icon: Shield, testId: 'nav-admin', allowedRoles: ['admin'] },
   ]
