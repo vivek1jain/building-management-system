@@ -11,33 +11,62 @@ interface DataCleanupCompactProps {
 }
 
 const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, addNotification }) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
 
-  const handleCleanup = async () => {
-    if (!window.confirm('⚠️ This will DELETE ALL test data from Firestore. Continue?')) {
+  const clearLocalStorage = () => {
+    if (!window.confirm('Clear localStorage? This will remove cached preferences.')) {
+      return;
+    }
+    
+    const count = localStorage.length;
+    localStorage.clear();
+
+    setLastResult(`Cleared ${count} localStorage items`);
+    addNotification({
+      userId: currentUser?.id || '',
+      title: 'LocalStorage Cleared',
+      message: `Cleared ${count} items from localStorage`,
+      type: 'success'
+    });
+  };
+
+  const clearSessionStorage = () => {
+    if (!window.confirm('Clear sessionStorage? This will remove session data.')) {
+      return;
+    }
+    
+    const count = sessionStorage.length;
+    sessionStorage.clear();
+
+    setLastResult(`Cleared ${count} sessionStorage items`);
+    addNotification({
+      userId: currentUser?.id || '',
+      title: 'SessionStorage Cleared',
+      message: `Cleared ${count} items from sessionStorage`,
+      type: 'success'
+    });
+  };
+
+  const handleCleanup = async (collectionName: string) => {
+    if (!window.confirm(`⚠️ Delete all ${collectionName}? This cannot be undone.`)) {
       return;
     }
 
-    setLoading(true);
+    setLoading(collectionName);
     setLastResult(null);
 
     try {
-      const collections = ['tickets', 'expenses', 'events', 'income'];
-      let totalDeleted = 0;
+      const querySnapshot = await getDocs(collection(db, collectionName));
+      const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      const deletedCount = querySnapshot.size;
 
-      for (const collectionName of collections) {
-        const querySnapshot = await getDocs(collection(db, collectionName));
-        const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
-        await Promise.all(deletePromises);
-        totalDeleted += querySnapshot.size;
-      }
-
-      setLastResult(`Deleted ${totalDeleted} records`);
+      setLastResult(`Deleted ${deletedCount} ${collectionName}`);
       addNotification({
         userId: currentUser?.id || '',
         title: 'Cleanup Complete',
-        message: `Deleted ${totalDeleted} records`,
+        message: `Deleted ${deletedCount} ${collectionName}`,
         type: 'success'
       });
     } catch (error) {
@@ -50,13 +79,13 @@ const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, ad
         type: 'error'
       });
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-red-100 rounded-lg">
             <Trash2 className="h-4 w-4 text-red-700" />
@@ -78,15 +107,9 @@ const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, ad
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-center items-center space-y-3 text-center">
-        <div className="bg-yellow-50 rounded p-3 border border-yellow-200 w-full">
-          <AlertCircle className="h-5 w-5 text-yellow-600 mx-auto mb-2" />
-          <p className="text-xs text-yellow-800 font-medium">Destructive Operation</p>
-          <p className="text-xs text-yellow-700 mt-1">Permanently deletes test data</p>
-        </div>
-
+      <div className="flex-1 flex flex-col">
         {lastResult && (
-          <div className={`rounded p-2 border text-xs w-full ${
+          <div className={`rounded p-2 border text-xs mb-2 ${
             lastResult.startsWith('Error') 
               ? 'bg-red-50 border-red-200 text-red-800'
               : 'bg-green-50 border-green-200 text-green-800'
@@ -94,18 +117,106 @@ const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, ad
             {lastResult}
           </div>
         )}
+
+        {/* Building Data Section */}
+        <div className="flex-1 border-b border-neutral-200 pb-3 mb-3">
+          <h4 className="text-xs font-semibold mb-2 text-neutral-700">Building Data</h4>
+          <div className="grid grid-cols-2 gap-2">
+          {/* Tickets */}
+          <div className="group relative">
+            <Button
+              onClick={() => handleCleanup('tickets')}
+              disabled={loading !== null}
+              variant="danger"
+              className="w-full text-xs px-2 py-1 h-6"
+            >
+              {loading === 'tickets' ? 'Deleting...' : 'Tickets'}
+            </Button>
+            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+              Delete all ticket records from Firestore
+            </div>
+          </div>
+
+          {/* Expenses */}
+          <div className="group relative">
+            <Button
+              onClick={() => handleCleanup('expenses')}
+              disabled={loading !== null}
+              variant="danger"
+              className="w-full text-xs px-2 py-1 h-6"
+            >
+              {loading === 'expenses' ? 'Deleting...' : 'Expenses'}
+            </Button>
+            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+              Delete all expense records from Firestore
+            </div>
+          </div>
+
+          {/* Events */}
+          <div className="group relative">
+            <Button
+              onClick={() => handleCleanup('events')}
+              disabled={loading !== null}
+              variant="danger"
+              className="w-full text-xs px-2 py-1 h-6"
+            >
+              {loading === 'events' ? 'Deleting...' : 'Events'}
+            </Button>
+            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+              Delete all event records from Firestore
+            </div>
+          </div>
+
+          {/* Income */}
+          <div className="group relative">
+            <Button
+              onClick={() => handleCleanup('income')}
+              disabled={loading !== null}
+              variant="danger"
+              className="w-full text-xs px-2 py-1 h-6"
+            >
+              {loading === 'income' ? 'Deleting...' : 'Income'}
+            </Button>
+            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+              Delete all income records from Firestore
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="flex justify-end mt-auto pt-2">
-        <Button
-          onClick={handleCleanup}
-          disabled={loading}
-          variant="danger"
-          className="text-xs px-3 py-1.5 h-7 flex items-center justify-center gap-1"
-        >
-          <Trash2 className="w-3 h-3" />
-          {loading ? 'Cleaning...' : 'Clean All'}
-        </Button>
+        {/* Session Data Section */}
+        <div className="flex-1">
+          <h4 className="text-xs font-semibold mb-2 text-neutral-700">Session Data</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {/* LocalStorage */}
+            <div className="group relative">
+              <Button
+                onClick={clearLocalStorage}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                LocalStorage
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Removes all data from browser localStorage
+              </div>
+            </div>
+
+            {/* SessionStorage */}
+            <div className="group relative">
+              <Button
+                onClick={clearSessionStorage}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                SessionStorage
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Removes all data from browser sessionStorage
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

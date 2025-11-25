@@ -1,22 +1,33 @@
 import { Calendar, HelpCircle, AlertCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useBuilding } from '../../contexts/BuildingContext';
-import { getFinancialYearInfo } from '../../utils/financialYear';
-import { Button } from '../UI';
 
 export const FinancialYearTestCompact: React.FC = () => {
-  const { selectedBuilding } = useBuilding();
+  const buildingContext = useBuilding();
+  const selectedBuilding = buildingContext?.selectedBuilding;
   const [testDate, setTestDate] = useState(new Date());
   const [info, setInfo] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (selectedBuilding?.financialSettings) {
       try {
-        const yearInfo = getFinancialYearInfo(selectedBuilding.financialSettings, testDate);
-        setInfo(yearInfo);
+        console.log('🗓️ Testing date:', testDate.toISOString());
+        console.log('🏢 Financial settings:', selectedBuilding.financialSettings);
+        // Import dynamically to avoid blocking
+        import('../../utils/financialYear').then(({ getFinancialYearInfo }) => {
+          const yearInfo = getFinancialYearInfo(selectedBuilding.financialSettings, testDate);
+          console.log('📊 Financial year info:', yearInfo);
+          setInfo(yearInfo);
+          setError(null);
+        }).catch((err) => {
+          console.error('Financial year calculation error:', err);
+          setError(err instanceof Error ? err.message : 'Calculation error');
+        });
       } catch (error) {
         console.error('Financial year calculation error:', error);
         setInfo(null);
+        setError(error instanceof Error ? error.message : 'Calculation error');
       }
     }
   }, [selectedBuilding, testDate]);
@@ -107,10 +118,16 @@ export const FinancialYearTestCompact: React.FC = () => {
           </>
         )}
 
-        {!info && (
+        {!info && error && (
           <div className="bg-yellow-50 rounded p-2 border border-yellow-200 flex items-start gap-2">
             <AlertCircle className="h-3 w-3 text-yellow-600 mt-0.5 flex-shrink-0" />
-            <p className="text-yellow-800">Error calculating financial year</p>
+            <p className="text-yellow-800">{error}</p>
+          </div>
+        )}
+        
+        {!info && !error && selectedBuilding && (
+          <div className="bg-neutral-50 rounded p-2 border border-neutral-200 text-center">
+            <p className="text-xs text-neutral-600">No data available</p>
           </div>
         )}
       </div>

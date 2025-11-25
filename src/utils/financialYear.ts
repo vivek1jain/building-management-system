@@ -31,15 +31,19 @@ export const getFinancialYearInfo = (
 ): FinancialYearInfo => {
   const { startMonth, startDay, currentYear, serviceChargeFrequency } = settings
 
-  // Calculate financial year start and end
-  const financialYearStart = new Date(currentYear, startMonth - 1, startDay)
-  const financialYearEnd = new Date(currentYear + 1, startMonth - 1, startDay - 1)
-
-  // Adjust if we're past the financial year end
-  if (currentDate > financialYearEnd) {
-    financialYearStart.setFullYear(currentYear + 1)
-    financialYearEnd.setFullYear(currentYear + 2)
+  // Determine which financial year the current date falls into
+  // Start by assuming it's in the current calendar year
+  let testYearStart = new Date(currentDate.getFullYear(), startMonth - 1, startDay)
+  let testYearEnd = new Date(currentDate.getFullYear() + 1, startMonth - 1, startDay - 1)
+  
+  // If the test date is before the financial year start, use the previous year
+  if (currentDate < testYearStart) {
+    testYearStart.setFullYear(testYearStart.getFullYear() - 1)
+    testYearEnd.setFullYear(testYearEnd.getFullYear() - 1)
   }
+  
+  const financialYearStart = testYearStart
+  const financialYearEnd = testYearEnd
 
   const periods = generatePeriodsForYear(settings, financialYearStart)
   
