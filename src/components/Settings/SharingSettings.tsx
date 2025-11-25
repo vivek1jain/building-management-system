@@ -1,4 +1,4 @@
-import { Download, Upload, FileText, Users, Home, Truck, Package } from 'lucide-react';
+import { Download, Upload, FileText, Users, Home, Truck, Package, HelpCircle } from 'lucide-react';
 import React, { useState, useEffect } from 'react';
 import { useBuilding } from '../../contexts/BuildingContext';
 import { getAssetsByBuilding } from '../../services/buildingService';
@@ -155,87 +155,48 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* People Data Import/Export */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <Users className="h-5 w-5 text-blue-700" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Users className="h-4 w-4 text-blue-700" />
+              </div>
+              <CardTitle className="text-base">People</CardTitle>
             </div>
-            <div>
-              <CardTitle>People Data</CardTitle>
-              <p className="text-sm text-neutral-600 mt-1">
-                Import and export resident, tenant, and owner information
-              </p>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-neutral-400 hover:text-neutral-600 cursor-help" />
+              <div className="absolute right-0 top-6 w-64 p-3 bg-neutral-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-lg">
+                <p className="font-medium mb-2">Import/Export People Data</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Export:</strong> Download CSV of all people</li>
+                  <li><strong>Import:</strong> Bulk add people from CSV</li>
+                  <li><strong>Template:</strong> Get pre-formatted CSV</li>
+                </ul>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {/* Selected Building Info */}
+          <div className="space-y-3">
             {selectedBuilding ? (
-              <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900 font-inter">
-                      Current Building
-                    </p>
-                    <p className="text-xs text-neutral-600 mt-1">
-                      {selectedBuilding.name}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-neutral-900 font-inter">
-                      {people.length}
-                    </p>
-                    <p className="text-xs text-neutral-600 mt-1">
-                      {people.length === 1 ? 'Person' : 'People'}
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-neutral-600">{selectedBuilding.name}</span>
+                <span className="font-medium">{people.length} {people.length === 1 ? 'person' : 'people'}</span>
               </div>
             ) : (
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-sm text-yellow-800 font-inter">
-                  Please select a building to manage data import/export
-                </p>
-              </div>
+              <p className="text-sm text-yellow-600">Select a building</p>
             )}
-
-            {/* Import/Export Actions */}
-            <div className="pt-2">
-              <h4 className="text-sm font-medium text-neutral-700 mb-3 font-inter">
-                Data Operations
-              </h4>
-              <BulkImportExport
-                dataType="people"
-                buildings={[]}
-                selectedBuildingId={selectedBuildingId || ''}
-                onExport={handleExportPeople}
-                onImport={handleImportPeople}
-                onImportConfirm={handleImportConfirm}
-              />
-            </div>
-
-            {/* Instructions */}
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="text-sm font-medium text-blue-900 mb-2 font-inter flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                How to use Import/Export
-              </h4>
-              <ul className="text-xs text-blue-800 space-y-1 font-inter ml-6 list-disc">
-                <li>
-                  <strong>Export:</strong> Downloads all people data for the selected building as a CSV file
-                </li>
-                <li>
-                  <strong>Import:</strong> Upload a CSV file to bulk add people. The system will validate the data before importing
-                </li>
-                <li>
-                  <strong>Template:</strong> Download a pre-formatted CSV template with example data and correct column headers
-                </li>
-              </ul>
-            </div>
+            <BulkImportExport
+              dataType="people"
+              buildings={[]}
+              selectedBuildingId={selectedBuildingId || ''}
+              onExport={handleExportPeople}
+              onImport={handleImportPeople}
+              onImportConfirm={handleImportConfirm}
+            />
           </div>
         </CardContent>
       </Card>
@@ -243,49 +204,44 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
       {/* Flats Data Import/Export */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Home className="h-5 w-5 text-green-700" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <Home className="h-4 w-4 text-green-700" />
+              </div>
+              <CardTitle className="text-base">Flats</CardTitle>
             </div>
-            <div>
-              <CardTitle>Flats Data</CardTitle>
-              <p className="text-sm text-neutral-600 mt-1">
-                Import and export flat/unit information and details
-              </p>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-neutral-400 hover:text-neutral-600 cursor-help" />
+              <div className="absolute right-0 top-6 w-64 p-3 bg-neutral-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-lg">
+                <p className="font-medium mb-2">Import/Export Flats Data</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Export:</strong> Download CSV of all flats</li>
+                  <li><strong>Import:</strong> Bulk add flats from CSV</li>
+                  <li><strong>Template:</strong> Get pre-formatted CSV</li>
+                </ul>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {selectedBuilding ? (
-              <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900 font-inter">Current Building</p>
-                    <p className="text-xs text-neutral-600 mt-1">{selectedBuilding.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-neutral-900 font-inter">{flats.length}</p>
-                    <p className="text-xs text-neutral-600 mt-1">{flats.length === 1 ? 'Flat' : 'Flats'}</p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-neutral-600">{selectedBuilding.name}</span>
+                <span className="font-medium">{flats.length} {flats.length === 1 ? 'flat' : 'flats'}</span>
               </div>
             ) : (
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-sm text-yellow-800 font-inter">Please select a building to manage data import/export</p>
-              </div>
+              <p className="text-sm text-yellow-600">Select a building</p>
             )}
-            <div className="pt-2">
-              <h4 className="text-sm font-medium text-neutral-700 mb-3 font-inter">Data Operations</h4>
-              <BulkImportExport
-                dataType="flats"
-                buildings={[]}
-                selectedBuildingId={selectedBuildingId || ''}
-                onExport={handleExportFlats}
-                onImport={handleImportFlats}
-                onImportConfirm={handleImportFlatsConfirm}
-              />
-            </div>
+            <BulkImportExport
+              dataType="flats"
+              buildings={[]}
+              selectedBuildingId={selectedBuildingId || ''}
+              onExport={handleExportFlats}
+              onImport={handleImportFlats}
+              onImportConfirm={handleImportFlatsConfirm}
+            />
           </div>
         </CardContent>
       </Card>
@@ -293,43 +249,40 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
       {/* Suppliers Data Import/Export */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <Truck className="h-5 w-5 text-orange-700" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Truck className="h-4 w-4 text-orange-700" />
+              </div>
+              <CardTitle className="text-base">Suppliers</CardTitle>
             </div>
-            <div>
-              <CardTitle>Suppliers Data</CardTitle>
-              <p className="text-sm text-neutral-600 mt-1">
-                Import and export supplier and contractor information
-              </p>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-neutral-400 hover:text-neutral-600 cursor-help" />
+              <div className="absolute right-0 top-6 w-64 p-3 bg-neutral-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-lg">
+                <p className="font-medium mb-2">Import/Export Suppliers Data</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Export:</strong> Download CSV of all suppliers</li>
+                  <li><strong>Import:</strong> Bulk add suppliers from CSV</li>
+                  <li><strong>Template:</strong> Get pre-formatted CSV</li>
+                </ul>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-neutral-900 font-inter">All Suppliers</p>
-                  <p className="text-xs text-neutral-600 mt-1">Organization-wide</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-neutral-900 font-inter">{suppliers.length}</p>
-                  <p className="text-xs text-neutral-600 mt-1">{suppliers.length === 1 ? 'Supplier' : 'Suppliers'}</p>
-                </div>
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-neutral-600">Organization-wide</span>
+              <span className="font-medium">{suppliers.length} {suppliers.length === 1 ? 'supplier' : 'suppliers'}</span>
             </div>
-            <div className="pt-2">
-              <h4 className="text-sm font-medium text-neutral-700 mb-3 font-inter">Data Operations</h4>
-              <BulkImportExport
-                dataType="suppliers"
-                buildings={[]}
-                selectedBuildingId={selectedBuildingId || ''}
-                onExport={handleExportSuppliers}
-                onImport={handleImportSuppliers}
-                onImportConfirm={handleImportSuppliersConfirm}
-              />
-            </div>
+            <BulkImportExport
+              dataType="suppliers"
+              buildings={[]}
+              selectedBuildingId={selectedBuildingId || ''}
+              onExport={handleExportSuppliers}
+              onImport={handleImportSuppliers}
+              onImportConfirm={handleImportSuppliersConfirm}
+            />
           </div>
         </CardContent>
       </Card>
@@ -337,49 +290,44 @@ export const SharingSettings: React.FC<SharingSettingsProps> = ({
       {/* Assets Data Import/Export */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 rounded-lg">
-              <Package className="h-5 w-5 text-purple-700" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <Package className="h-4 w-4 text-purple-700" />
+              </div>
+              <CardTitle className="text-base">Assets</CardTitle>
             </div>
-            <div>
-              <CardTitle>Assets Data</CardTitle>
-              <p className="text-sm text-neutral-600 mt-1">
-                Import and export building asset and equipment information
-              </p>
+            <div className="group relative">
+              <HelpCircle className="h-4 w-4 text-neutral-400 hover:text-neutral-600 cursor-help" />
+              <div className="absolute right-0 top-6 w-64 p-3 bg-neutral-900 text-white text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10 shadow-lg">
+                <p className="font-medium mb-2">Import/Export Assets Data</p>
+                <ul className="space-y-1 list-disc list-inside">
+                  <li><strong>Export:</strong> Download CSV of all assets</li>
+                  <li><strong>Import:</strong> Bulk add assets from CSV</li>
+                  <li><strong>Template:</strong> Get pre-formatted CSV</li>
+                </ul>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {selectedBuilding ? (
-              <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-neutral-900 font-inter">Current Building</p>
-                    <p className="text-xs text-neutral-600 mt-1">{selectedBuilding.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-neutral-900 font-inter">{assets.length}</p>
-                    <p className="text-xs text-neutral-600 mt-1">{assets.length === 1 ? 'Asset' : 'Assets'}</p>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-neutral-600">{selectedBuilding.name}</span>
+                <span className="font-medium">{assets.length} {assets.length === 1 ? 'asset' : 'assets'}</span>
               </div>
             ) : (
-              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <p className="text-sm text-yellow-800 font-inter">Please select a building to manage data import/export</p>
-              </div>
+              <p className="text-sm text-yellow-600">Select a building</p>
             )}
-            <div className="pt-2">
-              <h4 className="text-sm font-medium text-neutral-700 mb-3 font-inter">Data Operations</h4>
-              <BulkImportExport
-                dataType="assets"
-                buildings={[]}
-                selectedBuildingId={selectedBuildingId || ''}
-                onExport={handleExportAssets}
-                onImport={handleImportAssets}
-                onImportConfirm={handleImportAssetsConfirm}
-              />
-            </div>
+            <BulkImportExport
+              dataType="assets"
+              buildings={[]}
+              selectedBuildingId={selectedBuildingId || ''}
+              onExport={handleExportAssets}
+              onImport={handleImportAssets}
+              onImportConfirm={handleImportAssetsConfirm}
+            />
           </div>
         </CardContent>
       </Card>

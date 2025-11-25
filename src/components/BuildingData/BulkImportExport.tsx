@@ -150,30 +150,27 @@ const BulkImportExport: React.FC<BulkImportExportProps> = ({
       <div className={`flex items-center gap-2 ${className}`}>
         <button
           onClick={handleExport}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors font-inter"
+          className="p-2 text-green-700 bg-green-100 rounded-lg hover:bg-green-200 transition-colors"
           title={`Export ${dataTypeLabels[dataType]}`}
         >
           <Download className="h-4 w-4" />
-          Export
         </button>
         
         <button
           onClick={handleImportClick}
           disabled={importing}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors font-inter disabled:opacity-50"
+          className="p-2 text-blue-700 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
           title={`Import ${dataTypeLabels[dataType]}`}
         >
           <Upload className="h-4 w-4" />
-          {importing ? 'Importing...' : 'Import'}
         </button>
         
         <button
           onClick={downloadTemplate}
-          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors font-inter"
+          className="p-2 text-neutral-700 bg-neutral-100 rounded-lg hover:bg-neutral-200 transition-colors"
           title="Download CSV Template"
         >
           <FileText className="h-4 w-4" />
-          Template
         </button>
       </div>
 
