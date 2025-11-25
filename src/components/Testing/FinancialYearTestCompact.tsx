@@ -12,12 +12,10 @@ export const FinancialYearTestCompact: React.FC = () => {
   useEffect(() => {
     if (selectedBuilding?.financialSettings) {
       try {
-        console.log('🗓️ Testing date:', testDate.toISOString());
         console.log('🏢 Financial settings:', selectedBuilding.financialSettings);
         // Import dynamically to avoid blocking
         import('../../utils/financialYear').then(({ getFinancialYearInfo }) => {
           const yearInfo = getFinancialYearInfo(selectedBuilding.financialSettings, testDate);
-          console.log('📊 Financial year info:', yearInfo);
           setInfo(yearInfo);
           setError(null);
         }).catch((err) => {

@@ -146,13 +146,10 @@ const Dashboard: React.FC = () => {
     
     try {
       setEventsLoading(true)
-      console.log('🗓️ Loading events from Firebase...')
       const allEvents = await eventService.getEvents()
-      console.log('🗓️ All events loaded:', allEvents.length)
       
       // Filter events for the selected building
       const buildingEvents = allEvents.filter(event => event.buildingId === selectedBuildingId)
-      console.log('🗓️ Building events filtered:', buildingEvents.length)
       setEvents(buildingEvents)
     } catch (error) {
       console.error('❌ Error loading events:', error)
@@ -167,9 +164,7 @@ const Dashboard: React.FC = () => {
     
     try {
       setWorkOrdersLoading(true)
-      console.log('🔧 Loading work orders from Firebase...')
       const buildingWorkOrders = await getWorkOrdersByBuilding(selectedBuildingId)
-      console.log('🔧 Building work orders loaded:', buildingWorkOrders.length)
       setWorkOrders(buildingWorkOrders)
     } catch (error) {
       console.error('❌ Error loading work orders:', error)

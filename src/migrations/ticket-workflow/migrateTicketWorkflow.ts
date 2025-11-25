@@ -39,7 +39,6 @@ const convertTimestamp = (timestamp: any): Date => {
 };
 
 export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationResult> {
-  console.log(`🔄 Starting ticket workflow migration ${dryRun ? '(DRY RUN)' : ''}`);
   
   const result: MigrationResult = {
     success: false,
@@ -53,9 +52,7 @@ export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationRe
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
     
-    console.log(`🔍 Looking for Closed tickets that might need to be migrated to Complete status`);
     console.log(`⏰ Current time: ${now.toISOString()}`);
-    console.log(`📅 Seven days ago: ${sevenDaysAgo.toISOString()}`);
     
     // Query for tickets with status 'Closed'
     const closedTicketsQuery = query(
@@ -64,7 +61,6 @@ export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationRe
     );
     
     const snapshot = await getDocs(closedTicketsQuery);
-    console.log(`📊 Found ${snapshot.size} tickets with Closed status`);
     
     const batch = writeBatch(db);
     let batchCount = 0;
@@ -84,7 +80,6 @@ export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationRe
         })) || []
       };
       
-      console.log(`\n🔍 Analyzing ticket ${ticket.id}`);
       
       // Find when the ticket was closed from activity log
       const closedActivity = ticket.activityLog?.find(log => 
@@ -95,7 +90,6 @@ export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationRe
       
       if (!closedActivity) {
         const reason = 'No closed activity found in activity log';
-        console.log(`⚠️  Ticket ${ticket.id}: ${reason}`);
         result.details.push({
           ticketId: ticket.id!,
           action: 'skipped',
@@ -109,11 +103,9 @@ export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationRe
         (now.getTime() - closedDate.getTime()) / (24 * 60 * 60 * 1000)
       );
       
-      console.log(`📅 Ticket ${ticket.id}: Closed ${daysSinceClosed} days ago (${closedDate.toISOString()})`);
       
       if (daysSinceClosed <= 7) {
         // This ticket was closed recently and should be migrated to Complete status
-        console.log(`✅ Ticket ${ticket.id}: Eligible for migration (closed ${daysSinceClosed} days ago)`);
         
         if (!dryRun) {
           // Create activity log entry for the migration
@@ -177,14 +169,11 @@ export async function migrateTicketWorkflow(dryRun = false): Promise<MigrationRe
     
     result.success = true;
     
-    console.log(`\n✅ Migration completed successfully!`);
-    console.log(`📊 Summary:`);
     console.log(`   • Processed: ${result.processedCount} Closed tickets`);
     console.log(`   • Migrated: ${result.migratedCount} tickets to Complete status`);
     console.log(`   • Skipped: ${result.processedCount - result.migratedCount} tickets`);
     
     if (dryRun) {
-      console.log(`\n⚠️  This was a DRY RUN - no changes were made to the database`);
       console.log(`   Run with dryRun=false to apply changes`);
     }
     
@@ -205,7 +194,6 @@ export async function validateMigration(): Promise<{
   completeTicketsInGracePeriod: number;
   completeTicketsExpired: number;
 }> {
-  console.log('🔍 Validating migration results');
   
   try {
     const now = new Date();
@@ -259,14 +247,12 @@ export async function validateMigration(): Promise<{
       completeTicketsExpired: completeExpired
     };
     
-    console.log('📊 Validation Results:');
     console.log(`   • Complete tickets: ${validation.completeTickets}`);
     console.log(`   • Complete tickets in grace period (≤7 days): ${completeInGracePeriod}`);
     console.log(`   • Complete tickets expired (>7 days): ${completeExpired}`);
     console.log(`   • Closed tickets: ${validation.closedTickets}`);
     
     if (completeExpired > 0) {
-      console.log(`⚠️  Found ${completeExpired} Complete tickets that are older than 7 days`);
       console.log(`   These should be auto-closed by the scheduled function`);
     }
     
@@ -282,7 +268,6 @@ export async function validateMigration(): Promise<{
  * Helper function to run the migration with user confirmation
  */
 export async function runMigrationWithConfirmation(): Promise<void> {
-  console.log('🚀 Starting Ticket Workflow Migration');
   console.log('');
   console.log('This migration will:');
   console.log('1. Find all Closed tickets that were closed within the last 7 days');  
@@ -291,7 +276,6 @@ export async function runMigrationWithConfirmation(): Promise<void> {
   console.log('');
   
   // First, run a dry run to see what would be migrated
-  console.log('🔍 Running dry run to analyze current state...');
   const dryRunResult = await migrateTicketWorkflow(true);
   
   if (!dryRunResult.success) {
@@ -299,26 +283,21 @@ export async function runMigrationWithConfirmation(): Promise<void> {
     return;
   }
   
-  console.log(`\n📋 Dry run completed:`);
   console.log(`   • Would migrate: ${dryRunResult.migratedCount} tickets`);
   console.log(`   • Would skip: ${dryRunResult.processedCount - dryRunResult.migratedCount} tickets`);
   
   if (dryRunResult.migratedCount === 0) {
-    console.log('✅ No tickets need migration. All done!');
     return;
   }
   
   // In a real implementation, you would add user confirmation here
   // For now, we'll auto-proceed with the migration
-  console.log('\n🚀 Proceeding with actual migration...');
   
   const actualResult = await migrateTicketWorkflow(false);
   
   if (actualResult.success) {
-    console.log('✅ Migration completed successfully!');
     
     // Validate the results
-    console.log('\n🔍 Validating migration results...');
     await validateMigration();
     
   } else {

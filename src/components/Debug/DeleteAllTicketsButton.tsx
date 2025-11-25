@@ -24,7 +24,6 @@ export const DeleteAllTicketsButton: React.FC<DeleteAllTicketsButtonProps> = ({ 
     setIsDeleting(true)
     try {
       await deleteAllTickets()
-      console.log('✅ All tickets deleted successfully!')
       setShowConfirm(false)
       if (onTicketsDeleted) {
         onTicketsDeleted()

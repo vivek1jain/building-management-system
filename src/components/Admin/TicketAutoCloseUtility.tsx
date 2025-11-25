@@ -60,7 +60,6 @@ export const TicketAutoCloseUtility: React.FC = () => {
       setLoading(true)
       setResult(null)
       
-      console.log('[TicketAutoClose] 🔄 Starting manual auto-close operation')
       
       const startTime = Date.now()
       const now = new Date()
@@ -70,7 +69,6 @@ export const TicketAutoCloseUtility: React.FC = () => {
       const completeTicketsQuery = query(ticketsRef, where('status', '==', 'Complete'))
       const snapshot = await getDocs(completeTicketsQuery)
       
-      console.log(`[TicketAutoClose] 📊 Found ${snapshot.size} tickets with Complete status`)
       
       let processedCount = 0
       let closedCount = 0
@@ -89,7 +87,6 @@ export const TicketAutoCloseUtility: React.FC = () => {
         )
         
         if (!completedActivity) {
-          console.log(`[TicketAutoClose] ⚠️  Ticket ${doc.id}: No completion activity found, skipping`)
           continue
         }
         
@@ -98,10 +95,8 @@ export const TicketAutoCloseUtility: React.FC = () => {
           : new Date(completedActivity.timestamp)
         const daysSinceCompleted = Math.floor((now.getTime() - completedDate.getTime()) / (24 * 60 * 60 * 1000))
         
-        console.log(`[TicketAutoClose] 🔍 Ticket ${doc.id}: Completed ${daysSinceCompleted} days ago`)
         
         if (daysSinceCompleted >= 7) {
-          console.log(`[TicketAutoClose] ✅ Auto-closing ticket ${doc.id} (completed ${daysSinceCompleted} days ago)`)
           
           // Create activity log entry for auto-closure
           const autoCloseActivity = {
@@ -134,9 +129,7 @@ export const TicketAutoCloseUtility: React.FC = () => {
       // Commit all updates in a batch
       if (closedCount > 0) {
         await batch.commit()
-        console.log(`[TicketAutoClose] ✅ Auto-close completed: ${closedCount} tickets closed out of ${processedCount} Complete tickets`)
       } else {
-        console.log(`[TicketAutoClose] ℹ️  Auto-close completed: No tickets needed closing out of ${processedCount} Complete tickets`)
       }
       
       const duration = ((Date.now() - startTime) / 1000).toFixed(2)
@@ -159,7 +152,6 @@ export const TicketAutoCloseUtility: React.FC = () => {
         type: 'success'
       })
       
-      console.log('[TicketAutoClose] ✅ Auto-close operation completed successfully')
       
     } catch (error) {
       console.error('[TicketAutoClose] ❌ Auto-close operation failed:', error)

@@ -130,7 +130,6 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
       
       // Refresh the global building context so switchers update
       await refreshBuildings()
-      console.log('🔄 Global building context refreshed after create')
       
       setShowCreateModal(false)
       resetForm()
@@ -213,7 +212,6 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
       
       // Refresh the global building context so switchers update
       await refreshBuildings()
-      console.log('🔄 Global building context refreshed after update')
       
       setShowEditModal(false)
       setSelectedBuilding(null)
@@ -257,7 +255,6 @@ export const BuildingManagement: React.FC<BuildingManagementProps> = ({
         
         // Refresh the global building context so switchers update
         await refreshBuildings()
-        console.log('🔄 Global building context refreshed after delete')
         
         addNotification({
           title: 'Success',

@@ -15,6 +15,7 @@ import {
 import { db } from '../firebase/config'
 import { WorkOrder, WorkOrderStatus, WorkOrderPriority } from '../types'
 import { handleServiceError } from '../utils/errorHandling';
+import { expenseService } from './expenseService'
 import { fromFirestoreTimestamp } from '../utils/firestore';
 
 const WORK_ORDERS_COLLECTION = 'workOrders'
@@ -425,8 +426,7 @@ export const updateWorkOrderFinalPrice = async (
     // Create expense forecast record
     if (workOrder.supplierId && workOrder.supplierName) {
       try {
-        const { expenseService } = await import('./expenseService')
-        const expenseId = await expenseService.createExpenseFromTicket(
+        await expenseService.createExpenseFromTicket(
           workOrderId, // Using work order ID as reference
           workOrder.buildingId,
           finalPrice,
@@ -436,14 +436,10 @@ export const updateWorkOrderFinalPrice = async (
           'Maintenance & Repairs', // Default category - matches budget category master
           updatedByUid
         )
-        
-        console.log(`Created forecast expense ${expenseId} for completed work order ${workOrderId}`)
       } catch (expenseError) {
         handleServiceError('Failed to create expense forecast for work order:', expenseError)
         // Don't fail the work order completion if expense creation fails
       }
-    } else {
-      console.warn(`No supplier information found for work order ${workOrderId}, skipping expense forecast creation`)
     }
   } catch (error) {
     handleServiceError('Error updating work order final price:', error)

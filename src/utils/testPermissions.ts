@@ -82,18 +82,15 @@ export async function testPermissionSystem() {
         userBuildingIds
       );
       
-      console.log(`     ✅ Can comment: ${canComment ? 'YES' : 'NO'}`);
     });
     
     console.log(`\n${  '-'.repeat(40)}`);
   });
 
-  console.log('\n📊 SUMMARY OF EXPECTED BEHAVIOR:');
   console.log('• Managers should be able to comment on tickets in their buildings');
   console.log('• Residents should only be able to comment on their own tickets');
   console.log('• The system uses building IDs and resident IDs for permission checks');
   
-  console.log('\n🔍 To test this in the UI:');
   console.log('1. Run npm run dev in another terminal');
   console.log('2. Open http://localhost:3005');
   console.log('3. Login with different users (manager@building.com, etc.)');

@@ -150,7 +150,6 @@ export const LedgerBackfillUtility: React.FC = () => {
         type: 'success'
       })
       
-      console.log('[LedgerBackfill] ✅ Backfill operation completed successfully')
       
     } catch (error) {
       console.error('[LedgerBackfill] ❌ Backfill operation failed:', error)

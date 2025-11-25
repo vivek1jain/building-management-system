@@ -12,13 +12,6 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager';
     }
-    
-    // Helper function to check if user is a supplier
-    function isSupplier() {
-      return isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'supplier';
-    }
 
     // Users collection
     match /users/{userId} {
@@ -197,10 +190,10 @@ service cloud.firestore {
       // Anyone authenticated can create and update buildings for development
       allow create, update: if isAuthenticated();
       
-      // Only admins can delete buildings
-      allow delete: if isAuthenticated() && 
+      // Managers and admins can delete buildings
+      allow delete: if isManager() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
     
     // Assets collection

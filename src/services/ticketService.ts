@@ -18,8 +18,9 @@ import {
   getDownloadURL 
 } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
-import { Ticket, TicketStatus, UrgencyLevel, ActivityLogEntry, CreateTicketForm } from '../types'
+import { Ticket, TicketStatus, UrgencyLevel, ActivityLogEntry, CreateTicketForm, QuoteRequestStatus } from '../types'
 import { handleServiceError } from '../utils/errorHandling';
+import { expenseService } from './expenseService'
 import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 const TICKETS_COLLECTION = 'tickets'
@@ -77,19 +78,6 @@ export const ticketService = {
         const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketDoc)
         return docRef.id
       } catch (firestoreError: any) {
-        console.error('🚨 FIREBASE WRITE FAILED:', {
-          error: firestoreError.message,
-          code: firestoreError.code,
-          details: firestoreError
-        })
-        
-        if (firestoreError.code === 'permission-denied') {
-          console.error('❌ PERMISSION DENIED - Check:')
-          console.error('   1. User is authenticated')
-          console.error('   2. User document exists in Firestore')
-          console.error('   3. Firestore rules allow writes to tickets collection')
-        }
-        
         // Throw error instead of falling back to mock data
         throw new Error(`Failed to create ticket in Firebase: ${firestoreError.message}`)
       }
@@ -336,7 +324,6 @@ export const ticketService = {
       const suppliers = await supplierService.getSuppliers()
       
       // Create quote request objects  
-      const { QuoteRequestStatus } = await import('../types')
       const quoteRequests = supplierIds.map(supplierId => {
         const supplier = suppliers.find(s => s.id === supplierId)
         return {
@@ -368,17 +355,12 @@ export const ticketService = {
         metadata: { supplierIds, quoteRequestCount: supplierIds.length }
       }
 
-      try {
-        await updateDoc(docRef, {
-          status: 'Quoting' as TicketStatus,
-          quoteRequests: finalQuoteRequests,
-          activityLog: [...ticket.activityLog, activityLogEntry],
-          updatedAt: serverTimestamp()
-        })
-      } catch (updateError) {
-        console.error('❌ Firebase update failed:', updateError)
-        throw updateError
-      }
+      await updateDoc(docRef, {
+        status: 'Quoting' as TicketStatus,
+        quoteRequests: finalQuoteRequests,
+        activityLog: [...ticket.activityLog, activityLogEntry],
+        updatedAt: serverTimestamp()
+      })
 
       // Send quote request emails
       await supplierService.requestQuotes(ticketId, supplierIds, userId)
@@ -441,7 +423,6 @@ export const ticketService = {
       if (!selectedQuoteRequest.quoteAmount) throw new Error('Quote request has no quote amount')
 
       // Update quote requests to mark winner and others as rejected
-      const { QuoteRequestStatus } = await import('../types')
       const updatedQuoteRequests = ticket.quoteRequests?.map(req => ({
         ...req,
         status: req.supplierId === supplierId ? QuoteRequestStatus.ACCEPTED : req.status === QuoteRequestStatus.RECEIVED ? QuoteRequestStatus.REJECTED : req.status,
@@ -530,8 +511,7 @@ export const ticketService = {
       if (!ticket) throw new Error('Ticket not found')
 
       // Update the specific quote request
-      const { QuoteRequestStatus } = await import('../types')
-      const updatedQuoteRequests = ticket.quoteRequests?.map(req => 
+      const updatedQuoteRequests = ticket.quoteRequests?.map(req =>
         req.supplierId === supplierId
           ? { 
               ...req, 
@@ -724,21 +704,7 @@ export const ticketService = {
       
       // 3. Data integrity check - tickets should only reach Complete if they have supplier info
       if (!supplierId) {
-        console.error('⚠️  DATA INTEGRITY WARNING: Ticket completed without supplier information!');
-        console.error('📊 Ticket completion data:', {
-          ticketId: ticket.id,
-          status: ticket.status,
-          hasQuoteRequests: !!ticket.quoteRequests,
-          quoteRequestsCount: ticket.quoteRequests?.length || 0,
-          activityLogCount: ticket.activityLog?.length || 0,
-          hasAssignedTo: !!ticket.assignedTo,
-          assignedTo: ticket.assignedTo
-        });
-        console.error('🔍 Activity log actions:', ticket.activityLog?.map(log => log.action) || []);
-        
-        // This indicates a workflow violation - the ticket should not have reached Complete status
-        // without going through either the quote workflow or direct scheduling workflow
-        console.warn('💡 This suggests the ticket workflow was not followed correctly.');
+        console.error('DATA INTEGRITY WARNING: Ticket completed without supplier information');
       }
 
       // Create metadata object, filtering out undefined values to prevent Firebase errors
@@ -774,27 +740,12 @@ export const ticketService = {
           finalCostCurrency: 'GBP'
         })
       } catch (updateError: any) {
-        console.error('❌ Error updating ticket document:', updateError);
-        console.error('❌ Error code:', updateError?.code);
-        console.error('❌ Error message:', updateError?.message);
-        console.error('❌ Full error object:', updateError);
-        
-        // Check for specific Firebase errors
-        if (updateError?.code === 'permission-denied') {
-          console.error('🚫 PERMISSION DENIED - Check Firestore rules for ticket updates');
-        } else if (updateError?.code === 'unavailable') {
-          console.error('📡 FIREBASE UNAVAILABLE - Check network connection');
-        } else if (updateError?.code === 'not-found') {
-          console.error('🔍 DOCUMENT NOT FOUND - Ticket may have been deleted');
-        }
-        
+        console.error('Error updating ticket document:', updateError);
         throw new Error(`Firebase update failed: ${updateError?.message || updateError}`);
       }
 
       // Create expense forecast record - always create for completed tickets with final costs
       try {
-        const { expenseService } = await import('./expenseService')
-        
         // Use supplier info if available, otherwise use defaults
         const expenseId = await expenseService.createExpenseFromTicket(
           ticketId,
@@ -807,28 +758,13 @@ export const ticketService = {
           userId
         )
       } catch (expenseError) {
-        console.error('❌ Failed to create expense forecast:', expenseError)
-        console.error('❌ Expense creation error details:', {
-          message: expenseError.message,
-          ticketId,
-          finalCost,
-          supplierId,
-          supplierName
-        });
+        console.error('Failed to create expense forecast:', expenseError)
         // Don't fail the ticket completion if expense creation fails
       }
 
     } catch (error) {
-      console.error('❌ Error completing ticket:', error)
-      // Convert any error to a readable string for debugging
-      const errorDetails = {
-        message: error.message || 'Unknown error',
-        name: error.name,
-        stack: error.stack,
-        toString: error.toString()
-      };
-      console.error('❌ Error details:', errorDetails);
-      throw new Error(`Failed to complete ticket: ${errorDetails.message}`)
+      console.error('Error completing ticket:', error)
+      throw new Error(`Failed to complete ticket: ${error.message || 'Unknown error'}`)
     }
   },
 

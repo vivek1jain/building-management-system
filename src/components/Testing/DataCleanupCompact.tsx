@@ -99,6 +99,7 @@ const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, ad
             <p className="mb-2">Remove all test data from Firestore collections.</p>
             <ul className="space-y-1 list-disc list-inside">
               <li>Deletes tickets, expenses, events, income</li>
+              <li>Deletes people, flats, assets, suppliers</li>
               <li>Cannot be undone</li>
               <li>Use only in dev/test environments</li>
             </ul>
@@ -107,7 +108,7 @@ const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, ad
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col space-y-3">
         {lastResult && (
           <div className={`rounded p-2 border text-xs mb-2 ${
             lastResult.startsWith('Error') 
@@ -119,73 +120,139 @@ const DataCleanupCompact: React.FC<DataCleanupCompactProps> = ({ currentUser, ad
         )}
 
         {/* Building Data Section */}
-        <div className="flex-1 border-b border-neutral-200 pb-3 mb-3">
+        <div>
           <h4 className="text-xs font-semibold mb-2 text-neutral-700">Building Data</h4>
           <div className="grid grid-cols-2 gap-2">
-          {/* Tickets */}
-          <div className="group relative">
-            <Button
-              onClick={() => handleCleanup('tickets')}
-              disabled={loading !== null}
-              variant="danger"
-              className="w-full text-xs px-2 py-1 h-6"
-            >
-              {loading === 'tickets' ? 'Deleting...' : 'Tickets'}
-            </Button>
-            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-              Delete all ticket records from Firestore
+            {/* People */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('people')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'people' ? 'Deleting...' : 'People'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all person records from Firestore
+              </div>
             </div>
-          </div>
 
-          {/* Expenses */}
-          <div className="group relative">
-            <Button
-              onClick={() => handleCleanup('expenses')}
-              disabled={loading !== null}
-              variant="danger"
-              className="w-full text-xs px-2 py-1 h-6"
-            >
-              {loading === 'expenses' ? 'Deleting...' : 'Expenses'}
-            </Button>
-            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-              Delete all expense records from Firestore
+            {/* Flats */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('flats')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'flats' ? 'Deleting...' : 'Flats'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all flat/unit records from Firestore
+              </div>
             </div>
-          </div>
 
-          {/* Events */}
-          <div className="group relative">
-            <Button
-              onClick={() => handleCleanup('events')}
-              disabled={loading !== null}
-              variant="danger"
-              className="w-full text-xs px-2 py-1 h-6"
-            >
-              {loading === 'events' ? 'Deleting...' : 'Events'}
-            </Button>
-            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-              Delete all event records from Firestore
+            {/* Assets */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('assets')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'assets' ? 'Deleting...' : 'Assets'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all asset records from Firestore
+              </div>
             </div>
-          </div>
 
-          {/* Income */}
-          <div className="group relative">
-            <Button
-              onClick={() => handleCleanup('income')}
-              disabled={loading !== null}
-              variant="danger"
-              className="w-full text-xs px-2 py-1 h-6"
-            >
-              {loading === 'income' ? 'Deleting...' : 'Income'}
-            </Button>
-            <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-              Delete all income records from Firestore
+            {/* Suppliers */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('suppliers')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'suppliers' ? 'Deleting...' : 'Suppliers'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all supplier records from Firestore
+              </div>
             </div>
           </div>
         </div>
-      </div>
+
+        {/* Finances Section */}
+        <div>
+          <h4 className="text-xs font-semibold mb-2 text-neutral-700">Finances</h4>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Tickets */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('tickets')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'tickets' ? 'Deleting...' : 'Tickets'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all ticket records from Firestore
+              </div>
+            </div>
+
+            {/* Expenses */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('expenses')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'expenses' ? 'Deleting...' : 'Expenses'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all expense records from Firestore
+              </div>
+            </div>
+
+            {/* Events */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('events')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'events' ? 'Deleting...' : 'Events'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all event records from Firestore
+              </div>
+            </div>
+
+            {/* Income */}
+            <div className="group relative">
+              <Button
+                onClick={() => handleCleanup('income')}
+                disabled={loading !== null}
+                variant="danger"
+                className="w-full text-xs px-2 py-1 h-6"
+              >
+                {loading === 'income' ? 'Deleting...' : 'Income'}
+              </Button>
+              <div className="absolute left-0 bottom-7 w-48 p-2 bg-neutral-900 text-white text-xs rounded opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                Delete all income records from Firestore
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Session Data Section */}
-        <div className="flex-1">
+        <div>
           <h4 className="text-xs font-semibold mb-2 text-neutral-700">Session Data</h4>
           <div className="grid grid-cols-2 gap-2">
             {/* LocalStorage */}
