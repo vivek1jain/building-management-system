@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { BuildingEvent } from '../types'
+import { handleFirebaseError } from '../utils/errorHandler'
 
 // Convert Firebase Timestamp to Date
 const convertFirestoreData = (data: any): BuildingEvent => {
@@ -40,9 +41,10 @@ export const eventService = {
         id: doc.id,
         ...doc.data()
       }))
-    } catch (error) {
-      console.error('Error fetching events:', error)
-      throw new Error('Failed to fetch events')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getEvents',
+      })
     }
   },
 
@@ -59,9 +61,11 @@ export const eventService = {
         })
       }
       return null
-    } catch (error) {
-      console.error('Error fetching event:', error)
-      throw new Error('Failed to fetch event')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getEventById',
+        id,
+      })
     }
   },
 
@@ -79,9 +83,11 @@ export const eventService = {
         ...doc.data()
       }))
 
-    } catch (error) {
-      console.error('Error fetching events by ticket ID:', error)
-      throw new Error('Failed to fetch events for ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getEventsByTicketId',
+        ticketId,
+      })
     }
   },
 
@@ -98,9 +104,11 @@ export const eventService = {
         id: doc.id,
         ...doc.data()
       }))
-    } catch (error) {
-      console.error('Error fetching events by user ID:', error)
-      throw new Error('Failed to fetch events for user')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getEventsByUserId',
+        userId,
+      })
     }
   },
 
@@ -121,9 +129,11 @@ export const eventService = {
         createdAt: new Date(),
         updatedAt: new Date()
       } as BuildingEvent
-    } catch (error) {
-      console.error('Error creating event:', error)
-      throw new Error('Failed to create event')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createEvent',
+        event,
+      })
     }
   },
 
@@ -135,9 +145,11 @@ export const eventService = {
         ...updates,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating event:', error)
-      throw new Error('Failed to update event')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateEvent',
+        id,
+      })
     }
   },
 
@@ -146,9 +158,11 @@ export const eventService = {
     try {
       const docRef = doc(db, EVENTS_COLLECTION, id)
       await deleteDoc(docRef)
-    } catch (error) {
-      console.error('Error deleting event:', error)
-      throw new Error('Failed to delete event')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteEvent',
+        id,
+      })
     }
   },
 
@@ -169,9 +183,10 @@ export const eventService = {
         ...doc.data()
       }))
 
-    } catch (error) {
-      console.error('Error fetching upcoming events:', error)
-      throw new Error('Failed to fetch upcoming events')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getUpcomingEvents',
+      })
     }
   },
 
@@ -189,9 +204,12 @@ export const eventService = {
         id: doc.id,
         ...doc.data()
       }))
-    } catch (error) {
-      console.error('Error fetching events by date range:', error)
-      throw new Error('Failed to fetch events by date range')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getEventsByDateRange',
+        startDate,
+        endDate,
+      })
     }
   }
 } 

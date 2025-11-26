@@ -7,6 +7,7 @@ import {
 import { doc, setDoc, getDoc, updateDoc, Timestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
 import { User, UserRole } from '../types'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 const USERS_COLLECTION = 'users'
 
@@ -46,8 +47,11 @@ export const authService = {
 
       return userData
     } catch (error: any) {
-      console.error('Error registering user:', error)
-      throw new Error(error.message || 'Failed to register user')
+      const appError = handleFirebaseError(error, {
+        action: 'register',
+        email,
+      });
+      throw appError;
     }
   },
 
@@ -71,8 +75,20 @@ export const authService = {
         updatedAt: convertTimestamp(userData.updatedAt)
       }
     } catch (error: any) {
-      console.error('Error logging in:', error)
-      throw new Error(error.message || 'Failed to login')
+      // Check if user profile not found
+      if (error.message === 'User profile not found') {
+        const appError = createAppError('ERR-AUTH-003', {
+          action: 'login',
+          email,
+        });
+        throw appError;
+      }
+      
+      const appError = handleFirebaseError(error, {
+        action: 'login',
+        email,
+      });
+      throw appError;
     }
   },
 
@@ -80,9 +96,11 @@ export const authService = {
   async logout(): Promise<void> {
     try {
       await signOut(auth)
-    } catch (error) {
-      console.error('Error logging out:', error)
-      throw new Error('Failed to logout')
+    } catch (error: any) {
+      const appError = handleFirebaseError(error, {
+        action: 'logout',
+      });
+      throw appError;
     }
   },
 
@@ -100,9 +118,13 @@ export const authService = {
         }
       }
       return null
-    } catch (error) {
-      console.error('Error getting current user:', error)
-      return null
+    } catch (error: any) {
+      const appError = handleFirebaseError(error, {
+        action: 'getCurrentUser',
+        uid,
+      });
+      // Don't throw, return null for getCurrentUser
+      return null;
     }
   },
 
@@ -114,9 +136,12 @@ export const authService = {
         ...updates,
         updatedAt: new Date()
       })
-    } catch (error) {
-      console.error('Error updating profile:', error)
-      throw new Error('Failed to update profile')
+    } catch (error: any) {
+      const appError = handleFirebaseError(error, {
+        action: 'updateProfile',
+        uid,
+      });
+      throw appError;
     }
   },
 

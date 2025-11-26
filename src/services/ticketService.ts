@@ -19,7 +19,7 @@ import {
 } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
 import { Ticket, TicketStatus, UrgencyLevel, ActivityLogEntry, CreateTicketForm, QuoteRequestStatus } from '../types'
-import { handleServiceError } from '../utils/errorHandling';
+import { handleFirebaseError, createAppError } from '../utils/errorHandler';
 import { expenseService } from './expenseService'
 import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
@@ -78,12 +78,16 @@ export const ticketService = {
         const docRef = await addDoc(collection(db, TICKETS_COLLECTION), ticketDoc)
         return docRef.id
       } catch (firestoreError: any) {
-        // Throw error instead of falling back to mock data
-        throw new Error(`Failed to create ticket in Firebase: ${firestoreError.message}`)
+        throw handleFirebaseError(firestoreError, {
+          action: 'createTicket',
+          context: { userId }
+        });
       }
-    } catch (error) {
-      console.error('Error creating ticket:', error)
-      throw new Error('Failed to create ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createTicket',
+        context: { userId }
+      });
     }
   },
 
@@ -122,9 +126,10 @@ export const ticketService = {
       
       return firebaseTickets
       
-    } catch (error) {
-      console.error('Firebase query failed:', error)
-      throw new Error('Failed to fetch tickets from Firebase')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getTickets'
+      });
     }
   },
 
@@ -164,9 +169,11 @@ export const ticketService = {
         return ticket
       }
       return null
-    } catch (error) {
-      console.error('Error getting ticket:', error)
-      throw new Error('Failed to fetch ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getTicketById',
+        context: { ticketId: id }
+      });
     }
   },
 
@@ -176,7 +183,9 @@ export const ticketService = {
       const docRef = doc(db, TICKETS_COLLECTION, id)
       const ticket = await this.getTicketById(id)
       
-      if (!ticket) throw new Error('Ticket not found')
+      if (!ticket) {
+        throw createAppError('ERR-DB-005', { ticketId: id });
+      }
 
       const activityLogEntry = {
         id: Date.now().toString(),
@@ -192,9 +201,11 @@ export const ticketService = {
         updatedAt: serverTimestamp(),
         activityLog: [...ticket.activityLog, activityLogEntry]
       })
-    } catch (error) {
-      console.error('Error updating ticket status:', error)
-      throw new Error('Failed to update ticket status')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateTicketStatus',
+        context: { ticketId: id, status, userId }
+      });
     }
   },
 
@@ -217,9 +228,11 @@ export const ticketService = {
         status: 'Quoting' as TicketStatus,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error adding quote:', error)
-      throw new Error('Failed to add quote')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'addQuote',
+        context: { ticketId }
+      });
     }
   },
 
@@ -244,9 +257,11 @@ export const ticketService = {
         activityLog: [...ticket.activityLog, activityLogEntry],
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error adding activity log entry:', error)
-      throw new Error('Failed to add activity log entry')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'addActivityLogEntry',
+        context: { ticketId }
+      });
     }
   },
 
@@ -273,9 +288,11 @@ export const ticketService = {
         activityLog: [...ticket.activityLog, activityLogEntry],
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error scheduling ticket:', error)
-      throw new Error('Failed to schedule ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'scheduleTicket',
+        context: { ticketId, scheduledDate: scheduledDate.toISOString() }
+      });
     }
   },
 
@@ -305,9 +322,11 @@ export const ticketService = {
         activityLog: [...ticket.activityLog, activityLogEntry],
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error rescheduling ticket:', error)
-      throw new Error('Failed to reschedule ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'rescheduleTicket',
+        context: { ticketId, newScheduledDate: newScheduledDate.toISOString() }
+      });
     }
   },
 
@@ -364,9 +383,11 @@ export const ticketService = {
 
       // Send quote request emails
       await supplierService.requestQuotes(ticketId, supplierIds, userId)
-    } catch (error) {
-      console.error('Error requesting quotes from suppliers:', error)
-      throw new Error('Failed to request quotes from suppliers')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'requestQuotesFromSuppliers',
+        context: { ticketId, supplierIds }
+      });
     }
   },
 
@@ -403,9 +424,11 @@ export const ticketService = {
         activityLog: [...ticket.activityLog, activityLogEntry],
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error adding quote to ticket:', error)
-      throw new Error('Failed to add quote to ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'addQuoteToTicket',
+        context: { ticketId }
+      });
     }
   },
 
@@ -464,9 +487,11 @@ export const ticketService = {
         const rejectedQuotes = ticket.quotes.filter(q => q.supplierId !== supplierId)
         await this.sendQuoteSelectionEmails(ticketId, selectedQuote, rejectedQuotes)
       }
-    } catch (error) {
-      console.error('Error selecting winning quote:', error)
-      throw new Error('Failed to select winning quote')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'selectWinningQuote',
+        context: { ticketId, supplierId }
+      });
     }
   },
 
@@ -559,9 +584,11 @@ export const ticketService = {
         activityLog: [...ticket.activityLog, activityLogEntry],
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating quote request:', error)
-      throw new Error('Failed to update quote request')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateQuoteRequest',
+        context: { ticketId, supplierId }
+      });
     }
   },
 
@@ -572,9 +599,11 @@ export const ticketService = {
       if (!ticket) throw new Error('Ticket not found')
       
       return ticket.quotes || []
-    } catch (error) {
-      console.error('Error getting ticket quotes:', error)
-      throw new Error('Failed to get ticket quotes')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getTicketQuotes',
+        context: { ticketId }
+      });
     }
   },
 
@@ -649,9 +678,11 @@ export const ticketService = {
         updatedAt: serverTimestamp(),
         activityLog: [...ticket.activityLog, activityLogEntry]
       })
-    } catch (error) {
-      console.error('Error reopening ticket:', error)
-      throw new Error('Failed to reopen ticket')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'reopenTicket',
+        context: { ticketId }
+      });
     }
   },
 
@@ -762,9 +793,11 @@ export const ticketService = {
         // Don't fail the ticket completion if expense creation fails
       }
 
-    } catch (error) {
-      console.error('Error completing ticket:', error)
-      throw new Error(`Failed to complete ticket: ${error.message || 'Unknown error'}`)
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'completeTicket',
+        context: { ticketId, finalCost }
+      });
     }
   },
 
@@ -811,9 +844,10 @@ export const ticketService = {
       }
       
       return eligibleTickets
-    } catch (error) {
-      console.error('Error getting tickets eligible for auto-closure:', error)
-      throw new Error('Failed to get tickets eligible for auto-closure')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getTicketsEligibleForAutoClosure'
+      });
     }
   },
 

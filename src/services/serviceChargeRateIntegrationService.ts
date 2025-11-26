@@ -19,10 +19,11 @@ import {
   ServiceChargeDemandStatus,
   PaymentFrequency 
 } from '../types';
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
 import { budgetService } from './budgetService';
 import { generateServiceChargeDemands } from './serviceChargeService';
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 export interface ServiceChargeRateCalculation {
   totalBudgetAmount: number;
@@ -149,8 +150,8 @@ class ServiceChargeRateIntegrationService {
         recommendedAnnualRate,
         comparison
       };
-    } catch (error) {
-      handleServiceError('Error calculating rates from budget:', error);
+    } catch (error: any) {
+      handleFirebaseError('Error calculating rates from budget:', error);
       throw error;
     }
   }
@@ -249,8 +250,8 @@ class ServiceChargeRateIntegrationService {
         },
         budgetCoverage
       };
-    } catch (error) {
-      handleServiceError('Error analyzing service charge impact:', error);
+    } catch (error: any) {
+      handleFirebaseError('Error analyzing service charge impact:', error);
       throw error;
     }
   }
@@ -302,8 +303,8 @@ class ServiceChargeRateIntegrationService {
       await Promise.all(batch);
 
       return demands;
-    } catch (error) {
-      handleServiceError('Error generating service charges from budget:', error);
+    } catch (error: any) {
+      handleFirebaseError('Error generating service charges from budget:', error);
       throw error;
     }
   }
@@ -331,8 +332,8 @@ class ServiceChargeRateIntegrationService {
         impactAnalysis,
         recommendations
       };
-    } catch (error) {
-      handleServiceError('Error updating service charge rates:', error);
+    } catch (error: any) {
+      handleFirebaseError('Error updating service charge rates:', error);
       throw error;
     }
   }
@@ -459,8 +460,8 @@ class ServiceChargeRateIntegrationService {
         changePercent,
         competitiveness
       };
-    } catch (error) {
-      handleServiceError('Error getting comparison data:', error);
+    } catch (error: any) {
+      handleFirebaseError('Error getting comparison data:', error);
       return {
         competitiveness: 'average'
       };

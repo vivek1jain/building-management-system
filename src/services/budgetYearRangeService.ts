@@ -12,7 +12,8 @@ import {
   writeBatch
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { 
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
+import {
   BudgetSetupWizard,
   BudgetSetupStep,
   BudgetYearRange,
@@ -78,9 +79,12 @@ export const calculateSuggestedAllocation = async (
       basedOnPreviousYear: previousBudget ? previousYear : undefined,
       adjustmentPercentage: previousBudget ? adjustmentPercentage : undefined
     }
-  } catch (error) {
-    console.error('Error calculating suggested allocation:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'calculateSuggestedAllocation',
+      buildingId,
+      targetYear,
+    })
   }
 }
 
@@ -128,9 +132,13 @@ export const copyAllocationBetweenYears = async (
     await budgetWizardService.updateBudgetSetupWizard(wizardId, {
       yearlyAllocations: updatedAllocations
     })
-  } catch (error) {
-    console.error('Error copying allocation between years:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'copyAllocationBetweenYears',
+      wizardId,
+      fromYear,
+      toYear,
+    })
   }
 }
 
@@ -175,9 +183,12 @@ export const bulkApplyCategoryChanges = async (
     await budgetWizardService.updateBudgetSetupWizard(wizardId, {
       yearlyAllocations: updatedAllocations
     })
-  } catch (error) {
-    console.error('Error bulk applying category changes:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'bulkApplyCategoryChanges',
+      wizardId,
+      categoryTemplateId,
+    })
   }
 }
 
@@ -211,9 +222,11 @@ export const generateAllocationsForAllYears = async (
     })
 
     return allocations
-  } catch (error) {
-    console.error('Error generating allocations for all years:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'generateAllocationsForAllYears',
+      wizardId,
+    })
   }
 }
 

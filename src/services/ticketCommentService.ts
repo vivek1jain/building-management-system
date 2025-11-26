@@ -2,6 +2,7 @@ import { doc, updateDoc, arrayUnion, getDoc, serverTimestamp } from 'firebase/fi
 import { db } from '../firebase/config';
 import { TicketComment } from '../types';
 import { ticketService } from './ticketService';
+import { handleFirebaseError, createAppError } from '../utils/errorHandler';
 
 const TICKETS_COLLECTION = 'tickets';
 
@@ -37,9 +38,12 @@ export class TicketCommentService {
       });
 
       return newComment;
-    } catch (error) {
-      console.error('❌ Failed to add comment to Firebase:', error);
-      throw new Error('Failed to add comment');
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'addComment',
+        ticketId,
+        authorId,
+      })
     }
   }
 
@@ -61,9 +65,11 @@ export class TicketCommentService {
       } else {
         return [];
       }
-    } catch (error) {
-      console.error('❌ Failed to load comments from Firebase:', error);
-      return [];
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getComments',
+        ticketId,
+      })
     }
   }
 
@@ -98,9 +104,12 @@ export class TicketCommentService {
       }
 
       return false;
-    } catch (error) {
-      console.error('❌ Error checking comment permissions:', error);
-      return false;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'canUserComment',
+        ticketId,
+        userId,
+      })
     }
   }
 
@@ -146,9 +155,12 @@ export class TicketCommentService {
       });
       
       return comments[commentIndex];
-    } catch (error) {
-      console.error('❌ Failed to update comment:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateComment',
+        ticketId,
+        commentId,
+      })
     }
   }
 
@@ -192,9 +204,12 @@ export class TicketCommentService {
       });
       
       return true;
-    } catch (error) {
-      console.error('❌ Failed to delete comment:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteComment',
+        ticketId,
+        commentId,
+      })
     }
   }
 }

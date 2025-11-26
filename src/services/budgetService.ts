@@ -17,6 +17,7 @@ import {
   Expense, 
   BudgetStatus
 } from '../types'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 // Budget Service
 export const budgetService = {
@@ -31,9 +32,11 @@ export const budgetService = {
 
       const budget = await getDoc(budgetRef)
       return { id: budgetRef.id, ...budget.data() } as Budget
-    } catch (error) {
-      console.error('Error creating budget:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createBudget',
+        budgetData,
+      })
     }
   },
 
@@ -45,9 +48,11 @@ export const budgetService = {
         return { id: budgetDoc.id, ...budgetDoc.data() } as Budget
       }
       return null
-    } catch (error) {
-      console.error('Error getting budget:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getBudget',
+        budgetId,
+      })
     }
   },
 
@@ -67,9 +72,11 @@ export const budgetService = {
       })) as Budget[]
       
       return budgets.sort((a, b) => b.year - a.year)
-    } catch (error) {
-      console.error('Error getting budgets by building:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getBudgetsByBuilding',
+        buildingId,
+      })
     }
   },
 
@@ -88,9 +95,12 @@ export const budgetService = {
         return { id: doc.id, ...doc.data() } as Budget
       }
       return null
-    } catch (error) {
-      console.error('Error getting current year budget:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getCurrentYearBudget',
+        buildingId,
+        year,
+      })
     }
   },
 
@@ -101,9 +111,11 @@ export const budgetService = {
         ...updates,
         updatedAt: serverTimestamp()
       } as any) // Type assertion needed for Firestore FieldValue compatibility
-    } catch (error) {
-      console.error('Error updating budget:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateBudget',
+        budgetId,
+      })
     }
   },
 
@@ -121,9 +133,12 @@ export const budgetService = {
       }
       
       await updateDoc(doc(db, 'budgets', budgetId), updates)
-    } catch (error) {
-      console.error('Error updating budget status:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateBudgetStatus',
+        budgetId,
+        status,
+      })
     }
   },
 
@@ -131,9 +146,11 @@ export const budgetService = {
   async deleteBudget(budgetId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, 'budgets', budgetId))
-    } catch (error) {
-      console.error('Error deleting budget:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteBudget',
+        budgetId,
+      })
     }
   },
 
@@ -148,9 +165,11 @@ export const budgetService = {
 
       const category = await getDoc(categoryRef)
       return { id: categoryRef.id, ...category.data() } as BudgetCategoryItem
-    } catch (error) {
-      console.error('Error creating budget category:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createBudgetCategory',
+        categoryData,
+      })
     }
   },
 
@@ -170,9 +189,11 @@ export const budgetService = {
       })) as BudgetCategoryItem[]
       
       return categories.sort((a, b) => a.name.localeCompare(b.name))
-    } catch (error) {
-      console.error('Error getting budget categories:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getBudgetCategories',
+        budgetId,
+      })
     }
   },
 
@@ -183,9 +204,11 @@ export const budgetService = {
         ...updates,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating budget category:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateBudgetCategory',
+        categoryId,
+      })
     }
   },
 
@@ -200,9 +223,11 @@ export const budgetService = {
 
       const expense = await getDoc(expenseRef)
       return { id: expenseRef.id, ...expense.data() } as Expense
-    } catch (error) {
-      console.error('Error creating expense:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createExpense',
+        expenseData,
+      })
     }
   },
 
@@ -222,9 +247,11 @@ export const budgetService = {
       })) as Expense[]
       
       return expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    } catch (error) {
-      console.error('Error getting expenses by building:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getExpensesByBuilding',
+        buildingId,
+      })
     }
   },
 
@@ -244,9 +271,11 @@ export const budgetService = {
       })) as Expense[]
       
       return expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    } catch (error) {
-      console.error('Error getting expenses by budget:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getExpensesByBudget',
+        budgetId,
+      })
     }
   },
 
@@ -257,9 +286,11 @@ export const budgetService = {
         ...updates,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating expense:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateExpense',
+        expenseId,
+      })
     }
   },
 
@@ -272,9 +303,11 @@ export const budgetService = {
         approvedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error approving expense:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'approveExpense',
+        expenseId,
+      })
     }
   },
 
@@ -318,9 +351,12 @@ export const budgetService = {
         budgetUtilization,
         categoryBreakdown
       }
-    } catch (error) {
-      console.error('Error getting budget stats:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getBudgetStats',
+        buildingId,
+        year,
+      })
     }
   },
 
@@ -341,9 +377,13 @@ export const budgetService = {
       }
 
       return await this.createBudget(newBudgetData)
-    } catch (error) {
-      console.error('Error copying budget from previous year:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'copyBudgetFromPreviousYear',
+        buildingId,
+        fromYear,
+        toYear,
+      })
     }
   }
 } 

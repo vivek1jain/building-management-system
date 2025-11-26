@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { BudgetCategoryMaster } from '../types';
+import { handleFirebaseError } from '../utils/errorHandler';
 
 const COLLECTION_NAME = 'budgetCategoryMasters';
 
@@ -52,9 +53,11 @@ export const getBudgetCategoryMasters = async (buildingId: string): Promise<Budg
       createdAt: doc.data().createdAt?.toDate() || new Date(),
       updatedAt: doc.data().updatedAt?.toDate() || new Date()
     })) as BudgetCategoryMaster[];
-  } catch (error) {
-    console.error('Error fetching budget category masters:', error);
-    throw error;
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getBudgetCategoryMasters',
+      buildingId,
+    });
   }
 };
 
@@ -77,9 +80,11 @@ export const getBudgetCategoryMaster = async (id: string): Promise<BudgetCategor
     }
     
     return null;
-  } catch (error) {
-    console.error('Error fetching budget category master:', error);
-    throw error;
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getBudgetCategoryMaster',
+      id,
+    });
   }
 };
 
@@ -97,9 +102,11 @@ export const createBudgetCategoryMaster = async (
     });
     
     return docRef.id;
-  } catch (error) {
-    console.error('Error creating budget category master:', error);
-    throw error;
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'createBudgetCategoryMaster',
+      categoryData,
+    });
   }
 };
 
@@ -132,9 +139,11 @@ export const updateBudgetCategoryMaster = async (
       updatedAt: serverTimestamp()
     });
     
-  } catch (error) {
-    console.error('Error updating budget category master:', error);
-    throw error;
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateBudgetCategoryMaster',
+      id,
+    });
   }
 };
 
@@ -149,9 +158,11 @@ export const deleteBudgetCategoryMaster = async (id: string): Promise<void> => {
       updatedAt: serverTimestamp()
     });
     
-  } catch (error) {
-    console.error('Error deleting budget category master:', error);
-    throw error;
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'deleteBudgetCategoryMaster',
+      id,
+    });
   }
 };
 
@@ -184,9 +195,12 @@ export const mergeBudgetCategoryMasters = async (
     }
     
     await batch.commit();
-  } catch (error) {
-    console.error('Error merging budget category masters:', error);
-    throw error;
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'mergeBudgetCategoryMasters',
+      sourceId,
+      targetId,
+    });
   }
 };
 

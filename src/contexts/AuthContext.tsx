@@ -3,6 +3,8 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { auth } from '../firebase/config'
 import { authService } from '../services/authService'
 import { User } from '../types'
+import { handleFirebaseError, createAppError, logError } from '../utils/errorHandler'
+import { setUserContext, clearUserContext } from '../utils/sentry'
 
 interface AuthContextType {
   currentUser: User | null
@@ -37,12 +39,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const userData = await authService.getCurrentUser(user.uid)
           setCurrentUser(userData)
+          
+          // Set user context for error tracking
+          setUserContext({
+            id: userData.id,
+            email: userData.email,
+            role: userData.role,
+          });
         } catch (error) {
-          console.error('Error fetching user data:', error)
-          setCurrentUser(null)
+          const appError = handleFirebaseError(error as any, {
+            action: 'fetchUserData',
+            userId: user.uid,
+          });
+          logError(appError, 'AuthContext.onAuthStateChanged');
+          setCurrentUser(null);
         }
       } else {
         setCurrentUser(null)
+        clearUserContext();
       }
 
       setLoading(false)
@@ -55,8 +69,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await authService.login(email, password)
       setCurrentUser(userData)
+      
+      // Set user context for error tracking
+      setUserContext({
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+      });
     } catch (error) {
-      throw error
+      // Error is already handled in authService, just re-throw
+      throw error;
     }
   }
 
@@ -64,8 +86,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await authService.logout()
       setCurrentUser(null)
+      clearUserContext();
     } catch (error) {
-      throw error
+      // Log error but don't prevent logout UI update
+      const appError = handleFirebaseError(error as any, {
+        action: 'logout',
+        userId: currentUser?.id,
+      });
+      logError(appError, 'AuthContext.logout');
+      
+      // Still clear user state locally
+      setCurrentUser(null);
+      clearUserContext();
+      
+      throw error;
     }
   }
 
@@ -73,8 +107,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const userData = await authService.register(email, password, name, role as any)
       setCurrentUser(userData)
+      
+      // Set user context for error tracking
+      setUserContext({
+        id: userData.id,
+        email: userData.email,
+        role: userData.role,
+      });
     } catch (error) {
-      throw error
+      // Error is already handled in authService, just re-throw
+      throw error;
     }
   }
 

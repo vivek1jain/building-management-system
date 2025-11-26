@@ -18,6 +18,7 @@ import {
 import { auth, db } from '../firebase/config'
 import { UserInvitation, UserRole, User, PersonStatus } from '../types'
 import { createPeopleEntriesForInvitation } from './peopleService'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 const INVITATIONS_COLLECTION = 'invitations'
 const USERS_COLLECTION = 'users'
@@ -118,9 +119,12 @@ export const createInvitation = async (
       createdAt: new Date(),
       updatedAt: new Date()
     }
-  } catch (error) {
-    console.error('🚨 Error creating invitation:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'createInvitation',
+      email,
+      role,
+    })
   }
 }
 
@@ -171,9 +175,11 @@ export const getInvitation = async (token: string): Promise<UserInvitation | nul
     
     console.log('✅ Invitation found:', invitation.email)
     return invitation
-  } catch (error) {
-    console.error('🚨 Error getting invitation:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getInvitation',
+      token,
+    })
   }
 }
 

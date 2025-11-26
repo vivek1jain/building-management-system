@@ -25,8 +25,9 @@ import {
   ServiceChargeDemand,
   AccountTransaction
 } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 // ===== FLAT LEDGER MANAGEMENT =====
 
@@ -49,8 +50,8 @@ export const createLedgerTransaction = async (
       createdAt: new Date(),
       updatedAt: new Date()
     }
-  } catch (error) {
-    handleServiceError('Error creating ledger transaction:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error creating ledger transaction:', error)
     throw error
   }
 }
@@ -134,8 +135,8 @@ export const getFlatLedgerTransactions = async (
     }
 
     return filteredTransactions
-  } catch (error) {
-    handleServiceError('Error getting flat ledger transactions:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting flat ledger transactions:', error)
     throw error
   }
 }
@@ -307,8 +308,8 @@ export const generateFlatLedgerSummary = async (
       generatedAt: now,
       lastUpdated: now
     }
-  } catch (error) {
-    handleServiceError('Error generating flat ledger summary:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error generating flat ledger summary:', error)
     throw error
   }
 }
@@ -365,8 +366,8 @@ export const syncServiceChargeDemandToLedger = async (
         serviceChargeDemandId: demand.id
       })
     }
-  } catch (error) {
-    handleServiceError('Error syncing service charge demand to ledger:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error syncing service charge demand to ledger:', error)
     throw error
   }
 }
@@ -399,8 +400,8 @@ export const syncPaymentToLedger = async (
       createdBy,
       paymentId: payment.id
     })
-  } catch (error) {
-    handleServiceError('Error syncing payment to ledger:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error syncing payment to ledger:', error)
     throw error
   }
 }
@@ -431,8 +432,8 @@ export const recalculateRunningBalances = async (flatId: string): Promise<void> 
     }
 
     await batch.commit()
-  } catch (error) {
-    handleServiceError('Error recalculating running balances:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error recalculating running balances:', error)
     throw error
   }
 }
@@ -571,8 +572,8 @@ export const generateFlatLedgerReport = async (
       generatedBy,
       reportId: `${flatId}-${Date.now()}`
     }
-  } catch (error) {
-    handleServiceError('Error generating flat ledger report:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error generating flat ledger report:', error)
     throw error
   }
 }

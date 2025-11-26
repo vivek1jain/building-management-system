@@ -1,5 +1,6 @@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { handleFirebaseError } from '../utils/errorHandler'
 
 export interface EmailTemplate {
   subject: string
@@ -125,9 +126,11 @@ class EmailService {
         status: 'pending',
         createdAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error logging email request:', error)
-      throw new Error('Failed to log email request')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'logEmailRequest',
+        supplierEmail: emailData.supplierEmail,
+      })
     }
   }
 
@@ -143,7 +146,7 @@ class EmailService {
       // For now, we'll just simulate success
       
       return true
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending quote request email:', error)
       return false
     }

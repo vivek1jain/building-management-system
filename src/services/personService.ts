@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Person, PersonStatus, UserRole } from '../types'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 const PEOPLE_COLLECTION = 'people'
 
@@ -41,9 +42,10 @@ export const personService = {
           moveOutDate: data.moveOutDate?.toDate()
         } as Person
       })
-    } catch (error) {
-      console.error('Error getting all people:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAllPeople',
+      })
     }
   },
 
@@ -75,9 +77,11 @@ export const personService = {
           moveOutDate: data.moveOutDate?.toDate()
         } as Person
       })
-    } catch (error) {
-      console.error('Error getting people by building:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getPeopleByBuilding',
+        buildingId,
+      })
     }
   },
 
@@ -106,9 +110,11 @@ export const personService = {
         moveInDate: data.moveInDate?.toDate(),
         moveOutDate: data.moveOutDate?.toDate()
       } as Person
-    } catch (error) {
-      console.error('Error getting person by ID:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getPersonById',
+        personId,
+      })
     }
   },
 
@@ -139,9 +145,11 @@ export const personService = {
         moveInDate: data.moveInDate?.toDate(),
         moveOutDate: data.moveOutDate?.toDate()
       } as Person
-    } catch (error) {
-      console.error('Error getting person by email:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getPersonByEmail',
+        email,
+      })
     }
   },
 
@@ -156,13 +164,15 @@ export const personService = {
       
       const createdPerson = await this.getPersonById(docRef.id)
       if (!createdPerson) {
-        throw new Error('Failed to retrieve created person')
+        throw createAppError('ERR-DB-005', { personId: docRef.id })
       }
       
       return createdPerson
-    } catch (error) {
-      console.error('Error creating person:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createPerson',
+        personData,
+      })
     }
   },
 
@@ -174,9 +184,11 @@ export const personService = {
         ...updates,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating person:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updatePerson',
+        personId,
+      })
     }
   },
 
@@ -185,9 +197,11 @@ export const personService = {
     try {
       const docRef = doc(db, PEOPLE_COLLECTION, personId)
       await deleteDoc(docRef)
-    } catch (error) {
-      console.error('Error deleting person:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deletePerson',
+        personId,
+      })
     }
   },
 

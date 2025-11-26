@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Button, Input, Card, CardContent } from '../components/UI'
 import { useAuth } from '../contexts/AuthContext'
 import { useNotifications } from '../contexts/NotificationContext'
+import { formatErrorForUser, isAppError } from '../utils/errorHandler'
 
 const Login = () => {
   const [isRegistering, setIsRegistering] = useState(false)
@@ -41,9 +42,12 @@ const Login = () => {
       }
       navigate('/')
     } catch (error: any) {
+      // Use formatted error message with error code
+      const errorMessage = formatErrorForUser(error);
+      
       addNotification({
-        title: isRegistering ? 'Registration failed' : 'Login failed',
-        message: error.message || 'Please check your credentials and try again.',
+        title: isRegistering ? 'Registration Failed' : 'Login Failed',
+        message: errorMessage,
         type: 'error',
         userId: 'current'
       })

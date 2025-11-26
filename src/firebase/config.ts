@@ -5,34 +5,35 @@ import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
 
 
-// Your Firebase configuration
-// Use environment variables for production, fallback to hardcoded values for local development
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCU05i5ijemhu5_XOVK5V_QZTWbo8oe05E",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "proper-213b7.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "proper-213b7",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "proper-213b7.firebasestorage.app",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "140820685692",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:140820685692:web:48b92fb67e144c8b27faf9",
-};
+// Validate required environment variables
+const requiredEnvVars = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_AUTH_DOMAIN', 
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_STORAGE_BUCKET',
+  'VITE_FIREBASE_MESSAGING_SENDER_ID',
+  'VITE_FIREBASE_APP_ID'
+];
 
-// Only validate environment variables in production
-if (import.meta.env.PROD) {
-  const requiredEnvVars = [
-    'VITE_FIREBASE_API_KEY',
-    'VITE_FIREBASE_AUTH_DOMAIN', 
-    'VITE_FIREBASE_PROJECT_ID',
-    'VITE_FIREBASE_STORAGE_BUCKET',
-    'VITE_FIREBASE_MESSAGING_SENDER_ID',
-    'VITE_FIREBASE_APP_ID'
-  ];
+const missingVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
 
-  const missingVars = requiredEnvVars.filter(varName => !import.meta.env[varName]);
-
-  if (missingVars.length > 0) {
-    throw new Error(`Missing required Firebase environment variables: ${missingVars.join(', ')}`);
-  }
+if (missingVars.length > 0) {
+  throw new Error(
+    `Missing required Firebase environment variables: ${missingVars.join(', ')}\n` +
+    `Please ensure you have a .env.local file with all required variables.\n` +
+    `See .env.example for the required format.`
+  );
 }
+
+// Firebase configuration from environment variables
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);

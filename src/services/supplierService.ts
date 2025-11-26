@@ -14,6 +14,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
 import { Supplier, Quote, QuoteForm } from '../types'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 class SupplierService {
   private suppliersCollection = collection(db, 'suppliers')
@@ -29,9 +30,10 @@ class SupplierService {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Supplier[]
-    } catch (error) {
-      console.error('Error fetching suppliers:', error)
-      throw new Error('Failed to fetch suppliers')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getSuppliers',
+      })
     }
   }
 
@@ -50,9 +52,11 @@ class SupplierService {
         } as Supplier
       }
       return null
-    } catch (error) {
-      console.error('Error fetching supplier:', error)
-      throw new Error('Failed to fetch supplier')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getSupplierById',
+        id,
+      })
     }
   }
 
@@ -65,9 +69,11 @@ class SupplierService {
         updatedAt: serverTimestamp()
       })
       return docRef.id
-    } catch (error) {
-      console.error('Error creating supplier:', error)
-      throw new Error('Failed to create supplier')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createSupplier',
+        supplierData,
+      })
     }
   }
 
@@ -79,9 +85,11 @@ class SupplierService {
         ...updates,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating supplier:', error)
-      throw new Error('Failed to update supplier')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateSupplier',
+        id,
+      })
     }
   }
 
@@ -100,9 +108,11 @@ class SupplierService {
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date()
       })) as Supplier[]
-    } catch (error) {
-      console.error('Error fetching suppliers by specialty:', error)
-      throw new Error('Failed to fetch suppliers by specialty')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getSuppliersBySpecialty',
+        specialty,
+      })
     }
   }
 
@@ -155,9 +165,12 @@ class SupplierService {
           await emailService.sendQuoteRequestEmail(emailData)
         }
       }
-    } catch (error) {
-      console.error('Error requesting quotes:', error)
-      throw new Error('Failed to request quotes')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'requestQuotes',
+        ticketId,
+        supplierCount: supplierIds.length,
+      })
     }
   }
 
@@ -189,9 +202,12 @@ class SupplierService {
 
       const docRef = await addDoc(this.quotesCollection, quoteDoc)
       return docRef.id
-    } catch (error) {
-      console.error('Error submitting quote:', error)
-      throw new Error('Failed to submit quote')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'submitQuote',
+        ticketId,
+        supplierId,
+      })
     }
   }
 
@@ -210,9 +226,11 @@ class SupplierService {
         submittedAt: doc.data().submittedAt?.toDate() || new Date(),
         validUntil: doc.data().validUntil?.toDate() || new Date()
       })) as Quote[]
-    } catch (error) {
-      console.error('Error fetching quotes:', error)
-      throw new Error('Failed to fetch quotes')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getQuotesForTicket',
+        ticketId,
+      })
     }
   }
 
@@ -224,9 +242,12 @@ class SupplierService {
         status,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating quote status:', error)
-      throw new Error('Failed to update quote status')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateQuoteStatus',
+        quoteId,
+        status,
+      })
     }
   }
 

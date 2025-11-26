@@ -1,6 +1,7 @@
 import { BuildingEvent, Ticket } from '../types';
 import { eventService } from './eventService';
 import { ticketService } from './ticketService';
+import { handleFirebaseError } from '../utils/errorHandler';
 
 export const ticketEventService = {
   // Create an event when a ticket is scheduled
@@ -28,13 +29,9 @@ export const ticketEventService = {
 
       const event = await eventService.createEvent(eventData);
       return event;
-    } catch (error) {
-      console.error('❌ Failed to create event for scheduled ticket:', {
-        ticketId: ticket.id,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      });
-      // Don't throw error - scheduling should still work even if event creation fails
+    } catch (error: any) {
+      // Log but don't throw - scheduling should still work even if event creation fails
+      console.warn('Failed to create event for scheduled ticket:', error);
       return null;
     }
   },
@@ -61,9 +58,9 @@ export const ticketEventService = {
           endDate: newEndDate
         });
       }
-    } catch (error) {
-      console.error('Failed to update event for rescheduled ticket:', error);
-      // Don't throw error - rescheduling should still work even if event update fails
+    } catch (error: any) {
+      // Log but don't throw - rescheduling should still work even if event update fails
+      console.warn('Failed to update event for rescheduled ticket:', error);
     }
   },
 
@@ -79,9 +76,9 @@ export const ticketEventService = {
           status: 'completed'
         });
       }
-    } catch (error) {
-      console.error('Failed to complete event for ticket:', error);
-      // Don't throw error - ticket completion should still work
+    } catch (error: any) {
+      // Log but don't throw - ticket completion should still work
+      console.warn('Failed to complete event for ticket:', error);
     }
   },
 
@@ -97,9 +94,9 @@ export const ticketEventService = {
           status: 'cancelled'
         });
       }
-    } catch (error) {
-      console.error('Failed to cancel event for ticket:', error);
-      // Don't throw error - ticket cancellation should still work
+    } catch (error: any) {
+      // Log but don't throw - ticket cancellation should still work
+      console.warn('Failed to cancel event for ticket:', error);
     }
   }
 };

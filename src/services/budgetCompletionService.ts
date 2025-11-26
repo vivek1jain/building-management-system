@@ -21,7 +21,7 @@ import {
   BudgetCompletionSummary,
   BudgetSetupProgress
 } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
 import { budgetReviewService } from './budgetReviewService'
 import { budgetService } from './budgetService'
@@ -141,9 +141,11 @@ export const completeBudgetSetup = async (
     const summary = await generateCompletionSummary(wizardId, createdBudgets, createdCategories)
     
     return summary
-  } catch (error) {
-    handleServiceError('Error completing budget setup:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'completeBudgetSetup',
+      wizardId,
+    })
   }
 }
 
@@ -209,9 +211,11 @@ export const generateCompletionSummary = async (
         ? Math.round((wizard.completedAt.getTime() - wizard.createdAt.getTime()) / (1000 * 60)) // minutes
         : undefined
     }
-  } catch (error) {
-    handleServiceError('Error generating completion summary:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'generateCompletionSummary',
+      wizardId,
+    })
   }
 }
 

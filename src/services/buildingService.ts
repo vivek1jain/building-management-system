@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Building, Asset, Meter, AssetStatus, UserRole } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
 import { getUserBuildingIds } from './peopleService'
 
@@ -73,12 +73,12 @@ export const getAllBuildings = async (userId?: string, userRole?: UserRole): Pro
     
     // Sort by name in memory
     return filteredBuildings.sort((a, b) => a.name.localeCompare(b.name))
-    } catch (error) {
-      handleServiceError('Error getting all buildings', error, {
-        service: 'buildingService',
-        operation: 'getAllBuildings'
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAllBuildings',
+        userId,
+        userRole,
       })
-      throw error
     }
 }
 
@@ -101,12 +101,11 @@ export const createBuilding = async (buildingData: Omit<Building, 'id' | 'create
       createdAt: new Date(),
       updatedAt: new Date()
     }
-  } catch (error) {
-    handleServiceError('Error creating building', error, {
-      service: 'buildingService',
-      operation: 'createBuilding'
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'createBuilding',
+      buildingData,
     })
-    throw error
   }
 }
 
@@ -118,13 +117,11 @@ export const updateBuilding = async (buildingId: string, buildingData: Partial<O
       ...buildingData,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      handleServiceError('Error updating building', error, {
-        service: 'buildingService',
-        operation: 'updateBuilding',
-        metadata: { buildingId }
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateBuilding',
+        buildingId,
       })
-      throw error
     }
 }
 
@@ -133,13 +130,11 @@ export const deleteBuilding = async (buildingId: string): Promise<void> => {
     try {
     const buildingRef = doc(db, 'buildings', buildingId)
     await deleteDoc(buildingRef)
-    } catch (error) {
-      handleServiceError('Error deleting building', error, {
-        service: 'buildingService',
-        operation: 'deleteBuilding',
-        metadata: { buildingId }
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteBuilding',
+        buildingId,
       })
-      throw error
     }
 }
 
@@ -187,13 +182,11 @@ export const getAssetsByBuilding = async (buildingId: string): Promise<Asset[]> 
     
     // Sort by name in memory
     return assets.sort((a, b) => a.name.localeCompare(b.name))
-  } catch (error) {
-    handleServiceError('Error getting assets by building', error, {
-      service: 'buildingService',
-      operation: 'getAssetsByBuilding',
-      metadata: { buildingId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getAssetsByBuilding',
+      buildingId,
     })
-    throw error
   }
 }
 
@@ -216,12 +209,11 @@ export const createAsset = async (assetData: Omit<Asset, 'id' | 'createdAt' | 'u
       createdAt: new Date(),
       updatedAt: new Date()
     }
-    } catch (error) {
-      handleServiceError('Error creating asset', error, {
-        service: 'buildingService',
-        operation: 'createAsset'
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createAsset',
+        assetData,
       })
-      throw error
     }
 }
 
@@ -233,13 +225,11 @@ export const updateAsset = async (assetId: string, assetData: Partial<Omit<Asset
       ...assetData,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      handleServiceError('Error updating asset', error, {
-        service: 'buildingService',
-        operation: 'updateAsset',
-        metadata: { assetId }
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateAsset',
+        assetId,
       })
-      throw error
     }
 }
 
@@ -248,13 +238,11 @@ export const deleteAsset = async (assetId: string): Promise<void> => {
     try {
     const assetRef = doc(db, 'assets', assetId)
     await deleteDoc(assetRef)
-    } catch (error) {
-      handleServiceError('Error deleting asset', error, {
-        service: 'buildingService',
-        operation: 'deleteAsset',
-        metadata: { assetId }
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteAsset',
+        assetId,
       })
-      throw error
     }
 }
 
@@ -293,13 +281,11 @@ export const getMetersByBuilding = async (buildingId: string): Promise<Meter[]> 
       if (typeComparison !== 0) return typeComparison
       return a.meterNumber.localeCompare(b.meterNumber)
     })
-  } catch (error) {
-    handleServiceError('Error getting meters by building', error, {
-      service: 'buildingService',
-      operation: 'getMetersByBuilding',
-      metadata: { buildingId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getMetersByBuilding',
+      buildingId,
     })
-    throw error
   }
 }
 
@@ -327,13 +313,11 @@ export const getBuildingStats = async (buildingId: string) => {
     }
     
     return stats
-    } catch (error) {
-      handleServiceError('Error getting building stats', error, {
-        service: 'buildingService',
-        operation: 'getBuildingStats',
-        metadata: { buildingId }
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getBuildingStats',
+        buildingId,
       })
-      throw error
     }
 }
 

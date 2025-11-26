@@ -104,12 +104,55 @@ src/
    - Copy config to `src/firebase/config.ts`
 
 4. **Environment Variables**
-   Create `.env`:
-   ```
+   Create `.env.local` (copy from `.env.example`):
+   ```bash
+   # Required
    VITE_FIREBASE_API_KEY=your-api-key
    VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
    VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+   VITE_FIREBASE_APP_ID=your-app-id
+   
+   # Optional - App Check (recommended for production)
+   VITE_FIREBASE_RECAPTCHA_SITE_KEY=your-recaptcha-site-key
+   
+   # Optional - Sentry error monitoring
+   VITE_SENTRY_DSN=your-sentry-dsn
+   VITE_SENTRY_ENVIRONMENT=production
    ```
+
+5. **Firebase App Check Setup** (Recommended for Production)
+   
+   App Check protects your backend from abuse by verifying requests come from your app.
+   
+   **Steps**:
+   
+   a. **Enable App Check in Firebase Console**:
+      - Go to https://console.firebase.google.com/project/YOUR_PROJECT/appcheck
+      - Click "Get Started"
+      - Select "reCAPTCHA v3" as provider
+      - Register your domain
+      - Copy the reCAPTCHA site key
+   
+   b. **Add site key to environment**:
+      ```bash
+      VITE_FIREBASE_RECAPTCHA_SITE_KEY=your_site_key_here
+      ```
+   
+   c. **Enable enforcement** (after testing):
+      - In Firebase Console → App Check
+      - Enable enforcement for Firestore and Storage
+      - Start with "Unenforced" mode to test
+   
+   d. **Development mode**:
+      - App Check automatically uses debug tokens in development
+      - Check browser console for debug token
+      - Add debug token in Firebase Console for local testing
+   
+   **Files**:
+   - `src/firebase/appCheck.ts` - App Check initialization
+   - `src/main.tsx` - Auto-initializes on app start
 
 ### Development
 ```bash
@@ -486,6 +529,124 @@ npm run build
 npm run build:staging
 ```
 
+### Vercel Deployment
+
+**Quick Deploy**:
+1. Connect GitHub repo to Vercel
+2. Framework: Vite
+3. Build Command: `npm run build`
+4. Output Directory: `dist`
+
+**Environment Variables** (Vercel Dashboard → Settings → Environment Variables):
+```bash
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+VITE_FIREBASE_RECAPTCHA_SITE_KEY=your_recaptcha_key
+```
+
+**Firebase Auth Setup**:
+- Add Vercel domain to Firebase Console → Authentication → Authorized domains
+
+**Custom Domain** (Optional):
+- Vercel Dashboard → Settings → Domains → Add custom domain
+- Configure DNS as instructed
+
+### CI/CD with GitHub Actions
+
+**Workflow** (`.github/workflows/tdd-workflow.yml`):
+- Quick regression tests (2 min)
+- Full baseline tests (10 min)
+- Cross-browser testing
+- Performance checks
+- Auto-deployment to Firebase
+
+**Required Secrets** (GitHub Settings → Secrets):
+```
+FIREBASE_SERVICE_ACCOUNT=<firebase-service-account-json>
+```
+
+**Get Service Account**:
+1. Firebase Console → Project Settings → Service Accounts
+2. Generate new private key
+3. Copy entire JSON as secret value
+
+**Local Testing Before Push**:
+```bash
+npm run test:quick      # Fast regression
+npm run test:baseline   # Comprehensive
+```
+
+### Email Configuration
+
+**Setup for Cloud Functions**:
+
+1. **Enable 2FA on Gmail**:
+   - Google Account → Security → 2-Step Verification
+
+2. **Generate App Password**:
+   - Security → App passwords → Generate
+   - Copy 16-character password
+
+3. **Set Firebase Config**:
+   ```bash
+   firebase functions:config:set email.user="your@email.com"
+   firebase functions:config:set email.password="app_password"
+   firebase deploy --only functions
+   ```
+
+**Email Templates**:
+- Quote requests
+- Invitation emails
+- Status notifications
+
+**Features**:
+- Professional HTML templates
+- Email status tracking in `emailLogs` collection
+- SendGrid integration option
+
+### Monitoring & Observability
+
+**Sentry Error Tracking** (Optional but Recommended):
+
+1. **Setup**:
+   ```bash
+   npm install @sentry/react
+   ```
+
+2. **Configuration** (`.env.local`):
+   ```bash
+   VITE_SENTRY_DSN=https://YOUR_KEY@sentry.io/PROJECT_ID
+   VITE_SENTRY_ENVIRONMENT=production
+   ```
+
+3. **Features Enabled**:
+   - Automatic error capture
+   - Performance monitoring (10% sample rate)
+   - Session replay (10% sessions, 100% errors)
+   - User context tracking
+
+4. **Usage**:
+   ```typescript
+   import { captureException } from '../utils/sentry';
+   
+   try {
+     await riskyOperation();
+   } catch (error) {
+     captureException(error as Error, { context: 'operation' });
+   }
+   ```
+
+**Firebase Performance Monitoring**:
+- Enable in Firebase Console → Performance
+- Automatic tracking of:
+  - Page load times
+  - Network requests
+  - Custom traces
+
 ### Post-Deployment Checklist
 - [ ] Verify authentication works
 - [ ] Test role-based access
@@ -493,6 +654,8 @@ npm run build:staging
 - [ ] Verify email invitations send
 - [ ] Test on mobile devices
 - [ ] Check console for errors
+- [ ] Confirm Sentry receiving errors (if enabled)
+- [ ] Verify App Check tokens generating
 
 ---
 
@@ -505,7 +668,16 @@ npm run build:staging
 - Should migrate to `flatLedgerService.ts`
 - See: `docs/SERVICE_MIGRATION_GUIDE.md`
 
-**2. Mock Data Fallbacks**
+**2. Financial Data Access Permissions**
+- Current: Any resident with flat assignment can view payment data
+- Acceptable for MVP/initial launch
+- Future Enhancement: Add `canViewFinancials` boolean to Person type
+  - Default true for isPrimaryContact/owners
+  - Default false for other residents (tenants, occupants)
+  - Allow admins to grant/revoke per person
+- Implementation: Add check in ResidentPayments.tsx before loading data
+
+**3. Mock Data Fallbacks**
 - Some components have hardcoded fallback data
 - Should be removed per user preference
 - Causes confusion during testing

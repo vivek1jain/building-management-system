@@ -9,6 +9,7 @@ import {
 import { db } from '../firebase/config'
 import { User, Building, Person } from '../types'
 import { fromFirestoreTimestamp } from '../utils/firestore'
+import { handleFirebaseError } from '../utils/errorHandler'
 
 const USERS_COLLECTION = 'users'
 
@@ -65,14 +66,9 @@ export const getAllUsers = async (): Promise<User[]> => {
     console.log(`👥 Loaded ${users.length} users`)
     return users
   } catch (error: any) {
-    console.error('🚨 Error fetching users:', error)
-    console.error('🚨 Error details:', {
-      message: error?.message,
-      code: error?.code,
-      name: error?.name,
-      stack: error?.stack
+    throw handleFirebaseError(error, {
+      action: 'getAllUsers',
     })
-    throw error
   }
 }
 
@@ -81,9 +77,11 @@ export const getUsersByRole = async (role: string): Promise<User[]> => {
   try {
     const users = await getAllUsers()
     return users.filter(user => user.role === role)
-  } catch (error) {
-    console.error('🚨 Error fetching users by role:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getUsersByRole',
+      role,
+    })
   }
 }
 

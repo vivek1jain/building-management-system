@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { User, UserRole } from '../types'
+import { handleFirebaseError } from '../utils/errorHandler'
 
 const USERS_COLLECTION = 'users'
 
@@ -36,9 +37,12 @@ export const updateUserStatus = async (
     
     await updateDoc(userRef, updateData)
     console.log(`✅ User ${isActive ? 'activated' : 'deactivated'} successfully`)
-  } catch (error) {
-    console.error('🚨 Error updating user status:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateUserStatus',
+      userId,
+      isActive,
+    })
   }
 }
 
@@ -57,9 +61,12 @@ export const updateUserRole = async (
     })
     
     console.log('✅ User role updated successfully')
-  } catch (error) {
-    console.error('🚨 Error updating user role:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateUserRole',
+      userId,
+      role,
+    })
   }
 }
 
@@ -82,9 +89,11 @@ export const updateUserProfile = async (
     })
     
     console.log('✅ User profile updated successfully')
-  } catch (error) {
-    console.error('🚨 Error updating user profile:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateUserProfile',
+      userId,
+    })
   }
 }
 
@@ -121,9 +130,11 @@ export const updateUser = async (
     
     await updateDoc(userRef, updateData)
     console.log('✅ User updated successfully')
-  } catch (error) {
-    console.error('🚨 Error updating user:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateUser',
+      userId,
+    })
   }
 }
 
@@ -158,9 +169,11 @@ export const deleteUser = async (userId: string): Promise<void> => {
     await deleteDoc(userRef)
     console.log('✅ User document deleted successfully')
     console.warn('⚠️ Note: Firebase Auth account still exists. User can still authenticate but will have no profile.')
-  } catch (error) {
-    console.error('🚨 Error deleting user:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'deleteUser',
+      userId,
+    })
   }
 }
 

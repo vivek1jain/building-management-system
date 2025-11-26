@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Budget, BudgetStatus, User } from '../types';
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
 import { budgetService } from './budgetService';
 
@@ -168,9 +168,11 @@ class BudgetApprovalWorkflowService {
       await this.sendApprovalNotifications(savedRequest, 'approval_request');
 
       return savedRequest;
-    } catch (error) {
-      handleServiceError('Error submitting budget for approval:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'submitBudgetForApproval',
+        budgetId,
+      })
     }
   }
 
@@ -265,9 +267,11 @@ class BudgetApprovalWorkflowService {
       });
 
       return approvalRequest;
-    } catch (error) {
-      handleServiceError('Error reviewing budget approval:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'reviewBudgetApproval',
+        approvalRequestId,
+      })
     }
   }
 
@@ -300,9 +304,11 @@ class BudgetApprovalWorkflowService {
           approver.userId === userId && approver.status === 'pending'
         )
       );
-    } catch (error) {
-      handleServiceError('Error getting approval requests for user:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getApprovalRequestsForUser',
+        userId,
+      })
     }
   }
 
@@ -327,9 +333,11 @@ class BudgetApprovalWorkflowService {
       })) as BudgetApprovalRequest[];
 
       return history.slice(0, limit);
-    } catch (error) {
-      handleServiceError('Error getting approval history:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getApprovalHistory',
+        buildingId,
+      })
     }
   }
 
@@ -365,9 +373,10 @@ class BudgetApprovalWorkflowService {
           }
         }
       }
-    } catch (error) {
-      handleServiceError('Error escalating overdue approvals:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'escalateOverdueApprovals',
+      })
     }
   }
 
@@ -422,9 +431,9 @@ class BudgetApprovalWorkflowService {
           conditions: ['no_rate_increase', 'within_historical_range']
         }
       };
-    } catch (error) {
-      handleServiceError('Error getting approval workflow config:', error);
-      // Return minimal default config
+    } catch (error: any) {
+      // Return minimal default config on error - don't throw
+      console.warn('Could not get approval workflow config, using defaults:', error);
       return {
         buildingId,
         levels: [{

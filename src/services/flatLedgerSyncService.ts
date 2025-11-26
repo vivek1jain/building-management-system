@@ -16,9 +16,10 @@ import {
   ServiceChargeDemand,
   PaymentRecord
 } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
 import { flatLedgerService } from './flatLedgerService'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 /**
  * Orchestration service for flat ledger syncing
@@ -42,8 +43,8 @@ export const syncDemandFromServiceCharge = async (
   try {
     await flatLedgerService.syncServiceChargeDemandToLedger(demand, createdBy)
     await flatLedgerService.recalculateRunningBalances(demand.flatId)
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to sync demand', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to sync demand', {
       demandId: demand.id,
       flatId: demand.flatId,
       error
@@ -96,8 +97,8 @@ export const recordPaymentForDemand = async (params: {
     
     // Recalculate running balances
     await flatLedgerService.recalculateRunningBalances(demand.flatId)
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to record payment', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to record payment', {
       demandId: demand.id,
       flatId: demand.flatId,
       amount,
@@ -150,8 +151,8 @@ export const reverseServiceChargeDemand = async (
     
     // Recalculate running balances
     await flatLedgerService.recalculateRunningBalances(demand.flatId)
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to reverse demand', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to reverse demand', {
       demandId: demand.id,
       flatId: demand.flatId,
       error
@@ -196,8 +197,8 @@ export const applyCreditToFlat = async (params: {
     
     // Recalculate running balances
     await flatLedgerService.recalculateRunningBalances(flatId)
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to apply credit', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to apply credit', {
       flatId,
       flatNumber,
       amount,
@@ -214,8 +215,8 @@ export const applyCreditToFlat = async (params: {
 export const recalcAndSnapshotFlat = async (flatId: string): Promise<void> => {
   try {
     await flatLedgerService.recalculateRunningBalances(flatId)
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to recalculate balances', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to recalculate balances', {
       flatId,
       error
     })
@@ -262,8 +263,8 @@ export const getStatementDataForFlat = async (
       summary,
       transactions
     }
-  } catch (error) {
-    handleServiceError('[LedgerStatement] ❌ Failed to fetch statement data', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerStatement] ❌ Failed to fetch statement data', {
       flatId,
       flatNumber,
       error
@@ -321,8 +322,8 @@ export const getFlatBalancesForBuilding = async (
     })
     
     return balances
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to fetch flat balances', { buildingId, error })
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to fetch flat balances', { buildingId, error })
     throw error
   }
 }
@@ -357,8 +358,8 @@ export const clearFlatLedgerForBuilding = async (
       await batch.commit()
       deletedCount += batchDocs.length
     }
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Failed to clear ledger', { buildingId, error })
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Failed to clear ledger', { buildingId, error })
     throw error
   }
 }
@@ -403,7 +404,7 @@ export const backfillDemandsToLedger = async (
               })
               syncedPayments++
             } catch (paymentError) {
-              handleServiceError('[LedgerSync] Failed to backfill payment', {
+              handleFirebaseError('[LedgerSync] Failed to backfill payment', {
                 demandId: demand.id,
                 paymentId: payment.paymentId,
                 error: paymentError
@@ -412,16 +413,16 @@ export const backfillDemandsToLedger = async (
             }
           }
         }
-      } catch (error) {
-        handleServiceError('[LedgerSync] Failed to backfill demand', {
+      } catch (error: any) {
+        handleFirebaseError('[LedgerSync] Failed to backfill demand', {
           demandId: demand.id,
           error
         })
         errors++
       }
     }
-  } catch (error) {
-    handleServiceError('[LedgerSync] ❌ Backfill failed', {
+  } catch (error: any) {
+    handleFirebaseError('[LedgerSync] ❌ Backfill failed', {
       buildingId,
       error
     })

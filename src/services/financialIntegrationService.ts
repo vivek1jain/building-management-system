@@ -8,6 +8,7 @@ import { budgetService } from './budgetService'
 import { expenseService } from './expenseService'
 import { getInvoicesByBuilding } from './invoiceService'
 import { getServiceChargeDemands } from './serviceChargeService'
+import { handleFirebaseError } from '../utils/errorHandler'
 
 /**
  * Service to integrate financial data across all tabs
@@ -57,9 +58,11 @@ export class FinancialIntegrationService {
         },
         netPosition: totalServiceChargeIncome - (totalExpenses + totalInvoices)
       }
-    } catch (error) {
-      console.error('Error getting financial overview:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getFinancialOverview',
+        buildingId,
+      })
     }
   }
 
@@ -83,9 +86,11 @@ export class FinancialIntegrationService {
         variance: actualAmount - budgetedAmount,
         collectionRate: totalDemanded > 0 ? (actualAmount / totalDemanded) * 100 : 0
       }
-    } catch (error) {
-      console.error('Error getting service charge impact:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getServiceChargeImpact',
+        buildingId,
+      })
     }
   }
 }

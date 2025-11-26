@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
 import { Person, PersonStatus, UserRole } from '../types'
-import { handleServiceError } from '../utils/errorHandling';
+import { handleFirebaseError } from '../utils/errorHandler';
 import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 // Get all people for a building
@@ -57,9 +57,11 @@ export const getPeopleByBuilding = async (buildingId: string): Promise<Person[]>
     
     // Sort by name
     return people.sort((a, b) => a.name.localeCompare(b.name))
-  } catch (error) {
-    console.error('Error getting people by building:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getPeopleByBuilding',
+      buildingId,
+    })
   }
 }
 
@@ -100,15 +102,11 @@ export const createPerson = async (personData: Omit<Person, 'id' | 'createdAt' |
       createdAt: new Date(),
       updatedAt: new Date()
     }
-  } catch (error) {
-    console.error('🚨 Detailed error creating person:')
-    console.error('🚨 Error object:', error)
-    console.error('🚨 Error message:', error.message)
-    console.error('🚨 Error code:', error.code)
-    if (error.details) {
-      console.error('🚨 Error details:', error.details)
-    }
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'createPerson',
+      personData,
+    })
   }
 }
 
@@ -120,9 +118,11 @@ export const updatePerson = async (personId: string, personData: Partial<Omit<Pe
       ...personData,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    console.error('Error updating person:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updatePerson',
+      personId,
+    })
   }
 }
 
@@ -173,9 +173,11 @@ export const getPeopleStats = async (buildingId: string) => {
     })
     
     return stats
-  } catch (error) {
-    console.error('Error getting people stats:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getPeopleStats',
+      buildingId,
+    })
   }
 }
 
@@ -193,9 +195,11 @@ export const bulkUpdatePeople = async (updates: { id: string; data: Partial<Pers
     })
     
     await batch.commit()
-  } catch (error) {
-    console.error('Error bulk updating people:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'bulkUpdatePeople',
+      count: updates.length,
+    })
   }
 }
 

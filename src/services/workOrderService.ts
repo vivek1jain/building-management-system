@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { WorkOrder, WorkOrderStatus, WorkOrderPriority } from '../types'
-import { handleServiceError } from '../utils/errorHandling';
+import { handleFirebaseError } from '../utils/errorHandler';
 import { expenseService } from './expenseService'
 import { fromFirestoreTimestamp } from '../utils/firestore';
 
@@ -86,9 +86,11 @@ export const getWorkOrdersByBuilding = async (buildingId: string): Promise<WorkO
     })
     
     return workOrders
-  } catch (error) {
-    handleServiceError('Error fetching work orders by building:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getWorkOrdersByBuilding',
+      buildingId,
+    })
   }
 }
 
@@ -146,9 +148,10 @@ export const getAllWorkOrders = async (): Promise<WorkOrder[]> => {
     })
     
     return workOrders
-  } catch (error) {
-    handleServiceError('Error fetching all work orders:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getAllWorkOrders',
+    })
   }
 }
 

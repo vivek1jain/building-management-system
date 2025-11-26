@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Invoice, InvoiceStatus, PaymentStatus } from '../types'
-import { handleServiceError } from '../utils/errorHandling';
+import { handleFirebaseError } from '../utils/errorHandler';
 import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 // Get all invoices for a building
@@ -57,9 +57,11 @@ export const getInvoicesByBuilding = async (buildingId: string): Promise<Invoice
     
     // Sort by creation date (newest first) in memory
     return invoices.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    } catch (error) {
-      console.error('Error getting invoices by building:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getInvoicesByBuilding',
+        buildingId,
+      })
     }
 }
 
@@ -110,9 +112,11 @@ export const getInvoiceStats = async (buildingId: string) => {
     })
     
     return stats
-    } catch (error) {
-      console.error('Error getting invoice stats:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getInvoiceStats',
+        buildingId,
+      })
     }
 }
 

@@ -12,7 +12,8 @@ import {
   writeBatch
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { 
+import { handleFirebaseError } from '../utils/errorHandler'
+import {
   BudgetSetupWizard,
   BudgetSetupStep,
   BudgetSetupStatus,
@@ -59,9 +60,11 @@ export const createBudgetSetupWizard = async (
     })
 
     return docRef.id
-  } catch (error) {
-    console.error('Error creating budget setup wizard:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'createBudgetSetupWizard',
+      buildingId,
+    })
   }
 }
 
@@ -89,9 +92,11 @@ export const getBudgetSetupWizard = async (wizardId: string): Promise<BudgetSetu
       rolledBackAt: data.rolledBackAt?.toDate?.() || null,
       archivedAt: data.archivedAt?.toDate?.() || null
     } as BudgetSetupWizard
-  } catch (error) {
-    console.error('Error getting budget setup wizard:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getBudgetSetupWizard',
+      wizardId,
+    })
   }
 }
 
@@ -105,9 +110,11 @@ export const updateBudgetSetupWizard = async (
       ...updates,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    console.error('Error updating budget setup wizard:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateBudgetSetupWizard',
+      wizardId,
+    })
   }
 }
 

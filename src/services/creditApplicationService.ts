@@ -22,8 +22,9 @@ import {
   ServiceChargeDemand,
   ServiceChargeDemandStatus
 } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 import { 
   getResidentAccountByFlatId, 
   addAccountTransaction, 
@@ -244,8 +245,8 @@ export const applyCreditToDemand = async (
     // Return the updated demand
     return updatedDemand
     
-  } catch (error) {
-    handleServiceError('Error applying credit to demand:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error applying credit to demand:', error)
     throw error
   }
 }
@@ -285,8 +286,8 @@ export const applyCreditsToNewDemands = async (
     
     return updatedDemands
     
-  } catch (error) {
-    handleServiceError('Error applying credits to demands:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error applying credits to demands:', error)
     throw error
   }
 }
@@ -459,8 +460,8 @@ export const manuallyApplyCreditToDemand = async (
     // Return the updated demand
     return updatedDemand
     
-  } catch (error) {
-    handleServiceError('Error manually applying credit to demand:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error manually applying credit to demand:', error)
     throw error
   }
 }
@@ -517,8 +518,8 @@ export const getCreditApplicationHistory = async (buildingId: string): Promise<C
     
     return creditApplications
     
-  } catch (error) {
-    handleServiceError('Error getting credit application history:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting credit application history:', error)
     throw error
   }
 }

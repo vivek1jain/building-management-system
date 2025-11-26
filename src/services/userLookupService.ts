@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '../firebase/config';
 import { Person } from '../types';
+import { handleFirebaseError } from '../utils/errorHandler';
 
 // In-memory cache to avoid repeated Firestore queries
 const userCache = new Map<string, string>();
@@ -48,11 +49,11 @@ export const getUserDisplayName = async (uid: string): Promise<string> => {
     userCache.set(uid, fallback);
     return fallback;
     
-  } catch (error) {
-    console.error('Error getting user display name:', error);
-    // Return a safe fallback on error
+  } catch (error: any) {
+    // Return a safe fallback on error - don't throw since this is used in UI rendering
     const fallback = `User ${uid.substring(0, 8)}...`;
     userCache.set(uid, fallback);
+    console.warn('Could not get user display name:', error);
     return fallback;
   }
 };
@@ -104,9 +105,9 @@ export const getUserDisplayNames = async (uids: string[]): Promise<Record<string
         }
       }
       
-    } catch (error) {
-      console.error('Error getting multiple user display names:', error);
-      // Provide fallbacks for all uncached UIDs on error
+    } catch (error: any) {
+      // Provide fallbacks for all uncached UIDs on error - don't throw since this is used in UI rendering
+      console.warn('Could not get multiple user display names:', error);
       for (const uid of uncachedUids) {
         const fallback = `User ${uid.substring(0, 8)}...`;
         result[uid] = fallback;

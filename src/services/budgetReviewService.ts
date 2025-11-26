@@ -12,7 +12,8 @@ import {
   writeBatch
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
-import { 
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
+import {
   BudgetSetupWizard,
   BudgetSetupStep,
   BudgetSetupStatus,
@@ -85,9 +86,11 @@ export const generateReviewSummary = async (
       isReadyForApproval: yearSummaries.every(year => year.isComplete),
       generatedAt: new Date()
     }
-  } catch (error) {
-    console.error('Error generating review summary:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'generateReviewSummary',
+      wizardId,
+    })
   }
 }
 
@@ -183,9 +186,11 @@ export const validateBudgetAllocations = async (
       suggestions,
       validatedAt: new Date()
     };
-  } catch (error) {
-    console.error('Error validating budget allocations:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'validateBudgetAllocations',
+      wizardId,
+    })
   }
 }
 

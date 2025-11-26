@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { QuoteRequest, QuoteRequestStatus } from '../types'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 const TICKETS_COLLECTION = 'tickets'
 
@@ -77,9 +78,12 @@ export const quoteRequestService = {
       })
       
       
-    } catch (error) {
-      console.error('❌ Error requesting quotes:', error)
-      throw new Error('Failed to request quotes from suppliers')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'requestQuotes',
+        ticketId,
+        supplierCount: supplierIds.length,
+      })
     }
   },
 
@@ -132,9 +136,12 @@ export const quoteRequestService = {
       })
       
       
-    } catch (error) {
-      console.error('❌ Error updating quote amount:', error)
-      throw new Error('Failed to update quote amount')
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateQuoteAmount',
+        ticketId,
+        supplierId,
+      })
     }
   },
 

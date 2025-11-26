@@ -30,50 +30,44 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
-      // Allow demo user creation without authentication (for testing)
-      allow create: if true;
-      
       // Users can read and write their own data
-      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      allow read, update: if isAuthenticated() && request.auth.uid == userId;
       
-      // TEMPORARILY RELAXED: Allow all authenticated users to read all users
-      // (for User Management page and permission checks)
-      // TODO: In production, restrict to admins/managers only
+      // All authenticated users can read user profiles (needed for permission checks and user lookups)
       allow read: if isAuthenticated();
       
-      // Admins and managers can update/delete users
-      allow update, delete: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
+      // System can create users during signup/invitation flows
+      allow create: if request.auth.uid == userId;
+      
+      // Admins and managers can manage users
+      allow update, delete: if canManage();
     }
     
-    // Tickets collection - Role-based access
+    // Tickets collection
     match /tickets/{ticketId} {
-      // Anyone authenticated can read tickets for now (will be restricted in production)
-      // TODO: Restrict to ticket owner (requestedBy) and managers only
+      // All authenticated users can read tickets (managers see all, residents filtered in app layer)
       allow read: if isAuthenticated();
       
-      // Anyone authenticated can create tickets
+      // All authenticated users can create tickets
       allow create: if isAuthenticated();
       
-      // Anyone authenticated can update tickets for now (will be restricted in production)
-      allow update: if isAuthenticated();
+      // Ticket creator and managers can update tickets
+      allow update: if isAuthenticated() && (
+        resource.data.requestedBy == request.auth.uid ||
+        canManage()
+      );
       
       // Only managers can delete tickets
-      allow delete: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
+      allow delete: if canManage();
     }
     
-    // Suppliers collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Suppliers collection
     match /suppliers/{supplierId} {
-      // Allow read and create for development (will be restricted in production)
-      allow read, create: if true;
+      // All authenticated users can read suppliers
+      allow read: if isAuthenticated();
       
-      // Only managers can update and delete suppliers
-      allow update, delete: if isManager();
+      // Managers can manage suppliers
+      allow create, update, delete: if canManage();
     }
     
     // Quotes collection
@@ -90,29 +84,29 @@ service cloud.firestore {
     
     // Building events collection
     match /buildingEvents/{eventId} {
-      // Anyone authenticated can read events
+      // All authenticated users can read events
       allow read: if isAuthenticated();
       
-      // Anyone authenticated can create events (for testing)
-      allow create: if isAuthenticated();
+      // Managers can create events
+      allow create: if canManage();
       
-      // Users can update events they created, or managers can update any
+      // Event assignees and managers can update events
       allow update: if isAuthenticated() && (
         resource.data.assignedTo[request.auth.uid] != null ||
-        isManager()
+        canManage()
       );
       
       // Only managers can delete events
-      allow delete: if isManager();
+      allow delete: if canManage();
     }
     
     // Budgets collection
     match /budgets/{budgetId} {
-      // Anyone authenticated can read budgets
+      // All authenticated users can read budgets
       allow read: if isAuthenticated();
       
-      // TEMPORARILY RELAXED FOR DEVELOPMENT - Allow any authenticated user to create/update budgets
-      allow create, update: if isAuthenticated();
+      // Managers can create and update budgets
+      allow create, update: if canManage();
       
       // Only admins can delete budgets
       allow delete: if isAuthenticated() && 
@@ -136,18 +130,18 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Budget Category Masters collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Budget Category Masters collection
     match /budgetCategoryMasters/{categoryMasterId} {
-      // Anyone authenticated can read budget category masters
+      // All authenticated users can read budget category masters
       allow read: if isAuthenticated();
       
-      // DEVELOPMENT: Allow any authenticated user to create and update category masters
-      allow create, update: if isAuthenticated();
+      // Managers can create and update category masters
+      allow create, update: if canManage();
       
-      // Managers and admins can delete category masters
-      allow delete: if isManager() || (isAuthenticated() && 
+      // Only admins can delete category masters
+      allow delete: if isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // Expenses collection
@@ -180,14 +174,13 @@ service cloud.firestore {
     
     // Service Charge Demands collection
     match /serviceChargeDemands/{demandId} {
-      // TEMPORARILY RELAXED: Allow all authenticated users to read demands
-      // TODO: Implement proper flat-based filtering for residents in production
+      // All authenticated users can read demands (residents filtered in app layer by flat)
       allow read: if isAuthenticated();
       
-      // Only admins and managers can create and update service charge demands
+      // Only managers can create and update service charge demands
       allow create, update: if canManage();
       
-      // Only admins and managers can delete service charge demands
+      // Only managers can delete service charge demands
       allow delete: if canManage();
     }
     
@@ -207,18 +200,18 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Buildings collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Buildings collection
     match /buildings/{buildingId} {
-      // Anyone authenticated can read buildings
+      // All authenticated users can read buildings
       allow read: if isAuthenticated();
       
-      // Anyone authenticated can create and update buildings for development
-      allow create, update: if isAuthenticated();
+      // Managers can create and update buildings
+      allow create, update: if canManage();
       
-      // Managers and admins can delete buildings
-      allow delete: if isManager() || (isAuthenticated() && 
+      // Only admins can delete buildings
+      allow delete: if isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
     // Assets collection
@@ -253,44 +246,44 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Income collection - TEMPORARILY RELAXED FOR TESTING
+    // Income collection
     match /income/{incomeId} {
-      // Anyone authenticated can read income entries
+      // All authenticated users can read income entries
       allow read: if isAuthenticated();
       
       // Managers and finance users can create and update income entries
-      allow create, update: if isManager() || (isAuthenticated() && 
+      allow create, update: if canManage() || (isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'finance');
       
-      // TESTING: Allow managers and admins to delete income entries for data cleanup
-      allow delete: if isManager() || (isAuthenticated() && 
+      // Only admins can delete income entries
+      allow delete: if isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Email logs collection - NEW
+    // Email logs collection
     match /emailLogs/{emailLogId} {
-      // Anyone authenticated can read email logs
-      allow read: if isAuthenticated();
+      // Managers can read email logs
+      allow read: if canManage();
       
-      // Anyone authenticated can create email logs (for development)
+      // System can create email logs
       allow create: if isAuthenticated();
       
       // Managers can update and delete email logs
-      allow update, delete: if isManager();
+      allow update, delete: if canManage();
     }
     
-    // Work orders collection - NEW
+    // Work orders collection
     match /workOrders/{workOrderId} {
-      // Anyone authenticated can read work orders
+      // All authenticated users can read work orders
       allow read: if isAuthenticated();
       
-      // Anyone authenticated can create and update work orders (for development)
-      allow create, update: if isAuthenticated();
+      // Managers can create and update work orders
+      allow create, update: if canManage();
       
       // Managers can delete work orders
-      allow delete: if isManager();
+      allow delete: if canManage();
     }
     
     // Expenditure collection - NEW
@@ -328,33 +321,39 @@ service cloud.firestore {
     
     
     
-    // People collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // People collection
     match /people/{personId} {
-      // Anyone authenticated can read people
+      // All authenticated users can read people
       allow read: if isAuthenticated();
       
-      // DEVELOPMENT: Allow any authenticated user to create and update people
-      allow create, update: if isAuthenticated();
+      // Managers can create and update people
+      allow create, update: if canManage();
       
       // Only managers can delete people
-      allow delete: if isManager();
+      allow delete: if canManage();
     }
     
-    // Flat Ledger Transactions collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Flat Ledger Transactions collection
     match /flatLedgerTransactions/{transactionId} {
-      // Anyone authenticated can read, create, and update flat ledger transactions
-      allow read, create, update: if isAuthenticated();
+      // All authenticated users can read flat ledger transactions
+      allow read: if isAuthenticated();
       
-      // Managers and admins can delete flat ledger transactions (for backfill utility)
-      allow delete: if isManager() || (isAuthenticated() && 
+      // Managers can create and update flat ledger transactions
+      allow create, update: if canManage();
+      
+      // Only admins can delete flat ledger transactions
+      allow delete: if isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Resident Account Ledgers collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Resident Account Ledgers collection
     match /residentAccountLedgers/{ledgerId} {
-      // Anyone authenticated can read, create, and update resident account ledgers
-      allow read, create, update: if isAuthenticated();
+      // All authenticated users can read resident account ledgers
+      allow read: if isAuthenticated();
+      
+      // Managers can create and update resident account ledgers
+      allow create, update: if canManage();
       
       // Only admins can delete resident account ledgers
       allow delete: if isAuthenticated() && 
@@ -362,10 +361,13 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Account Transactions collection - TEMPORARILY RELAXED FOR DEVELOPMENT
+    // Account Transactions collection
     match /accountTransactions/{transactionId} {
-      // Anyone authenticated can read, create, and update account transactions
-      allow read, create, update: if isAuthenticated();
+      // All authenticated users can read account transactions
+      allow read: if isAuthenticated();
+      
+      // Managers can create and update account transactions
+      allow create, update: if canManage();
       
       // Only admins can delete account transactions
       allow delete: if isAuthenticated() && 
@@ -373,23 +375,15 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Invitations collection - for user invitation system
+    // Invitations collection
     match /invitations/{invitationId} {
-      // Admins and managers can create and read all invitations
-      allow create: if isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'manager');
+      // Managers can create invitations
+      allow create: if canManage();
       
-      // Allow public read access for invitations (for acceptance page)
-      // Note: This is safe because token is cryptographically secure and single-use
+      // Public read access (needed for invitation acceptance page with secure token)
       allow read: if true;
       
-      // Allow public update for accepting invitations (marking as accepted)
-      // This is safe because:
-      // 1. User must know the secure token to find the invitation
-      // 2. Invitation can only be accepted once (status change to 'accepted')
-      // 3. User account creation is handled by Firebase Auth which is secure
+      // Public update for accepting invitations (secure token validation happens in app)
       allow update: if true;
       
       // Only admins can delete invitations
@@ -398,10 +392,5 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Test collection (for Firebase connection testing)
-    match /test/{testId} {
-      // Anyone authenticated can read and write test documents
-      allow read, write: if isAuthenticated();
-    }
   }
 }

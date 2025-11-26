@@ -14,7 +14,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Flat, Person, ServiceChargeDemand } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
 
 // Get all flats for a building
@@ -45,13 +45,11 @@ export const getFlatsByBuilding = async (buildingId: string): Promise<Flat[]> =>
     
     // Sort by flat number
     return flats.sort((a, b) => a.flatNumber.localeCompare(b.flatNumber))
-  } catch (error) {
-    handleServiceError('Error getting flats by building', error, {
-      service: 'flatService',
-      operation: 'getFlatsByBuilding',
-      metadata: { buildingId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getFlatsByBuilding',
+      buildingId,
     })
-    throw error
   }
 }
 
@@ -80,13 +78,11 @@ export const getFlatById = async (flatId: string): Promise<Flat | null> => {
     }
     
     return null
-  } catch (error) {
-    handleServiceError('Error getting flat by ID', error, {
-      service: 'flatService',
-      operation: 'getFlatById',
-      metadata: { flatId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getFlatById',
+      flatId,
     })
-    throw error
   }
 }
 
@@ -108,13 +104,11 @@ export const createFlat = async (flatData: Omit<Flat, 'id' | 'createdAt' | 'upda
       createdAt: new Date(),
       updatedAt: new Date()
     }
-  } catch (error) {
-    handleServiceError('Error creating flat', error, {
-      service: 'flatService',
-      operation: 'createFlat',
-      metadata: { flatNumber: flatData.flatNumber }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'createFlat',
+      flatData,
     })
-    throw error
   }
 }
 
@@ -126,13 +120,11 @@ export const updateFlat = async (flatId: string, flatData: Partial<Omit<Flat, 'i
       ...flatData,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    handleServiceError('Error updating flat', error, {
-      service: 'flatService',
-      operation: 'updateFlat',
-      metadata: { flatId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'updateFlat',
+      flatId,
     })
-    throw error
   }
 }
 
@@ -141,13 +133,11 @@ export const deleteFlat = async (flatId: string): Promise<void> => {
   try {
     const flatRef = doc(db, 'flats', flatId)
     await deleteDoc(flatRef)
-  } catch (error) {
-    handleServiceError('Error deleting flat', error, {
-      service: 'flatService',
-      operation: 'deleteFlat',
-      metadata: { flatId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'deleteFlat',
+      flatId,
     })
-    throw error
   }
 }
 
@@ -189,13 +179,11 @@ export const getFlatResidents = async (flatId: string): Promise<Person[]> => {
     })
     
     return residents
-  } catch (error) {
-    handleServiceError('Error getting flat residents', error, {
-      service: 'flatService',
-      operation: 'getFlatResidents',
-      metadata: { flatId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getFlatResidents',
+      flatId,
     })
-    throw error
   }
 }
 
@@ -207,13 +195,12 @@ export const assignPersonToFlat = async (personId: string, flatId: string): Prom
       flatId,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    handleServiceError('Error assigning person to flat', error, {
-      service: 'flatService',
-      operation: 'assignPersonToFlat',
-      metadata: { personId, flatId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'assignPersonToFlat',
+      personId,
+      flatId,
     })
-    throw error
   }
 }
 
@@ -225,13 +212,11 @@ export const removePersonFromFlat = async (personId: string): Promise<void> => {
       flatId: null,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    handleServiceError('Error removing person from flat', error, {
-      service: 'flatService',
-      operation: 'removePersonFromFlat',
-      metadata: { personId }
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'removePersonFromFlat',
+      personId,
     })
-    throw error
   }
 }
 
@@ -280,9 +265,11 @@ export const getFlatStats = async (buildingId: string) => {
     stats.occupiedFlats = occupiedFlatIds.size
     
     return stats
-  } catch (error) {
-    console.error('Error getting flat stats:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getFlatStats',
+      buildingId,
+    })
   }
 }
 
@@ -339,9 +326,11 @@ export const getFlatServiceCharges = async (flatId: string): Promise<ServiceChar
     })
     
     return demands
-  } catch (error) {
-    console.error('Error getting flat service charges:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'getFlatServiceCharges',
+      flatId,
+    })
   }
 }
 
@@ -357,9 +346,12 @@ export const calculateServiceCharge = async (
     }
     
     return flat.areaSqFt * ratePerSqFt
-  } catch (error) {
-    console.error('Error calculating service charge:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'calculateServiceCharge',
+      flatId,
+      ratePerSqFt,
+    })
   }
 }
 
@@ -379,9 +371,12 @@ export const bulkCreateFlats = async (buildingId: string, flatsData: Omit<Flat, 
     })
     
     await batch.commit()
-  } catch (error) {
-    console.error('Error bulk creating flats:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'bulkCreateFlats',
+      buildingId,
+      count: flatsData.length,
+    })
   }
 }
 
@@ -395,8 +390,11 @@ export const searchFlats = async (buildingId: string, searchTerm: string): Promi
       flat.buildingBlock?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       flat.notes?.toLowerCase().includes(searchTerm.toLowerCase())
     )
-  } catch (error) {
-    console.error('Error searching flats:', error)
-    throw error
+  } catch (error: any) {
+    throw handleFirebaseError(error, {
+      action: 'searchFlats',
+      buildingId,
+      searchTerm,
+    })
   }
 } 

@@ -12,6 +12,7 @@ import {
 import { db } from '../firebase/config';
 import { BudgetCategoryItem, BudgetValidationResult, Building } from '../types';
 import { validateBudget, analyzeBudgetHealth, validateRateChange, validateCategoryDistribution } from '../utils/budgetValidation';
+import { handleFirebaseError } from '../utils/errorHandler';
 
 export interface BudgetValidationContext {
   buildingId: string;
@@ -92,9 +93,11 @@ class BudgetValidationService {
       await this.storeValidationResult(context.buildingId, mergedValidation);
 
       return mergedValidation;
-    } catch (error) {
-      console.error('Error validating budget with context:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'validateBudgetWithContext',
+        buildingId: context.buildingId,
+      });
     }
   }
 
@@ -146,9 +149,9 @@ class BudgetValidationService {
         previousYearBudget,
         previousYearRate
       };
-    } catch (error) {
-      console.error('Error getting building context:', error);
-      // Return basic context if we can't get full details
+    } catch (error: any) {
+      // Return basic context if we can't get full details - don't throw
+      console.warn('Could not get full building context, using basic context:', error);
       return { buildingId };
     }
   }
@@ -168,9 +171,11 @@ class BudgetValidationService {
       });
 
       return validationDoc.id;
-    } catch (error) {
-      console.error('Error storing validation result:', error);
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'storeValidationResult',
+        buildingId,
+      });
     }
   }
 

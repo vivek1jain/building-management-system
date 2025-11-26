@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { Expense } from '../types';
-import { handleServiceError } from '../utils/errorHandling';
+import { handleFirebaseError } from '../utils/errorHandler';
 import { fromFirestoreTimestamp, toFirestoreTimestamp, toOptionalFirestoreTimestamp } from '../utils/firestore';
 
 export const expenseService = {
@@ -37,12 +37,11 @@ export const expenseService = {
       });
 
       return docRef.id;
-    } catch (error) {
-      handleServiceError('Error creating forecast expense', error, {
-        service: 'expenseService',
-        operation: 'createForecastExpense'
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createForecastExpense',
+        expenseData,
+      })
     }
   },
 
@@ -189,13 +188,11 @@ export const expenseService = {
           matchedAt: data.matchedAt ? fromFirestoreTimestamp(data.matchedAt) : undefined,
         } as Expense;
       });
-    } catch (error) {
-      handleServiceError('Error fetching forecast expenses', error, {
-        service: 'expenseService',
-        operation: 'getForecastExpenses',
-        metadata: { buildingId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getForecastExpenses',
+        buildingId,
+      })
     }
   },
 
@@ -223,13 +220,11 @@ export const expenseService = {
         expectedInvoiceDate: data.expectedInvoiceDate ? fromFirestoreTimestamp(data.expectedInvoiceDate) : undefined,
         matchedAt: data.matchedAt ? fromFirestoreTimestamp(data.matchedAt) : undefined,
       } as Expense;
-    } catch (error) {
-      handleServiceError('Error fetching expense by ticket ID', error, {
-        service: 'expenseService',
-        operation: 'getExpenseByTicketId',
-        metadata: { ticketId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getExpenseByTicketId',
+        ticketId,
+      })
     }
   },
 
@@ -258,13 +253,11 @@ export const expenseService = {
       }
 
       await updateDoc(doc(db, 'expenses', expenseId), updateData);
-    } catch (error) {
-      handleServiceError('Error updating expense', error, {
-        service: 'expenseService',
-        operation: 'updateExpense',
-        metadata: { expenseId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateExpense',
+        expenseId,
+      })
     }
   },
 
@@ -283,13 +276,12 @@ export const expenseService = {
       };
 
       await this.updateExpense(expenseId, updates);
-    } catch (error) {
-      handleServiceError('Error matching expense to invoice', error, {
-        service: 'expenseService',
-        operation: 'matchExpenseToInvoice',
-        metadata: { expenseId, invoiceId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'matchExpenseToInvoice',
+        expenseId,
+        invoiceId,
+      })
     }
   },
 
@@ -307,13 +299,12 @@ export const expenseService = {
       }
       
       await this.updateExpense(expenseId, updates);
-    } catch (error) {
-      handleServiceError('Error marking expense as invoiced', error, {
-        service: 'expenseService',
-        operation: 'markAsInvoiced',
-        metadata: { expenseId, invoiceId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'markAsInvoiced',
+        expenseId,
+        invoiceId,
+      })
     }
   },
 
@@ -323,13 +314,11 @@ export const expenseService = {
       await this.updateExpense(expenseId, {
         status: 'paid',
       });
-    } catch (error) {
-      handleServiceError('Error marking expense as paid', error, {
-        service: 'expenseService',
-        operation: 'markExpenseAsPaid',
-        metadata: { expenseId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'markExpenseAsPaid',
+        expenseId,
+      })
     }
   },
 
@@ -337,13 +326,11 @@ export const expenseService = {
   async deleteExpense(expenseId: string): Promise<void> {
     try {
       await deleteDoc(doc(db, 'expenses', expenseId));
-    } catch (error) {
-      handleServiceError('Error deleting expense', error, {
-        service: 'expenseService',
-        operation: 'deleteExpense',
-        metadata: { expenseId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteExpense',
+        expenseId,
+      })
     }
   },
 
@@ -352,13 +339,11 @@ export const expenseService = {
     try {
       const forecastExpenses = await this.getForecastExpenses(buildingId);
       return forecastExpenses.reduce((total, expense) => total + expense.amount, 0);
-    } catch (error) {
-      handleServiceError('Error calculating total forecast amount', error, {
-        service: 'expenseService',
-        operation: 'getTotalForecastAmount',
-        metadata: { buildingId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getTotalForecastAmount',
+        buildingId,
+      })
     }
   },
 
@@ -387,13 +372,11 @@ export const expenseService = {
           } as Expense;
         })
         .filter(expense => expense.variance && Math.abs(expense.variance) > 0);
-    } catch (error) {
-      handleServiceError('Error fetching expenses with variance', error, {
-        service: 'expenseService',
-        operation: 'getExpensesWithVariance',
-        metadata: { buildingId }
-      });
-      throw error;
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getExpensesWithVariance',
+        buildingId,
+      })
     }
   }
 };

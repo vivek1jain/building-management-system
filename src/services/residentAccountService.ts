@@ -22,8 +22,9 @@ import {
   PaymentAllocation,
   EnhancedPaymentRecord
 } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp } from '../utils/firestore'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 // ===== RESIDENT ACCOUNT MANAGEMENT =====
 // NOTE: This service is being phased out in favor of flatLedgerService
@@ -108,8 +109,8 @@ export const getOrCreateResidentAccount = async (
       updatedAt: new Date()
     }
     
-  } catch (error) {
-    handleServiceError('Error getting/creating resident account:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting/creating resident account:', error)
     throw error
   }
 }
@@ -140,7 +141,7 @@ export const getResidentAccountByFlatId = async (flatId: string): Promise<Reside
     let transactions: AccountTransaction[] = []
     try {
       transactions = await getAccountTransactionHistory(accountId)
-    } catch (error) {
+    } catch (error: any) {
       console.warn('Failed to load transactions for account:', error)
       // Continue without transactions rather than failing
     }
@@ -159,8 +160,8 @@ export const getResidentAccountByFlatId = async (flatId: string): Promise<Reside
       transactions
     } as ResidentAccountLedger
     
-  } catch (error) {
-    handleServiceError('Error getting resident account by flat ID:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting resident account by flat ID:', error)
     throw error
   }
 }
@@ -233,8 +234,8 @@ export const getResidentAccountsByBuilding = async (buildingId: string): Promise
     console.log('Processed', accounts.length, 'resident accounts')
     return accounts
     
-  } catch (error) {
-    handleServiceError('Error getting resident accounts by building:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting resident accounts by building:', error)
     // Return empty array instead of throwing to prevent UI crash
     return []
   }
@@ -253,8 +254,8 @@ export const updateResidentAccount = async (
       ...updates,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    handleServiceError('Error updating resident account:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error updating resident account:', error)
     throw error
   }
 }
@@ -326,8 +327,8 @@ export const addAccountTransaction = async (
     
     return transactionRef.id
     
-  } catch (error) {
-    handleServiceError('Error adding account transaction:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error adding account transaction:', error)
     throw error
   }
 }
@@ -380,8 +381,8 @@ export const getAccountTransactionHistory = async (
     
     return transactions
     
-  } catch (error) {
-    handleServiceError('Error getting account transaction history:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting account transaction history:', error)
     throw error
   }
 }
@@ -488,8 +489,8 @@ export const processPaymentWithCredits = async (
       allocations: demandAllocations
     }
     
-  } catch (error) {
-    handleServiceError('Error processing payment with credits:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error processing payment with credits:', error)
     throw error
   }
 }
@@ -515,8 +516,8 @@ export const updateAccountCreditBalance = async (
       updatedAt: serverTimestamp()
     })
     
-  } catch (error) {
-    handleServiceError('Error updating account credit balance:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error updating account credit balance:', error)
     throw error
   }
 }
@@ -535,8 +536,8 @@ export const addCreditHistoryEntry = async (
     
     return docRef.id
     
-  } catch (error) {
-    handleServiceError('Error adding credit history entry:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error adding credit history entry:', error)
     throw error
   }
 }
@@ -568,8 +569,8 @@ export const getAccountsWithCredits = async (buildingId: string): Promise<Reside
     
     return accounts
     
-  } catch (error) {
-    handleServiceError('Error getting accounts with credits:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error getting accounts with credits:', error)
     throw error
   }
 }
@@ -608,8 +609,8 @@ export const generateAccountSummaryStats = async (buildingId: string) => {
       }))
     }
     
-  } catch (error) {
-    handleServiceError('Error generating account summary stats:', error)
+  } catch (error: any) {
+    handleFirebaseError('Error generating account summary stats:', error)
     throw error
   }
 }

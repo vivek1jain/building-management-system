@@ -22,8 +22,9 @@ import {
   Flat,
   ResidentAccountLedger
 } from '../types'
-import { handleServiceError } from '../utils/errorHandling'
+import { handleFirebaseError } from '../utils/errorHandler'
 import { fromFirestoreTimestamp, toFirestoreTimestamp } from '../utils/firestore'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 // Service Charge Demands
 export const getServiceChargeDemands = async (buildingId: string): Promise<ServiceChargeDemand[]> => {
@@ -50,8 +51,8 @@ export const getServiceChargeDemands = async (buildingId: string): Promise<Servi
     })) as ServiceChargeDemand[]
     
     return demands
-  } catch (error) {
-    handleServiceError('Error fetching service charge demands', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching service charge demands', error, {
       service: 'serviceChargeService',
       operation: 'getServiceChargeDemands',
       metadata: { buildingId }
@@ -104,8 +105,8 @@ export const getServiceChargeStats = async (buildingId: string): Promise<any> =>
       overdueDemands: overdueDemands.length,
       overdueAmount
     }
-  } catch (error) {
-    handleServiceError('Error fetching service charge stats', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching service charge stats', error, {
       service: 'serviceChargeService',
       operation: 'getServiceChargeStats',
       metadata: { buildingId }
@@ -123,8 +124,8 @@ export const getServiceChargeDemand = async (id: string): Promise<ServiceChargeD
       return { id: docSnap.id, ...docSnap.data() } as ServiceChargeDemand
     }
     return null
-  } catch (error) {
-    handleServiceError('Error fetching service charge demand', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching service charge demand', error, {
       service: 'serviceChargeService',
       operation: 'getServiceChargeDemand',
       metadata: { demandId: id }
@@ -141,8 +142,8 @@ export const createServiceChargeDemand = async (demand: Omit<ServiceChargeDemand
       updatedAt: serverTimestamp()
     })
     return docRef.id
-  } catch (error) {
-    handleServiceError('Error creating service charge demand', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error creating service charge demand', error, {
       service: 'serviceChargeService',
       operation: 'createServiceChargeDemand'
     })
@@ -157,8 +158,8 @@ export const updateServiceChargeDemand = async (id: string, updates: Partial<Ser
       ...updates,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    handleServiceError('Error updating service charge demand', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error updating service charge demand', error, {
       service: 'serviceChargeService',
       operation: 'updateServiceChargeDemand',
       metadata: { demandId: id }
@@ -171,8 +172,8 @@ export const deleteServiceChargeDemand = async (id: string): Promise<void> => {
   try {
     const docRef = doc(db, 'serviceChargeDemands', id)
     await deleteDoc(docRef)
-  } catch (error) {
-    handleServiceError('Error deleting service charge demand', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error deleting service charge demand', error, {
       service: 'serviceChargeService',
       operation: 'deleteServiceChargeDemand',
       metadata: { demandId: id }
@@ -211,8 +212,8 @@ export const getIncomeStats = async (buildingId: string): Promise<any> => {
       incomeCount: incomeData.length,
       recentIncome: incomeData.slice(0, 5)
     }
-  } catch (error) {
-    handleServiceError('Error fetching income stats', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching income stats', error, {
       service: 'serviceChargeService',
       operation: 'getIncomeStats',
       metadata: { buildingId }
@@ -233,8 +234,8 @@ export const getIncome = async (buildingId: string): Promise<Income[]> => {
       id: doc.id,
       ...doc.data()
     })) as Income[]
-  } catch (error) {
-    handleServiceError('Error fetching income', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching income', error, {
       service: 'serviceChargeService',
       operation: 'getIncome',
       metadata: { buildingId }
@@ -251,8 +252,8 @@ export const createIncome = async (income: Omit<Income, 'id' | 'createdAt' | 'up
       updatedAt: serverTimestamp()
     })
     return docRef.id
-  } catch (error) {
-    handleServiceError('Error creating income', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error creating income', error, {
       service: 'serviceChargeService',
       operation: 'createIncome'
     })
@@ -290,8 +291,8 @@ export const getExpenditureStats = async (buildingId: string): Promise<any> => {
       expenditureCount: expenditureData.length,
       recentExpenditure: expenditureData.slice(0, 5)
     }
-  } catch (error) {
-    handleServiceError('Error fetching expenditure stats', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching expenditure stats', error, {
       service: 'serviceChargeService',
       operation: 'getExpenditureStats',
       metadata: { buildingId }
@@ -312,8 +313,8 @@ export const getExpenditure = async (buildingId: string): Promise<Expenditure[]>
       id: doc.id,
       ...doc.data()
     })) as Expenditure[]
-  } catch (error) {
-    handleServiceError('Error fetching expenditure', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching expenditure', error, {
       service: 'serviceChargeService',
       operation: 'getExpenditure',
       metadata: { buildingId }
@@ -330,8 +331,8 @@ export const createExpenditure = async (expenditure: Omit<Expenditure, 'id' | 'c
       updatedAt: serverTimestamp()
     })
     return docRef.id
-  } catch (error) {
-    handleServiceError('Error creating expenditure', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error creating expenditure', error, {
       service: 'serviceChargeService',
       operation: 'createExpenditure'
     })
@@ -583,8 +584,8 @@ export const getBuildingFinancialSummary = async (buildingId: string, quarter: s
       }
     }
     */
-  } catch (error) {
-    handleServiceError('Error fetching financial summary', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching financial summary', error, {
       service: 'serviceChargeService',
       operation: 'getBuildingFinancialSummary',
       metadata: { buildingId, quarter }
@@ -632,7 +633,7 @@ function getQuarterStartDate(quarter: string): Date {
     const startDate = new Date(yearNum, month, 1)
     
     return startDate
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing quarter start date:', error, 'Quarter:', quarter)
     return new Date(2024, 0, 1) // Safe fallback
   }
@@ -682,7 +683,7 @@ function getQuarterEndDate(quarter: string): Date {
     }
     
     return endDate
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error parsing quarter date:', error, 'Quarter:', quarter)
     return new Date(2024, 11, 31) // Safe fallback
   }
@@ -702,8 +703,8 @@ export const bulkUpdateServiceChargeDemands = async (updates: Array<{ id: string
     })
     
     await batch.commit()
-  } catch (error) {
-    handleServiceError('Error bulk updating service charge demands', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error bulk updating service charge demands', error, {
       service: 'serviceChargeService',
       operation: 'bulkUpdateServiceChargeDemands',
       metadata: { updateCount: updates.length }
@@ -797,8 +798,8 @@ export const generateBasicServiceChargeDemands = async (
     
     return demands
     
-  } catch (error) {
-    handleServiceError('Error generating basic service charge demands', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error generating basic service charge demands', error, {
       service: 'serviceChargeService',
       operation: 'generateBasicServiceChargeDemands',
       metadata: { buildingId, quarter, flatCount: flats.length }
@@ -928,8 +929,8 @@ export const generateServiceChargeDemands = async (
     
     return savedDemands
     
-  } catch (error) {
-    handleServiceError('Error in enhanced service charge generation', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error in enhanced service charge generation', error, {
       service: 'serviceChargeService',
       operation: 'generateServiceChargeDemands',
       metadata: { buildingId, quarter }
@@ -951,8 +952,8 @@ export const generateServiceChargeDemandsLegacy = async (
   try {
     const demands = await generateServiceChargeDemands(buildingId, quarter, rate, flats)
     return demands.map(d => d.id)
-  } catch (error) {
-    handleServiceError('Error in legacy service charge generation', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error in legacy service charge generation', error, {
       service: 'serviceChargeService',
       operation: 'generateServiceChargeDemandsLegacy',
       metadata: { buildingId, quarter }
@@ -980,8 +981,8 @@ export const getGlobalFinancialSettings = async (buildingId: string): Promise<an
       paymentDueLeadDays: 30,
       financialYearStartDate: new Date().toISOString().split('T')[0]
     }
-  } catch (error) {
-    handleServiceError('Error fetching global financial settings', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error fetching global financial settings', error, {
       service: 'serviceChargeService',
       operation: 'getGlobalFinancialSettings',
       metadata: { buildingId }
@@ -999,8 +1000,8 @@ export const updateGlobalFinancialSettings = async (buildingId: string, settings
       'financialInfo.financialYearStartDate': settings.financialYearStartDate,
       updatedAt: serverTimestamp()
     })
-  } catch (error) {
-    handleServiceError('Error updating global financial settings', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error updating global financial settings', error, {
       service: 'serviceChargeService',
       operation: 'updateGlobalFinancialSettings',
       metadata: { buildingId }
@@ -1027,8 +1028,8 @@ export const sendReminder = async (demandId: string): Promise<void> => {
         })
       }
     }
-  } catch (error) {
-    handleServiceError('Error sending reminder', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error sending reminder', error, {
       service: 'serviceChargeService',
       operation: 'sendReminder',
       metadata: { demandId }
@@ -1082,8 +1083,8 @@ export const checkAndApplyPenalties = async (buildingId: string): Promise<number
     }
     
     return penaltiesApplied
-  } catch (error) {
-    handleServiceError('Error checking and applying penalties', error, {
+  } catch (error: any) {
+    handleFirebaseError('Error checking and applying penalties', error, {
       service: 'serviceChargeService',
       operation: 'checkAndApplyPenalties',
       metadata: { buildingId }

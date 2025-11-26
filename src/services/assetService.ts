@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { Asset, AssetStatus, AssetCategory } from '../types'
+import { handleFirebaseError, createAppError } from '../utils/errorHandler'
 
 const ASSETS_COLLECTION = 'assets'
 
@@ -46,9 +47,11 @@ export const assetService = {
           warrantyExpiry: data.warrantyExpiry?.toDate()
         } as Asset
       })
-    } catch (error) {
-      console.error('Error getting assets by building:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAssetsByBuilding',
+        buildingId,
+      })
     }
   },
 
@@ -77,9 +80,10 @@ export const assetService = {
           warrantyExpiry: data.warrantyExpiry?.toDate()
         } as Asset
       })
-    } catch (error) {
-      console.error('Error getting all assets:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAllAssets',
+      })
     }
   },
 
@@ -109,9 +113,11 @@ export const assetService = {
         purchaseDate: data.purchaseDate?.toDate(),
         warrantyExpiry: data.warrantyExpiry?.toDate()
       } as Asset
-    } catch (error) {
-      console.error('Error getting asset by ID:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAssetById',
+        assetId,
+      })
     }
   },
 
@@ -126,13 +132,15 @@ export const assetService = {
       
       const createdAsset = await this.getAssetById(docRef.id)
       if (!createdAsset) {
-        throw new Error('Failed to retrieve created asset')
+        throw createAppError('ERR-DB-005', { assetId: docRef.id })
       }
       
       return createdAsset
-    } catch (error) {
-      console.error('Error creating asset:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'createAsset',
+        assetData,
+      })
     }
   },
 
@@ -144,9 +152,11 @@ export const assetService = {
         ...updates,
         updatedAt: serverTimestamp()
       })
-    } catch (error) {
-      console.error('Error updating asset:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'updateAsset',
+        assetId,
+      })
     }
   },
 
@@ -155,9 +165,11 @@ export const assetService = {
     try {
       const docRef = doc(db, ASSETS_COLLECTION, assetId)
       await deleteDoc(docRef)
-    } catch (error) {
-      console.error('Error deleting asset:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'deleteAsset',
+        assetId,
+      })
     }
   },
 
@@ -191,9 +203,12 @@ export const assetService = {
           warrantyExpiry: data.warrantyExpiry?.toDate()
         } as Asset
       })
-    } catch (error) {
-      console.error('Error getting assets by category:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAssetsByCategory',
+        buildingId,
+        category,
+      })
     }
   },
 
@@ -227,9 +242,12 @@ export const assetService = {
           warrantyExpiry: data.warrantyExpiry?.toDate()
         } as Asset
       })
-    } catch (error) {
-      console.error('Error getting assets by status:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAssetsByStatus',
+        buildingId,
+        status,
+      })
     }
   },
 
@@ -245,9 +263,12 @@ export const assetService = {
         asset.nextMaintenanceDate <= cutoffDate &&
         asset.status !== AssetStatus.DECOMMISSIONED
       )
-    } catch (error) {
-      console.error('Error getting assets due for maintenance:', error)
-      throw error
+    } catch (error: any) {
+      throw handleFirebaseError(error, {
+        action: 'getAssetsDueForMaintenance',
+        buildingId,
+        daysAhead,
+      })
     }
   }
 }
